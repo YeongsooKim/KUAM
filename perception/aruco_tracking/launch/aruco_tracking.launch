@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<launch>
+    <node pkg="aruco_tracking" type="aruco_tracking_node" name="aruco_tracking" output="screen"/>
+</launch>
