@@ -6,5 +6,5 @@
 	</group>
 
 
-	<node type="rviz" name="rviz" pkg="rviz" args="-d $(find kuam_visual)/rviz/default.rviz" />
+	<node type="rviz" name="rviz" pkg="rviz" args="-d $(find kuam_visual)/rviz/kuam.rviz" />
 </launch>

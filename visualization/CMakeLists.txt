@@ -49,6 +49,3 @@ include_directories(
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/kuam_visual.cpp
 # )
-
-add_executable(visualize_perception_node src/visualize_perception.cpp src/visualize_perception_node.cpp)
-target_link_libraries(visualize_perception_node ${catkin_LIBRARIES})
