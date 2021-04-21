@@ -9,10 +9,14 @@
 #include <sensor_msgs/Image.h>
 
 #include <opencv2/opencv.hpp>
+#include <opencv2/aruco.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/videoio/videoio_c.h>
+#include "opencv2/aruco/dictionary.hpp"
 #include <string>
+
+#include <aruco_tracking/parser.h>
 
 namespace kuam{
 
@@ -21,6 +25,7 @@ class ArucoTracking
 private:
     // Node Handler
 	ros::NodeHandle m_nh;
+    kuam::Parser m_parser;
 
 public:
     ArucoTracking();
@@ -37,15 +42,24 @@ private:
     ros::Timer m_timer;
 
     // Param
-    int m_dictionary_id_param; // Dictionary
-    int m_camera_id_param; // Camera id
-    bool m_use_intrinsic_param; // Camera intrinsic parameters. Needed for camera pose
-    float m_marker_length_param; // Marker side lenght (in meters). Needed for correct scale in camera pose
-    bool m_show_rejected_param; // Show rejected candidates too
-    std::string m_estimate_pose_param; // 
+    std::string m_aruco_parser_param; // Dictionary
+    int m_dictionary_id_param;
+    // std::string m_input_video_param;
+    // int m_camera_id_param;
+    std::string m_instrinsic_param;
+    float m_marker_length_param;
+    std::string m_marker_detector_param_param;
+    bool m_show_rejected_candidates_param;
+    int m_coner_refinement_param;
 
-    // Flag
     const std::string OPENCV_WINDOW;
+    bool m_do_estimate_pose;
+    bool m_show_rejected;
+    float m_marker_length;
+    cv::Ptr<cv::aruco::DetectorParameters> m_detector_params;
+    cv::Ptr<cv::aruco::Dictionary> m_dictionary;
+    cv::Mat m_cam_matrix;
+    cv::Mat m_dist_coeffs;
 
 private: // Function
     bool GetParam();
@@ -55,8 +69,9 @@ private: // Function
     // void ImageCallback(const ros::TimerEvent& event);
     void ImageCallback(const sensor_msgs::Image::ConstPtr &img_ptr);
 
-    bool DetectingMarker(cv::Mat img);
-    bool Parser();
+    bool DetectingMarker(cv::Mat input_image);
+    bool PoseEstimatingMarker(cv::Mat input_image);
+
     void Publish();
 };
 }
