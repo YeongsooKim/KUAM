@@ -114,8 +114,6 @@ bool Parser::ReadFile(string file_path, bool& do_estimate_pose,
     return true;    
 }
 
-/**
- */
 bool Parser::readCameraParameters(string filename, Mat &cam_matrix, Mat &dist_coeffs)
 {
     FileStorage fs(filename, FileStorage::READ);
@@ -127,8 +125,6 @@ bool Parser::readCameraParameters(string filename, Mat &cam_matrix, Mat &dist_co
     return true;
 }
 
-/**
- */
 bool Parser::readDetectorParameters(string filename, Ptr<aruco::DetectorParameters> &params) 
 {
     FileStorage fs(filename, FileStorage::READ);

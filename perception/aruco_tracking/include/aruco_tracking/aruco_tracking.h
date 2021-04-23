@@ -2,11 +2,13 @@
 #define __ARUCO_TRACKING_H__
 
 #include <ros/ros.h>
+#include <string>
 
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/Image.h>
+#include <alfons_msgs/ArucoInfo.h>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/aruco.hpp>
@@ -14,9 +16,12 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/videoio/videoio_c.h>
 #include "opencv2/aruco/dictionary.hpp"
-#include <string>
 
 #include <aruco_tracking/parser.h>
+
+#include <tf2/LinearMath/Vector3.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Transform.h>
 
 namespace kuam{
 
@@ -37,20 +42,14 @@ private:
 
     // Publisher
     ros::Publisher m_image_pub;
+    ros::Publisher m_aruco_info_pub;
+    ros::Publisher m_tf_list_pub;
     
     // Timer
     ros::Timer m_timer;
 
     // Param
     std::string m_aruco_parser_param; // Dictionary
-    int m_dictionary_id_param;
-    // std::string m_input_video_param;
-    // int m_camera_id_param;
-    std::string m_instrinsic_param;
-    float m_marker_length_param;
-    std::string m_marker_detector_param_param;
-    bool m_show_rejected_candidates_param;
-    int m_coner_refinement_param;
 
     const std::string OPENCV_WINDOW;
     bool m_do_estimate_pose;
@@ -69,8 +68,12 @@ private: // Function
     // void ImageCallback(const ros::TimerEvent& event);
     void ImageCallback(const sensor_msgs::Image::ConstPtr &img_ptr);
 
-    bool DetectingMarker(cv::Mat input_image);
-    bool PoseEstimatingMarker(cv::Mat input_image);
+    bool MarkerDetecting(Mat input_image, Mat& output_image);
+    bool MarkerPoseEstimating(Mat input_image, Mat& output_image);
+
+    tf2::Vector3 CvVector3d2TfVector3(const Vec3d &vec);
+    tf2::Quaternion CvVector3d2TfQuarternion(const Vec3d &rotation_vector);
+    tf2::Transform CreateTransform(const Vec3d &tvec, const Vec3d &rotation_vector);
 
     void Publish();
 };

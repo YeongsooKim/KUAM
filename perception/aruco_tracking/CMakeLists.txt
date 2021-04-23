@@ -14,6 +14,9 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   image_transport
+  alfons_msgs
+  tf2 
+  tf2_ros
 )
 message("OpenCV version: ${OpenCV_VERSION}")
 
@@ -29,7 +32,15 @@ message("OpenCV version: ${OpenCV_VERSION}")
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES aruco_tracking
-#  CATKIN_DEPENDS geometry_msgs kuam_msgs mavros_msgs message_generation roscpp std_msgs tf2 tf2_geometry_msgs tf2_ros tf2_sensor_msgs
+  CATKIN_DEPENDS 
+  sensor_msgs
+  cv_bridge
+  roscpp
+  std_msgs
+  image_transport
+  alfons_msgs
+  tf2 
+  tf2_ros
 )
 
 ###########
