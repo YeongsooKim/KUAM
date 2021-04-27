@@ -10,6 +10,7 @@ int main()
 
     std::string marker_name = "marker";
     std::string extension = ".png";
+
     int id = 0;
     for (; id < 50; id++){
         cv::aruco::drawMarker(dictionary, id, 200, markerImage, 1);
