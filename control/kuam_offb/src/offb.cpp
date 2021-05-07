@@ -88,23 +88,28 @@ bool Offboard::InitClient()
 
 void Offboard::OffboardTimeCallback(const ros::TimerEvent& event)
 {
-    if (m_is_debugging){
-        if (m_debugging_msg == "OFFBOARD"){
-            OffboardReConnection();
+    if (m_debugging_msg != "AUTO.LAND"){
+        if (m_is_debugging){
+            if (m_debugging_msg == "OFFBOARD"){
+                OffboardReConnection();
+            }
+            // Just hovering in all cases, not just MANUAL mode
+            else {
+            }
         }
-        // Just hovering in all cases, not just MANUAL mode
         else {
+            if (m_current_status.mode == "OFFBOARD"){
+                OffboardReConnection();
+            }
+            // Just hovering in all cases, not just MANUAL mode
+            else {
+            }
         }
+        Publish();
     }
     else {
-        if (m_current_status.mode == "OFFBOARD"){
-            OffboardReConnection();
-        }
-        // Just hovering in all cases, not just MANUAL mode
-        else {
-        }
+        LandRequest();
     }
-    Publish();
 }
 
 void Offboard::StatusCallback(const mavros_msgs::State::ConstPtr &state_ptr)
@@ -183,7 +188,11 @@ void Offboard::ChatterCallback(const uav_msgs::Chat::ConstPtr &chat_ptr)
     else if (chat_ptr->msg == "debugging"){
         m_is_debugging = true;
     } 
+    else if (chat_ptr->msg == "land"){
+        m_debugging_msg = "AUTO.LAND";
+    }
     else if (chat_ptr->msg == "rc") m_is_debugging = false;
+
 }
 
 void Offboard::OffboardReConnection()
@@ -209,6 +218,19 @@ void Offboard::OffboardReConnection()
                 ROS_INFO("Vehicle armed");
             }
             m_last_request_time = ros::Time::now();
+        }
+    }
+}
+
+void Offboard::LandRequest()
+{
+    mavros_msgs::SetMode offb_set_mode;
+    offb_set_mode.request.custom_mode = "AUTO.LAND";
+
+    if (m_current_status.mode != "AUTO.LAND"){
+        if(m_set_mode_serv_client.call(offb_set_mode) &&
+            offb_set_mode.response.mode_sent){
+            ROS_INFO("Land enabled");
         }
     }
 }

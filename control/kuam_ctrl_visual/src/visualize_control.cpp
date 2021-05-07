@@ -114,29 +114,29 @@ void VisualizeControl::MarkerInit()
     
 
     //// target markers
-    for (int tool = (int)DetectionTool::AirSim ; tool < (int)DetectionTool::ItemNum; tool++){
+    for (int tool = (int)DetectionTool::Custom ; tool < (int)DetectionTool::ItemNum; tool++){
         MetaMarkers target_markers;
         switch (tool){
-            case (int)DetectionTool::AirSim:
-            target_markers.line_strip.id = (int)DetectionTool::AirSim;
+            case (int)DetectionTool::Custom:
+            target_markers.line_strip.id = (int)DetectionTool::Custom;
             target_markers.line_strip.color.r = 0.0f;
             target_markers.line_strip.color.g = 1.0f;
             target_markers.line_strip.color.b = 0.0f;
             target_markers.line_strip.color.a = 0.4f;
 
-            target_markers.orientation.id = (int)DetectionTool::AirSim;
+            target_markers.orientation.id = (int)DetectionTool::Custom;
             target_markers.orientation.color.r = 0.0f;
             target_markers.orientation.color.g = 1.0f;
             target_markers.orientation.color.b = 0.0f;
             target_markers.orientation.color.a = 1.0f;
 
-            target_markers.center_point.id = (int)DetectionTool::AirSim;
+            target_markers.center_point.id = (int)DetectionTool::Custom;
             target_markers.center_point.color.r = 0.0f;
             target_markers.center_point.color.g = 1.0f;
             target_markers.center_point.color.b = 0.0f;
             target_markers.center_point.color.a = 1.0f;
 
-            target_markers.txt.id = (int)DetectionTool::AirSim;
+            target_markers.txt.id = (int)DetectionTool::Custom;
 
             break;
             
@@ -258,6 +258,23 @@ void VisualizeControl::MarkerInit()
     m_waypoints_markers.line_strip.lifetime = ros::Duration();
     m_waypoints_markers.is_line_strip_add = false;
 
+    m_waypoints_markers.center_point.ns = "waypoints/center_point";
+    m_waypoints_markers.center_point.id = 0;
+    m_waypoints_markers.center_point.type = visualization_msgs::Marker::SPHERE;
+    m_waypoints_markers.center_point.action = visualization_msgs::Marker::ADD;
+    m_waypoints_markers.center_point.scale.x = 0.3;
+    m_waypoints_markers.center_point.scale.y = 0.3;
+    m_waypoints_markers.center_point.scale.z = 0.3;
+    m_waypoints_markers.center_point.pose.orientation.w = 1.0;
+    m_waypoints_markers.center_point.pose.orientation.x = 0.0;
+    m_waypoints_markers.center_point.pose.orientation.y = 0.0;
+    m_waypoints_markers.center_point.pose.orientation.z = 0.0;
+    m_waypoints_markers.center_point.color.r = 1.0f;
+    m_waypoints_markers.center_point.color.g = 0.0f;
+    m_waypoints_markers.center_point.color.b = 0.0f;
+    m_waypoints_markers.center_point.color.a = 1.0f;
+    m_waypoints_markers.center_point.lifetime = ros::Duration();
+    m_waypoints_markers.is_center_point_add = false;
 
     //// roi line
     m_roi_markers.line_strip.ns = "roi_line/trajectory";
@@ -309,7 +326,8 @@ void VisualizeControl::TimerCallback(const ros::TimerEvent& event)
 
     m_waypoints_markers.self.markers.clear();
     if (m_waypoints_markers.is_line_strip_add) m_waypoints_markers.self.markers.push_back(m_waypoints_markers.line_strip);
-    m_waypoints_markers.is_line_strip_add = false;
+    if (m_waypoints_markers.is_center_point_add) m_waypoints_markers.self.markers.push_back(m_waypoints_markers.center_point);
+    m_waypoints_markers.is_line_strip_add = m_waypoints_markers.is_center_point_add = false;
 
     m_roi_markers.self.markers.clear();
     if (m_roi_markers.is_line_strip_add) m_roi_markers.self.markers.push_back(m_roi_markers.line_strip);
@@ -377,7 +395,7 @@ void VisualizeControl::EgoVehicleStateCallback(const uav_msgs::VehicleState::Con
 
 void VisualizeControl::TargetVehicleStatesCallback(const uav_msgs::VehicleStateArray::ConstPtr &target_vehicles_ptr)
 {
-    for (int tool = (int)DetectionTool::AirSim; tool < (int)DetectionTool::ItemNum; tool++){
+    for (int tool = (int)DetectionTool::Custom; tool < (int)DetectionTool::ItemNum; tool++){
         if (target_vehicles_ptr->vehicle_states[tool].local_trajectory.poses.size() != 0){
             // center_point
             m_targets_markers[tool].center_point.header.frame_id = target_vehicles_ptr->vehicle_states[tool].local_posestamped.header.frame_id;
@@ -432,6 +450,15 @@ void VisualizeControl::WaypointsCallback(const uav_msgs::TargetWaypoints::ConstP
         m_waypoints_markers.line_strip.points.push_back(p.position);
     }
     m_waypoints_markers.is_line_strip_add = true;
+
+    // center_point
+    m_waypoints_markers.center_point.header.frame_id = target_wp_ptr->local.header.frame_id;
+    m_waypoints_markers.center_point.header.stamp = ros::Time(0);
+
+    geometry_msgs::Pose p = target_wp_ptr->local.poses.back();
+    m_waypoints_markers.center_point.pose = p;
+    m_waypoints_markers.is_center_point_add = true;
+
 }
 
 

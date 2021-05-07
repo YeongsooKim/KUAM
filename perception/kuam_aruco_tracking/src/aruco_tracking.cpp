@@ -33,6 +33,7 @@ ArucoTracking::ArucoTracking() :
     }
 
     m_target.state.resize((int)EstimatingMethod::ItemNum);
+    m_target.last_detected_time = ros::Time(0);
 }
 
 ArucoTracking::~ArucoTracking()
@@ -56,7 +57,6 @@ bool ArucoTracking::GetParam()
     m_nh.getParam(node_name_with_namespace + "/estimating_method", m_estimating_method_param);
     m_nh.getParam(node_name_with_namespace + "/compare_mode", m_compare_mode_param);
     m_nh.getParam(node_name_with_namespace + "/using_image_msg", m_using_image_msg_param);
-    ROS_WARN("mode: %d, msg: %d", m_compare_mode_param, m_using_image_msg_param);
 
     if (m_aruco_parser_param == "missing") { ROS_ERROR_STREAM("m_aruco_parser_param is missing"); return false; }
     else if (__isnan(m_target_marker_id_param)) { ROS_ERROR_STREAM("m_target_marker_id_param is NAN"); return false; }
@@ -115,9 +115,9 @@ bool ArucoTracking::InitMarkers()
         target_marker.current_point.ns = "target/current_point";
         target_marker.current_point.type = visualization_msgs::Marker::SPHERE;
         target_marker.current_point.action = visualization_msgs::Marker::ADD;
-        target_marker.current_point.scale.x = 0.03;
-        target_marker.current_point.scale.y = 0.03;
-        target_marker.current_point.scale.z = 0.03;
+        target_marker.current_point.scale.x = 0.15;
+        target_marker.current_point.scale.y = 0.15;
+        target_marker.current_point.scale.z = 0.15;
         target_marker.current_point.pose.orientation.w = 1.0;
         target_marker.current_point.pose.orientation.x = 0.0;
         target_marker.current_point.pose.orientation.y = 0.0;
@@ -345,8 +345,40 @@ bool ArucoTracking::TargetStateEstimating(const geometry_msgs::Pose pose, bool& 
     Eigen::Vector3d pos;
     pos << pose.position.x, pose.position.y, pose.position.z;
 
+    // static unsigned int detected_cnt = 0;
+    // static bool target = false;
+    // if (is_detected){
+    //     if (detected_cnt > 20){
+    //         detected_cnt = 20;
+    //         target = true;
+    //         ROS_WARN("has target");
+
+    //     }
+    //     else {
+    //         detected_cnt++;
+    //         ROS_INFO("plus cnt");
+    //     }
+
+    // }
+    // else {
+    //     detected_cnt = 0;
+    //     target = false;
+    //     ROS_ERROR("has NOT target");
+    // }
+
+
+    // bool has_target = false;
+    // if((ros::Time::now() - m_target.last_detected_time) > ros::Duration(0.5)){ // duration: 0.5 seconds
+    //     has_target = false;
+    // }
+    // else {
+    //     has_target = true;
+    // }
+    
     if (is_detected){
         m_target.is_detected = true;
+        
+        
         m_target.last_detected_time = ros::Time::now();
 
         if (m_compare_mode_param){
@@ -374,8 +406,36 @@ bool ArucoTracking::TargetStateEstimating(const geometry_msgs::Pose pose, bool& 
         }
     }
     else{
-        if((ros::Time::now() - m_target.last_detected_time) > ros::Duration(0.5)){ // duration: 0.5s
+        m_target.is_detected = false;
+        if((ros::Time::now() - m_target.last_detected_time) > ros::Duration(0.5)){ // duration: 0.5 seconds
             m_target.is_detected = false;
+        }
+        else {
+            m_target.is_detected = true;
+
+            if (m_compare_mode_param){
+                WithoutFilter(m_target.state[(int)EstimatingMethod::WOF].prev_position, m_target.state[(int)EstimatingMethod::WOF]);
+                MovingAvgFilter(m_target.state[(int)EstimatingMethod::MAF].prev_position, m_target.state[(int)EstimatingMethod::MAF]);
+                ExpMovingAvgFilter(m_target.state[(int)EstimatingMethod::EMAF].prev_position, m_target.state[(int)EstimatingMethod::EMAF]);
+            }
+            else {
+                switch (m_estimating_method_param){
+                    case (int)EstimatingMethod::WOF:
+                        WithoutFilter(m_target.state[(int)EstimatingMethod::WOF].prev_position, m_target.state[(int)EstimatingMethod::WOF]);
+
+                        break;
+                    case (int)EstimatingMethod::MAF:
+                        MovingAvgFilter(m_target.state[(int)EstimatingMethod::MAF].prev_position, m_target.state[(int)EstimatingMethod::MAF]);
+
+                        break;
+                    case (int)EstimatingMethod::EMAF:
+                        ExpMovingAvgFilter(m_target.state[(int)EstimatingMethod::EMAF].prev_position, m_target.state[(int)EstimatingMethod::EMAF]);
+
+                        break;
+                    default:
+                        break;
+                }
+            }
         }
     }
 

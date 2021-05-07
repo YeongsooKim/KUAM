@@ -28,7 +28,7 @@ bool IsNum(const std::string& str) {
 }
 
 bool IsTool(const std::string& str){
-    if((str.compare("airsim") == 0) || 
+    if((str.compare("custom") == 0) || 
         (str.compare("lidar") == 0) ||
         (str.compare("gps") == 0))
     {
@@ -56,7 +56,8 @@ int main(int argc, char ** argv)
             ROS_INFO_STREAM("/****************************************/");
             ROS_INFO_STREAM("/** command: debugging|rc|offboard|    **/");
             ROS_INFO_STREAM("/**          manual|global|local|      **/");
-            ROS_INFO_STREAM("/**          global_z|local_z|tool     **/");
+            ROS_INFO_STREAM("/**          global_z|local_z|tool|    **/");
+            ROS_INFO_STREAM("/**          land                      **/");
             ROS_INFO_STREAM("/****************************************/");
         }
 
@@ -71,6 +72,7 @@ int main(int argc, char ** argv)
             (inputString.compare("offboard") == 0) ||
             (inputString.compare("manual") == 0) ||
             (inputString.compare("global") == 0) ||
+            (inputString.compare("land") == 0) ||
             (inputString.compare("local") == 0))
         {
             std::cout << ("[input] " + inputString) << std::endl;
@@ -94,7 +96,7 @@ int main(int argc, char ** argv)
                     is_error = false;
                 }
                 else {
-                    ROS_ERROR_STREAM("Please input tool (airsim, lidar or gps)");
+                    ROS_ERROR_STREAM("Please input tool (custom, lidar or gps)");
                     is_error = true;
                 }
             }

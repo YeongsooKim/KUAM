@@ -94,6 +94,7 @@ private: // function
     void ChatterCallback(const uav_msgs::Chat::ConstPtr &chat_ptr);
 
     void OffboardReConnection();
+    void LandRequest();
     void Publish();
 };
 }

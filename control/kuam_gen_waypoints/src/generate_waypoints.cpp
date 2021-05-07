@@ -47,7 +47,7 @@ bool GenerateWaypoints::InitFlag()
     m_is_home_set = false;
     m_detection_tool_lidar_param = false;
     m_detection_tool_gps_param = false;
-    m_detection_tool_airsim_param = false;
+    m_detection_tool_custom_param = false;
 
     return true;
 }
@@ -67,7 +67,7 @@ bool GenerateWaypoints::GetParam()
     m_nh.getParam(node_name_with_namespace + "/target_height_m", m_target_height_m_param);
     m_nh.getParam(node_name_with_namespace + "/detection_tool_lidar", m_detection_tool_lidar_param);
     m_nh.getParam(node_name_with_namespace + "/detection_tool_gps", m_detection_tool_gps_param);
-    m_nh.getParam(node_name_with_namespace + "/detection_tool_airsim", m_detection_tool_airsim_param);
+    m_nh.getParam(node_name_with_namespace + "/detection_tool_custom", m_detection_tool_custom_param);
 
     if (__isnan(m_x_offset_m_param)) { ROS_ERROR_STREAM("m_x_offset_m_param is NAN"); return false; }
     else if (__isnan(m_z_offset_m_param)) { ROS_ERROR_STREAM("m_z_offset_m_param is NAN"); return false; }
@@ -80,7 +80,7 @@ bool GenerateWaypoints::GetParam()
 
     m_global_to_local = m_global_to_local_param;
     
-    if (m_detection_tool_airsim_param) SELECTED_TOOL = (int)DetectionTool::AirSim;
+    if (m_detection_tool_custom_param) SELECTED_TOOL = (int)DetectionTool::Custom;
     else if (m_detection_tool_lidar_param) SELECTED_TOOL = (int)DetectionTool::LiDAR;
     else if (m_detection_tool_gps_param) SELECTED_TOOL = (int)DetectionTool::GPS;
 
@@ -91,11 +91,12 @@ bool GenerateWaypoints::InitROS()
 {
     // package, node, topic name
     string node_name_with_namespace = ros::this_node::getName();
-    string m_car_state_sub_topic_name = "/airsim_node/" + m_vehicle_name_param + "/car_state";
 
     // Initialize subscriber
-    m_airsim_based_target_local_state_sub = 
-        m_nh.subscribe<uav_msgs::CarState>(m_car_state_sub_topic_name, 10, boost::bind(&GenerateWaypoints::TargetVehicleLocalStateCallback, this, _1));
+    m_aruco_marker_local_state_sub = 
+        m_nh.subscribe<kuam_msgs::TargetState>("/perception/aruco_tracking/target_state", 10, boost::bind(&GenerateWaypoints::ArucoMarkerLocalStateCallback, this, _1));
+    m_custom_based_target_local_state_sub = 
+        m_nh.subscribe<uav_msgs::TargetState>("/test_waypoint_node/waypoints", 10, boost::bind(&GenerateWaypoints::CustomTargetVehicleLocalStateCallback, this, _1));
     m_lidar_based_target_local_state_sub = 
         m_nh.subscribe<uav_msgs::TargetState>("/tracking/target_state_msg", 10, boost::bind(&GenerateWaypoints::LTargetVehicleLocalStateCallback, this, _1));
     m_gps_based_target_global_position_sub = 
@@ -137,7 +138,7 @@ bool GenerateWaypoints::InitTargetVehicle()
     m_target_wp.local.header.frame_id = "map";
     m_ego_vehicle.local_trajectory.header.frame_id = "map";
 
-    for (int tool = (int)DetectionTool::AirSim; tool < (int)DetectionTool::ItemNum; tool++){
+    for (int tool = (int)DetectionTool::Custom; tool < (int)DetectionTool::ItemNum; tool++){
         kuam::TargetState target_state;
         target_state.is_detected = false;
         target_state.last_detected_time = ros::Time(0);
@@ -154,7 +155,7 @@ void GenerateWaypoints::GenerateWaypointsTimerCallback(const ros::TimerEvent& ev
 {
     AddPoseToTrajectory(m_ego_vehicle.local_trajectory, m_ego_vehicle.local);
 
-    int tool = (int)DetectionTool::AirSim;
+    int tool = (int)DetectionTool::Custom;
     for (auto &target_vehicle : m_target_vehicles){
 
         bool is_selected_tool = (tool == SELECTED_TOOL) ? true : false;
@@ -170,7 +171,7 @@ void GenerateWaypoints::GenerateWaypointsTimerCallback(const ros::TimerEvent& ev
                         AddTargetWaypoint(m_target_wp, target_vehicle.global, target_vehicle.velocity);
                     }
                 }
-                else if (m_detection_tool_airsim_param || m_detection_tool_lidar_param){
+                else if (m_detection_tool_custom_param || m_detection_tool_lidar_param){
                     AddTargetWaypoint(m_target_wp, target_vehicle.local, target_vehicle.velocity);
                 }
             }
@@ -217,20 +218,32 @@ void GenerateWaypoints::EgoVehicleLocalVelocityCallback(const geometry_msgs::Twi
     m_ego_vehicle.velocity = twist_ptr->twist;
 }
 
-void GenerateWaypoints::TargetVehicleLocalStateCallback(const uav_msgs::CarState::ConstPtr &target_state_ptr)
+
+void GenerateWaypoints::ArucoMarkerLocalStateCallback(const kuam_msgs::TargetState::ConstPtr &target_state_ptr)
 {
-    m_target_vehicles[(int)DetectionTool::AirSim].last_detected_time = ros::Time::now();
-    if (SELECTED_TOOL == (int)DetectionTool::AirSim){
+    // m_target_vehicles[(int)DetectionTool::Custom].last_detected_time = ros::Time::now();
+    // if (SELECTED_TOOL == (int)DetectionTool::Custom){
+    //     m_is_global = false;
+    // }
+
+    // m_target_vehicles[(int)DetectionTool::Custom].local.header = target_state_ptr->header;
+    // m_target_vehicles[(int)DetectionTool::Custom].local.pose = target_state_ptr->pose;
+}
+
+void GenerateWaypoints::CustomTargetVehicleLocalStateCallback(const uav_msgs::TargetState::ConstPtr &target_state_ptr)
+{
+    m_target_vehicles[(int)DetectionTool::Custom].last_detected_time = ros::Time::now();
+    if (SELECTED_TOOL == (int)DetectionTool::Custom){
         m_is_global = false;
     }
 
-    m_target_vehicles[(int)DetectionTool::AirSim].local.header = target_state_ptr->header;
-    m_target_vehicles[(int)DetectionTool::AirSim].local.pose = target_state_ptr->pose.pose;
+    m_target_vehicles[(int)DetectionTool::Custom].local.header = target_state_ptr->header;
+    m_target_vehicles[(int)DetectionTool::Custom].local.pose = target_state_ptr->pose;
 }
 
 void GenerateWaypoints::LTargetVehicleLocalStateCallback(const uav_msgs::TargetState::ConstPtr &target_state_ptr)
 {
-    if (m_utils.IsValidPos(target_state_ptr->pose.pose)){
+    if (m_utils.IsValidPos(target_state_ptr->pose)){
         m_target_vehicles[(int)DetectionTool::LiDAR].last_detected_time = ros::Time::now();
         if (SELECTED_TOOL == (int)DetectionTool::LiDAR){
             m_is_global = false;
@@ -240,7 +253,7 @@ void GenerateWaypoints::LTargetVehicleLocalStateCallback(const uav_msgs::TargetS
         geometry_msgs::Pose transformed_pose;
         try{
             transformStamped = m_tfBuffer.lookupTransform("base_link", "map", ros::Time(0));
-            tf2::doTransform(target_state_ptr->pose.pose, transformed_pose, transformStamped);
+            tf2::doTransform(target_state_ptr->pose, transformed_pose, transformStamped);
         }
         catch (tf2::TransformException &ex) {
             ROS_WARN("%s", ex.what());
@@ -271,12 +284,12 @@ void GenerateWaypoints::LTargetVehicleLocalStateCallback(const uav_msgs::TargetS
             ros::Duration(1.0).sleep();
         }
 
-        if (target_state_ptr->pose.header.frame_id.empty()){
+        if (target_state_ptr->header.frame_id.empty()){
             ROS_ERROR_STREAM("LiDAR based target vehicle frame id is missing");
         }
         else{
-            m_target_vehicles[(int)DetectionTool::LiDAR].local.header = target_state_ptr->pose.header;
-            m_target_vehicles[(int)DetectionTool::LiDAR].local.pose.position = target_state_ptr->pose.pose.position;
+            m_target_vehicles[(int)DetectionTool::LiDAR].local.header = target_state_ptr->header;
+            m_target_vehicles[(int)DetectionTool::LiDAR].local.pose.position = target_state_ptr->pose.position;
             m_target_vehicles[(int)DetectionTool::LiDAR].local.pose.orientation = enu_pose.orientation;
             m_target_vehicles[(int)DetectionTool::LiDAR].velocity = target_state_ptr->velocity;
         }
@@ -330,22 +343,22 @@ void GenerateWaypoints::ChatterCallback(const uav_msgs::Chat::ConstPtr &chat_ptr
         }
     }
     else if (chat_ptr->msg == "tool"){
-        if (chat_ptr->tool == "airsim"){
-            m_detection_tool_airsim_param = true;
+        if (chat_ptr->tool == "custom"){
+            m_detection_tool_custom_param = true;
             m_detection_tool_lidar_param = false;
             m_detection_tool_gps_param = false;
             
-            SELECTED_TOOL = (int)DetectionTool::AirSim;
+            SELECTED_TOOL = (int)DetectionTool::Custom;
         }
         else if (chat_ptr->tool == "lidar"){
-            m_detection_tool_airsim_param = false;
+            m_detection_tool_custom_param = false;
             m_detection_tool_lidar_param = true;
             m_detection_tool_gps_param = false;
          
             SELECTED_TOOL = (int)DetectionTool::LiDAR;
         }
         else if (chat_ptr->tool == "gps"){
-            m_detection_tool_airsim_param = false;
+            m_detection_tool_custom_param = false;
             m_detection_tool_lidar_param = false;
             m_detection_tool_gps_param = true;
 
@@ -420,7 +433,6 @@ bool GenerateWaypoints::AddTargetWaypoint(uav_msgs::TargetWaypoints &target_wp, 
 bool GenerateWaypoints::AddTargetWaypoint(uav_msgs::TargetWaypoints &target_wp, geometry_msgs::PoseStamped &curr_pose_stamped, geometry_msgs::Twist &target_vel)
 {
     geometry_msgs::Pose curr_pose;
-
     if (target_wp.local.header.frame_id != curr_pose_stamped.header.frame_id){
         geometry_msgs::TransformStamped transformStamped;
         geometry_msgs::Pose transformed_pose;
@@ -550,8 +562,8 @@ void GenerateWaypoints::Publish()
     gen_wp_state_msg.is_global = m_is_global;
     gen_wp_state_msg.global_to_local = m_global_to_local;
     switch(SELECTED_TOOL){
-        case (int)DetectionTool::AirSim:
-            gen_wp_state_msg.detection_tool = "AirSim";
+        case (int)DetectionTool::Custom:
+            gen_wp_state_msg.detection_tool = "Custom";
             break;
         case (int)DetectionTool::LiDAR:
             gen_wp_state_msg.detection_tool = "LiDAR";

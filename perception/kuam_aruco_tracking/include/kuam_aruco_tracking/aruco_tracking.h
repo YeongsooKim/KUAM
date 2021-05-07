@@ -45,27 +45,13 @@ struct State{
 
 struct Target{
     int id;
+    bool is_init;
 
     bool is_detected;
     ros::Time last_detected_time;
 
     vector<State> state;
 };
-
-// struct TargetWOF : Target{
-    
-// };
-
-// // Target moving average filter
-// struct TargetMAF : Target{
-//     vector<Eigen::Vector3d> pos_buf;
-//     vector<Eigen::Vector3d> vel_buf;
-// };
-
-// // Target exponential moving average filter
-// struct TargetEMAF : Target{
-//     float w; // weight
-// };
 
 struct MetaMarkers{
     visualization_msgs::MarkerArray self;

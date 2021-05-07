@@ -34,9 +34,9 @@
 	<arg name="z_offset_m" default="3.5" />
 	<arg name="alt_offset_m" default="45.0" />
 	<arg name="target_height_m" default="0.0" />
+	<arg name="detection_tool_custom" default="true" />
 	<arg name="detection_tool_lidar" default="false" />
-	<arg name="detection_tool_gps" default="true" />
-	<arg name="detection_tool_airsim" default="false" />
+	<arg name="detection_tool_gps" default="false" />
 
 	<!-- tf_broadcaster_node -->
 	<arg name="is_finding_home" default="false"/>
@@ -70,7 +70,7 @@
             <arg name="target_height_m" value="$(arg target_height_m)" />
             <arg name="detection_tool_lidar" value="$(arg detection_tool_lidar)" />
             <arg name="detection_tool_gps" value="$(arg detection_tool_gps)" />
-            <arg name="detection_tool_airsim" value="$(arg detection_tool_airsim)" />
+            <arg name="detection_tool_custom" value="$(arg detection_tool_custom)" />
         </include>
 
         <include file="$(find kuam_ctrl_visual)/launch/visualize_control.launch" />

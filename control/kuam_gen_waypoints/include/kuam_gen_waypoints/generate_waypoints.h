@@ -29,6 +29,7 @@
 #include "uav_msgs/VehicleState.h"
 #include "uav_msgs/GenerateWaypointState.h"
 #include "kuam_gen_waypoints/utils.h"
+#include "kuam_msgs/TargetState.h"
 
 using Vector3f = Eigen::Vector3f;
 
@@ -36,7 +37,7 @@ namespace kuam
 {
 enum class DetectionTool : int
 {
-    AirSim,
+    Custom,
     LiDAR,
     GPS,
 
@@ -72,7 +73,8 @@ private:
 	ros::NodeHandle m_nh;
 
     // subscriber
-	ros::Subscriber m_airsim_based_target_local_state_sub;
+	ros::Subscriber m_aruco_marker_local_state_sub;
+	ros::Subscriber m_custom_based_target_local_state_sub;
 	ros::Subscriber m_lidar_based_target_local_state_sub;
 	ros::Subscriber m_gps_based_target_global_position_sub;
 
@@ -105,7 +107,7 @@ private:
     float m_target_height_m_param;
     bool m_detection_tool_lidar_param;
     bool m_detection_tool_gps_param;
-    bool m_detection_tool_airsim_param;
+    bool m_detection_tool_custom_param;
 
     // flag
     bool m_is_hover;
@@ -143,7 +145,8 @@ private: // function
     void EgoVehicleLocalPositionCallback(const geometry_msgs::PoseStamped::ConstPtr &current_pose_ptr);
     void EgoVehicleGlobalPositionCallback(const sensor_msgs::NavSatFix::ConstPtr &current_pose_ptr);
     void EgoVehicleLocalVelocityCallback(const geometry_msgs::TwistStamped::ConstPtr &twist_ptr);
-    void TargetVehicleLocalStateCallback(const uav_msgs::CarState::ConstPtr &target_state_ptr);
+    void ArucoMarkerLocalStateCallback(const kuam_msgs::TargetState::ConstPtr &target_state_ptr);
+    void CustomTargetVehicleLocalStateCallback(const uav_msgs::TargetState::ConstPtr &target_state_ptr);
     void LTargetVehicleLocalStateCallback(const uav_msgs::TargetState::ConstPtr &target_state_ptr);
     void TargetVehicleGlobalStateCallback(const novatel_oem7_msgs::INSPVA::ConstPtr &current_pose_ptr);
     void ChatterCallback(const uav_msgs::Chat::ConstPtr &string_ptr);
