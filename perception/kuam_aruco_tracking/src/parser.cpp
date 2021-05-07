@@ -1,4 +1,4 @@
-#include <aruco_tracking/parser.h>
+#include <kuam_aruco_tracking/parser.h>
 #include <fstream>
 #include <iostream>
 #include <vector>

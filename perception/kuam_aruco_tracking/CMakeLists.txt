@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(aruco_tracking)
+project(kuam_aruco_tracking)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
@@ -7,14 +7,16 @@ add_compile_options(-std=c++11)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
-  sensor_msgs
-  cv_bridge
+  geometry_msgs
   roscpp
-  std_msgs
   image_transport
-  alfons_msgs
+  cv_bridge
+  std_msgs
+  sensor_msgs
+  kuam_msgs
   tf2 
   tf2_ros
 )
@@ -30,15 +32,16 @@ message("OpenCV version: ${OpenCV_VERSION}")
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES aruco_tracking
+  INCLUDE_DIRS include
+  LIBRARIES aruco_tracking
   CATKIN_DEPENDS 
+  geometry_msgs
+  roscpp
+  kuam_msgs
   sensor_msgs
   cv_bridge
-  roscpp
   std_msgs
   image_transport
-  alfons_msgs
   tf2 
   tf2_ros
 )
@@ -51,14 +54,20 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
   include
-  ${OpenCV_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
 )
 
 ## generate_waypoints_node
-add_executable(${PROJECT_NAME}_node src/aruco_tracking_node.cpp src/aruco_tracking.cpp src/parser.cpp)
-add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(${PROJECT_NAME}_node
+add_executable(aruco_tracking_node src/aruco_tracking_node.cpp src/aruco_tracking.cpp src/parser.cpp src/utils.cpp)
+add_dependencies(aruco_tracking_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(aruco_tracking_node
  ${catkin_LIBRARIES}
  ${OpenCV_LIBRARIES}
+ ${EIGEN3_INCLUDE_DIRS}
+)
+
+catkin_install_python(PROGRAMS scripts/eval.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

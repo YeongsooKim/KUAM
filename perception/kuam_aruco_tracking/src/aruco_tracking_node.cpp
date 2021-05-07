@@ -1,5 +1,5 @@
 #include "ros/ros.h"
-#include "aruco_tracking/aruco_tracking.h"
+#include "kuam_aruco_tracking/aruco_tracking.h"
 #include <ros/spinner.h>
 
 int main(int argc, char ** argv)
