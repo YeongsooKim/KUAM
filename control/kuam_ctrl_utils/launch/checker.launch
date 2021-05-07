@@ -1,0 +1,5 @@
+<launch>
+	<arg name="output" default="screen"/>
+
+	<node pkg="kuam_ctrl_utils" type="checker_node" name="checker" output="$(arg output)"/>
+</launch>

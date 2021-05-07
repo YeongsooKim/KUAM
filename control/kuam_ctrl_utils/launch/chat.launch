@@ -1,0 +1,7 @@
+<launch>
+	<arg name="output" default="screen"/>
+
+    <group ns="control">
+		<node pkg="kuam_ctrl_utils" type="chat_node" name="chat" output="$(arg output)"/>
+    </group>
+</launch>
