@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(kuam_msgs)
+project(uav_msgs)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
@@ -22,13 +22,38 @@ find_package(Boost REQUIRED COMPONENTS system)
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
+  CloudCluster.msg
+  CloudClusterArray.msg
+  WaypointState.msg
+  DTLane.msg
+  Waypoint.msg
+  Lane.msg
+  LaneArray.msg
+  DetectedObject.msg
+  DetectedObjectArray.msg
+  Centroids.msg
+  CarState.msg
+  PolyfitLaneData.msg
+  PolyfitLane.msg
+  Roi.msg
+  TargetWaypoints.msg
+  Chat.msg
   TargetState.msg
-  TargetStateArray.msg
+  TrackingTime.msg
+  DetectionTime.msg
+  PerceptionTimer.msg
+  VehicleState.msg
+  VehicleStateArray.msg
+  GenerateWaypointState.msg
+  OffboardState.msg
+  ControlStatus.msg
 )
 
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
+  SetGPSPosition.srv
+  SetLocalPosition.srv
 )
 
 ## Generate added messages and services with any dependencies listed here
