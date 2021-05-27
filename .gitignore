@@ -3,6 +3,7 @@
 *.backup
 *.bag
 *.sln
+*.pyc
 
 # Build results
 [Dd]ebug/

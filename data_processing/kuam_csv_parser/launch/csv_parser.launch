@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+	<arg name="output" default="screen"/>
+
+	<!-- Do Not Input 0.0 -->
+	<!-- <arg name="distance_threshold_m" default="0.2" /> -->
+
+	<node pkg="kuam_csv_parser" type="parser.py" name="csv_parser" cwd="node" output="$(arg output)">
+		<!-- <param name="freq" value="$(arg freq)" /> -->
+	</node>
+</launch>

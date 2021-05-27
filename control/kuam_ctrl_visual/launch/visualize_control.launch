@@ -1,9 +1,0 @@
-<launch>
-	<!-- common -->
-	<arg name="output" default="screen"/>
-
-	<!-- visualize_control_node -->
-	<node pkg="kuam_ctrl_visual" type="visualize_control_node" name="visualize_control" output="$(arg output)" />
-
-	<!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(find kuam_ctrl_visual)/rviz/ctrl_visual.rviz" /> -->
-</launch>

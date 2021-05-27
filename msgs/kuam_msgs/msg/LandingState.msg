@@ -1,0 +1,2 @@
+bool is_detected
+bool is_land

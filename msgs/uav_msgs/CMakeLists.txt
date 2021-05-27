@@ -22,30 +22,9 @@ find_package(Boost REQUIRED COMPONENTS system)
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  CloudCluster.msg
-  CloudClusterArray.msg
-  WaypointState.msg
-  DTLane.msg
-  Waypoint.msg
-  Lane.msg
-  LaneArray.msg
-  DetectedObject.msg
-  DetectedObjectArray.msg
-  Centroids.msg
-  CarState.msg
-  PolyfitLaneData.msg
-  PolyfitLane.msg
-  Roi.msg
-  TargetWaypoints.msg
-  Chat.msg
-  TargetState.msg
-  TrackingTime.msg
-  DetectionTime.msg
-  PerceptionTimer.msg
-  VehicleState.msg
-  VehicleStateArray.msg
-  GenerateWaypointState.msg
   OffboardState.msg
+  Chat.msg
+  GenerateWaypointState.msg
   ControlStatus.msg
 )
 

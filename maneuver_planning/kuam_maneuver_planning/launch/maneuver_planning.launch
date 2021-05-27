@@ -1,0 +1,26 @@
+<launch>
+    <!-- namespace -->
+	<arg name="data_ns" default="/kuam/data" />
+	<arg name="control_ns" default="/kuam/control" />
+
+	<arg name="mode" default="false" />
+	<arg name="target_height_m" default="20" />
+
+    <group ns="/kuam/maneuver">
+        <include file="$(find kuam_mission_manager)/launch/mission_manager.launch">
+            <arg name="mode" value="$(arg mode)" />
+            <arg name="data_ns" value="$(arg data_ns)" />
+            <arg name="control_ns" value="$(arg control_ns)" />
+            <arg name="target_height_m" value="$(arg target_height_m)" />
+        </include>
+
+        <include file="$(find kuam_mission_manager)/launch/tf_broadcaster.launch">
+            <arg name="target_height_m" value="$(arg target_height_m)" />
+            <arg name="data_ns" value="$(arg data_ns)" />
+        </include>
+
+        <include file="$(find kuam_state_machine)/launch/state_machine.launch">
+            <arg name="data_ns" value="$(arg data_ns)" />
+        </include>
+    </group>
+</launch>

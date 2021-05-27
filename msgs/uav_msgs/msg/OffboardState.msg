@@ -1,3 +1,3 @@
 # state
-string px4_mode
-bool is_debug_mode
+string offb_mode
+string offb_state

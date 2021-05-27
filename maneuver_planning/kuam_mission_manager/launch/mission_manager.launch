@@ -1,0 +1,15 @@
+<launch>
+	<arg name="output" default="screen"/>
+
+	<arg name="mode" default="false" />
+	<arg name="data_ns" default="/kuam/data" />
+	<arg name="control_ns" default="/kuam/control" />
+	<arg name="target_height_m" default="20.0" />
+
+	<node pkg="kuam_mission_manager" type="kuam_mission_manager_node" name="mission_manager" output="$(arg output)">
+		<param name="mode" value="$(arg mode)" />
+		<param name="data_ns" value="$(arg data_ns)" />
+		<param name="control_ns" value="$(arg control_ns)" />
+		<param name="target_height_m" value="$(arg target_height_m)" />
+	</node>
+</launch>

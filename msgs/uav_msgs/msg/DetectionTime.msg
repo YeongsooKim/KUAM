@@ -1,9 +1,0 @@
-float64 transform
-float64 remove_ground
-float64 threshold
-float64 downsample
-float64 gen_output
-float64 normal_segmentation
-float64 cluster_and_color
-float64 cluster_checking
-float64 cluster_publish

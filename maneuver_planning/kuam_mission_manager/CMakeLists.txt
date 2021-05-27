@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(kuam_msgs)
+project(kuam_mission_manager)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
@@ -7,44 +7,16 @@ add_compile_options(-std=c++11)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+find_package(Eigen3 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
-  geometry_msgs
-  geographic_msgs
-  message_generation
-  sensor_msgs
+  roscpp
   std_msgs
-  jsk_recognition_msgs
-)
-
-## System dependencies are found with CMake's conventions
-find_package(Boost REQUIRED COMPONENTS system)
-
-## Generate messages in the 'msg' folder
-add_message_files(
-  FILES
-  MarkerState.msg
-  MarkerStateArray.msg
-  Waypoint.msg
-  Waypoints.msg
-  Task.msg
-  TaskList.msg
-  OffbCmd.msg
-  Setpoint.msg
-  LandingState.msg
-)
-
-## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-)
-
-## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs  # Or other packages containing msgs
-  geometry_msgs
-  geographic_msgs
-  jsk_recognition_msgs
+  uav_msgs
+  kuam_msgs
+  tf2
+  tf2_ros
+  tf2_sensor_msgs
+  tf2_geometry_msgs
 )
 
 ###################################
@@ -57,12 +29,8 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  CATKIN_DEPENDS 
-  message_runtime
-  std_msgs
-  geometry_msgs
-  geographic_msgs
-  sensor_msgs
+  INCLUDE_DIRS include
+  CATKIN_DEPENDS roscpp std_msgs uav_msgs kuam_msgs
 )
 
 ###########
@@ -72,7 +40,22 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
- ${catkin_INCLUDE_DIRS}
+  include
+  ${EIGEN3_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
 )
 
+## kuam_mission_manager_node
+add_executable(kuam_mission_manager_node src/mission_manager.cpp src/mission_manager_node.cpp src/utils.cpp)
+target_link_libraries(kuam_mission_manager_node ${catkin_LIBRARIES})
+
+## kuam_tf_broadcaster_node
+add_executable(kuam_tf_broadcaster_node src/tf_broadcaster.cpp src/tf_broadcaster_node.cpp src/utils.cpp)
+target_link_libraries(kuam_tf_broadcaster_node ${catkin_LIBRARIES})
+
+
+## Install project namespaced headers
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  FILES_MATCHING PATTERN "*.h"
+  PATTERN ".svn" EXCLUDE)

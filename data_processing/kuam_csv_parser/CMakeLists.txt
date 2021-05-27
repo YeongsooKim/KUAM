@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(kuam_msgs)
+project(kuam_csv_parser)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
@@ -7,45 +7,12 @@ add_compile_options(-std=c++11)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+find_package(Eigen3 REQUIRED)
+find_package(OpenCV REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
-  geometry_msgs
-  geographic_msgs
-  message_generation
-  sensor_msgs
-  std_msgs
-  jsk_recognition_msgs
+  roscpp
 )
-
-## System dependencies are found with CMake's conventions
-find_package(Boost REQUIRED COMPONENTS system)
-
-## Generate messages in the 'msg' folder
-add_message_files(
-  FILES
-  MarkerState.msg
-  MarkerStateArray.msg
-  Waypoint.msg
-  Waypoints.msg
-  Task.msg
-  TaskList.msg
-  OffbCmd.msg
-  Setpoint.msg
-  LandingState.msg
-)
-
-## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-)
-
-## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs  # Or other packages containing msgs
-  geometry_msgs
-  geographic_msgs
-  jsk_recognition_msgs
-)
+message("OpenCV version: ${OpenCV_VERSION}")
 
 ###################################
 ## catkin specific configuration ##
@@ -57,12 +24,10 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
+  INCLUDE_DIRS include
+  LIBRARIES aruco_tracking
   CATKIN_DEPENDS 
-  message_runtime
-  std_msgs
-  geometry_msgs
-  geographic_msgs
-  sensor_msgs
+  roscpp
 )
 
 ###########
@@ -72,7 +37,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
- ${catkin_INCLUDE_DIRS}
+  include
+  ${catkin_INCLUDE_DIRS}
 )
 
