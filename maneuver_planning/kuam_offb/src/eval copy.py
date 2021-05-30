@@ -10,7 +10,6 @@ import sys
 
 from geometry_msgs.msg import Point
 from geometry_msgs.msg import PoseStamped
-from uav_msgs.msg import Chat
 
 Y_AXIS_MARGIN = 0.3
 BUF_SIZE = 200
@@ -34,13 +33,12 @@ class Plotting:
         self.alt = 0.0
         self.init_time = None
         self.is_first_error = True
-        self.run_subscribing = True
 
         self.fig, self.ax = plt.subplots()
         
         self.ax.set_xlabel('time [s]')  # Add an x-label to the axes.
         self.ax.set_ylabel('dist error [m]')  # Add a y-label to the axes.
-        self.ax.set_title("Error between Marker Ground Truth and Setpoint")  # Add a title to the axes.
+        self.ax.set_title("Distance error")  # Add a title to the axes.
 
     def PlotInit(self):
         self.ax.set_xlim(0, BUF_SIZE - 1)
@@ -68,16 +66,6 @@ class Plotting:
     def EgoLocalPoseCB(self, msg):
         self.alt = msg.pose.position.z
 
-    def ChatCB(self, msg):
-        cmd = msg.msg
-        if cmd == 'stop':
-            ani.event_source.stop()
-            rospy.loginfo("[eval] stop plotting")
-        elif cmd == 'play':
-            ani.event_source.start()
-            rospy.loginfo("[eval] play plotting")
-
-
     def UdatePlot(self, frame):
         self.ax.clear()
         
@@ -92,11 +80,8 @@ class Plotting:
 
         self.ax.set_xlabel('time [s]')  # Add an x-label to the axes.
         self.ax.set_ylabel('dist error [m]')  # Add a y-label to the axes.
-        self.ax.set_title("Error between Marker Ground Truth and Setpoint")  # Add a title to the axes.
+        self.ax.set_title("Distance error")  # Add a title to the axes.
         self.ax.set_ylim(ylim[0], ylim[1])
-
-        if len(time_s) == len(alts):
-            self.ax.plot(time_s, alts, color="black", label='gt of drone altitude [m]')  # Plot some data on the axes.
 
         if len(time_s) == len(x_errs):
             self.ax.plot(time_s, x_errs, color="red", label='x error [m]')  # Plot some data on the axes.
@@ -109,11 +94,15 @@ class Plotting:
 
         if len(time_s) == len(dist_err):
             self.ax.plot(time_s, dist_err, color="magenta", label='dist error [m]')  # Plot some data on the axes.
+
+        if len(time_s) == len(alts):
+            self.ax.plot(time_s, alts, color="black", label='true altitude [m]')  # Plot some data on the axes.            
         self.ax.legend()  # Add a legend.
 
     def Distance(self, point):
         distance = math.sqrt(point.x**2 + point.y**2 + point.z**2)
         return distance
+
 
     def GetLimMinMax(self, list1, list2, list3, list4):
         ylim = [0, BUF_SIZE - 1]
@@ -152,13 +141,11 @@ class Plotting:
         return ylim
 
 
-
 rospy.init_node('eval')
 plotting = Plotting()
+sub = rospy.Subscriber('/kuam/control/offb/error', Point, plotting.ErrorCB)
+sub = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, plotting.EgoLocalPoseCB)
 
-error_sub = rospy.Subscriber('/kuam/control/offb/error', Point, plotting.ErrorCB)
-ego_local_sub = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, plotting.EgoLocalPoseCB)
-cmd_sub = rospy.Subscriber("/kuam/data/chat/command", Chat, plotting.ChatCB)
 
 ani = FuncAnimation(plotting.fig, plotting.UdatePlot, init_func=plotting.PlotInit)
 plt.show(block=True) 

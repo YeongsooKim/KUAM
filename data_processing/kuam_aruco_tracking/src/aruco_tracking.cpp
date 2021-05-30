@@ -17,10 +17,11 @@ ArucoTracking::ArucoTracking() :
     m_target_marker_id_param(NAN),
     m_filter_buf_size_param(NAN),
     m_estimating_method_param(NAN),
+    m_noise_dist_th_m_param(NAN),
     m_cv_ptr(nullptr)
 {
     InitFlag();
-    if (!GetParam()) ROS_ERROR_STREAM("Fail GetParam");
+    if (!GetParam()) ROS_ERROR_STREAM("[aruco_tracking] Fail GetParam");
     InitROS();
     InitMarkers();
 
@@ -28,12 +29,9 @@ ArucoTracking::ArucoTracking() :
     m_parser.ReadFile(m_aruco_parser_param, m_do_estimate_pose, m_show_rejected, 
                     m_marker_length, m_detector_params, m_dictionary, m_cam_matrix, m_dist_coeffs);
     
-    if (!m_using_gazebo_cam_param){
-        m_input_video.open(0);
-    }
-
     m_target.state.resize((int)EstimatingMethod::ItemNum);
     m_target.last_detected_time = ros::Time(0);
+    m_target_pose_list.header.frame_id = "camera_link";
 }
 
 ArucoTracking::~ArucoTracking()
@@ -57,12 +55,14 @@ bool ArucoTracking::GetParam()
     m_nh.getParam(nd_name + "/filter_buf_size", m_filter_buf_size_param);
     m_nh.getParam(nd_name + "/estimating_method", m_estimating_method_param);
     m_nh.getParam(nd_name + "/compare_mode", m_compare_mode_param);
-    m_nh.getParam(nd_name + "/using_gazebo_cam", m_using_gazebo_cam_param);
+    m_nh.getParam(nd_name + "/using_gazebo_data", m_using_gazebo_data_param);
+    m_nh.getParam(nd_name + "/noise_dist_th_m", m_noise_dist_th_m_param);
 
-    if (m_aruco_parser_param == "missing") { ROS_ERROR_STREAM("m_aruco_parser_param is missing"); return false; }
-    else if (__isnan(m_target_marker_id_param)) { ROS_ERROR_STREAM("m_target_marker_id_param is NAN"); return false; }
-    else if (__isnan(m_filter_buf_size_param)) { ROS_ERROR_STREAM("m_filter_buf_size_param is NAN"); return false; }
-    else if (__isnan(m_estimating_method_param)) { ROS_ERROR_STREAM("m_estimating_method_param is NAN"); return false; }
+    if (m_aruco_parser_param == "missing") { ROS_ERROR_STREAM("[aruco_tracking] m_aruco_parser_param is missing"); return false; }
+    else if (__isnan(m_target_marker_id_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_target_marker_id_param is NAN"); return false; }
+    else if (__isnan(m_filter_buf_size_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_filter_buf_size_param is NAN"); return false; }
+    else if (__isnan(m_estimating_method_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_estimating_method_param is NAN"); return false; }
+    else if (__isnan(m_noise_dist_th_m_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_noise_dist_th_m_param is NAN"); return false; }
 
     return true;
 }
@@ -71,12 +71,13 @@ bool ArucoTracking::InitROS()
 {
     // package, node, topic name
     string nd_name = ros::this_node::getName();
+    string ns_name = ros::this_node::getNamespace();
+    string image_topic_name;
+    if (m_using_gazebo_data_param) image_topic_name = "/camera/rgb/image_raw";
+    else image_topic_name = ns_name + "/usb_cam/image_raw";
 
     // Initialize subscriber
-    if (m_using_gazebo_cam_param){
-        m_image_sub = m_nh.subscribe<sensor_msgs::Image>("/camera/rgb/image_raw", 1, boost::bind(&ArucoTracking::ImageCallback, this, _1));
-        // m_image_sub = m_nh.subscribe<sensor_msgs::Image>("/usb_cam/image_raw", 1, boost::bind(&ArucoTracking::ImageCallback, this, _1));
-    }
+    m_image_sub = m_nh.subscribe<sensor_msgs::Image>(image_topic_name, 1, boost::bind(&ArucoTracking::ImageCallback, this, _1));
     
     // Initialize publisher
     m_image_pub = m_nh.advertise<sensor_msgs::Image>(nd_name + "/output_video", 10);
@@ -84,6 +85,7 @@ bool ArucoTracking::InitROS()
     m_markers_pub = m_nh.advertise<visualization_msgs::MarkerArray> (nd_name + "/aruco_markers", 1);
     m_target_state_pub = m_nh.advertise<kuam_msgs::MarkerState> (nd_name + "/target_state", 1);
     m_target_states_pub = m_nh.advertise<kuam_msgs::MarkerStateArray> (nd_name + "/target_states", 1);
+    m_target_list_pub = m_nh.advertise<geometry_msgs::PoseArray> (nd_name + "/target_list", 1);
     
     // Initialize timer
     m_image_timer = m_nh.createTimer(ros::Duration(0.01), &ArucoTracking::ProcessTimerCallback, this);
@@ -111,7 +113,7 @@ bool ArucoTracking::InitMarkers()
         target_marker.trajectory.pose.orientation.x = 0.0;
         target_marker.trajectory.pose.orientation.y = 0.0;
         target_marker.trajectory.pose.orientation.z = 0.0;
-        target_marker.trajectory.lifetime = ros::Duration();
+        target_marker.trajectory.lifetime = ros::Duration(0.3);
         target_marker.is_trajectory_add = false;
 
         target_marker.current_point.ns = "target/current_point";
@@ -124,7 +126,7 @@ bool ArucoTracking::InitMarkers()
         target_marker.current_point.pose.orientation.x = 0.0;
         target_marker.current_point.pose.orientation.y = 0.0;
         target_marker.current_point.pose.orientation.z = 0.0;
-        target_marker.current_point.lifetime = ros::Duration();
+        target_marker.current_point.lifetime = ros::Duration(0.3);
         target_marker.is_current_point_add = false;
         
         target_marker.txt.ns = "target/txt";
@@ -135,7 +137,7 @@ bool ArucoTracking::InitMarkers()
         target_marker.txt.pose.orientation.x = 0.0;
         target_marker.txt.pose.orientation.y = 0.0;
         target_marker.txt.pose.orientation.z = 0.0;
-        target_marker.txt.lifetime = ros::Duration();
+        target_marker.txt.lifetime = ros::Duration(0.3);
         target_marker.is_txt_add = false;
 
         switch (method){
@@ -190,11 +192,11 @@ bool ArucoTracking::InitMarkers()
 
 void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
 {
-    if ((m_cv_ptr != nullptr) || !m_using_gazebo_cam_param){
+    if (m_cv_ptr != nullptr){
         vector<int> ids;
         bool is_detected = false;
         geometry_msgs::Pose target_pose;
-        MarkerPoseEstimating(ids, is_detected, target_pose);
+        MarkerPoseEstimating(ids, target_pose, is_detected);
 
         TargetStateEstimating(ids, target_pose, is_detected);
         VisualizeTarget();
@@ -203,11 +205,11 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
 
 void ArucoTracking::ImageCallback(const sensor_msgs::Image::ConstPtr &img_ptr)
 {
-    if(!Convert2CVImg(img_ptr)) ROS_ERROR("Fail to convert sensor_msgs to cv_image");
+    if(!Convert2CVImg(img_ptr)) ROS_ERROR("[aruco_tracking] Fail to convert sensor_msgs to cv_image");
 }
 
 
-bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, bool& is_detected, geometry_msgs::Pose& target_pose)
+bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& target_pose, bool& is_detected)
 {
     static int waitTime = 0;
     static double totalTime = 0;
@@ -219,28 +221,16 @@ bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, bool& is_detected, ge
     vector<vector<Point2f>> rejected;
 
     Mat image;
-    if (m_using_gazebo_cam_param){
-        image = m_cv_ptr->image;
-    }
-    else{
-        // detect markers and estimate pose
-        m_input_video.grab();
-        m_input_video.retrieve(image);
-    }
+    image = m_cv_ptr->image;
 
     aruco::detectMarkers(image, m_dictionary, corners, ids, m_detector_params, rejected);
     for (auto id : ids){
         if (id == m_target_marker_id_param){
-            is_detected = true;
+            if (IsNoise()) is_detected = false;
+            else is_detected = true;
         }
     }
 
-    static bool is_counting = false;
-    if (is_detected || is_counting){
-        if (IsNoise(is_detected, is_counting)) is_detected = false;
-        else is_detected = true;
-    }
-    
     Mat copy_image;
     image.copyTo(copy_image);
     vector<Vec3d> rvecs, tvecs;
@@ -249,6 +239,10 @@ bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, bool& is_detected, ge
         
         // if detected value is noise, change is_detected value from true to false
         Camera2World(corners, ids, rvecs, tvecs, target_pose);
+        m_target_pose_list.poses.push_back(target_pose);
+        m_target_list_pub.publish(m_target_pose_list);
+        if (IsNoise(target_pose)) is_detected = false;
+        else is_detected = true;
 
         // double currentTime = ((double)getTickCount() - tick) / getTickFrequency();
         // totalTime += currentTime;
@@ -258,34 +252,26 @@ bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, bool& is_detected, ge
         // }
 
         // draw results
-        aruco::drawDetectedMarkers(copy_image, corners, ids);
+        
+        if (is_detected){
+            aruco::drawDetectedMarkers(copy_image, corners, ids);
 
-        for(unsigned int i = 0; i < ids.size(); i++){
-            if (ids.at(i) == m_target_marker_id_param){
-                aruco::drawAxis(copy_image, m_cam_matrix, m_dist_coeffs, rvecs[i], tvecs[i],
-                                m_marker_length * 0.5f);
+            for(unsigned int i = 0; i < ids.size(); i++){
+                if (ids.at(i) == m_target_marker_id_param){
+                    aruco::drawAxis(copy_image, m_cam_matrix, m_dist_coeffs, rvecs[i], tvecs[i],
+                                    m_marker_length * 0.5f);
+                }
             }
-        }
 
-        if(m_show_rejected && rejected.size() > 0)
-            aruco::drawDetectedMarkers(copy_image, rejected, noArray(), Scalar(100, 0, 255));
+            if(m_show_rejected && rejected.size() > 0)
+                aruco::drawDetectedMarkers(copy_image, rejected, noArray(), Scalar(100, 0, 255));
+        }
     }
 
     sensor_msgs::Image img_msg; // >> message to be sent
-    if (m_using_gazebo_cam_param){
-        m_cv_ptr->image = copy_image;
-        m_cv_ptr->header.frame_id = CAMERA_FRAME;
-        img_msg = *m_cv_ptr->toImageMsg();
-    }
-    else{
-        cv_bridge::CvImage img_bridge;
-
-        std_msgs::Header header; // empty header
-        header.frame_id = CAMERA_FRAME;
-        header.stamp = ros::Time::now(); // time
-        img_bridge = cv_bridge::CvImage(header, sensor_msgs::image_encodings::RGB8, copy_image);
-        img_bridge.toImageMsg(img_msg); // from cv_bridge to sensor_msgs::Image
-    }
+    m_cv_ptr->image = copy_image;
+    m_cv_ptr->header.frame_id = CAMERA_FRAME;
+    img_msg = *m_cv_ptr->toImageMsg();
     m_image_pub.publish(img_msg); // ros::Publisher pub_img = node.advertise<sensor_msgs::Image>("topic", queuesize);    
 
     return true;
@@ -298,7 +284,6 @@ bool ArucoTracking::Camera2World(const vector<vector<Point2f>> corners, const ve
     for (auto i = 0; i < rvecs.size(); ++i){
         if (ids[i] == m_target_marker_id_param){
 
-            // ROS_ERROR("%d", corners[i].size());
             // ROS_ERROR("%f, %f", corners[i][0].x, corners[i][0].y);
             // ROS_ERROR("%f, %f", corners[i][1].x, corners[i][1].y);
             // ROS_ERROR("%f, %f", corners[i][2].x, corners[i][2].y);
@@ -509,7 +494,7 @@ bool ArucoTracking::Convert2CVImg(const sensor_msgs::Image::ConstPtr &img_ptr)
         return true;
     }
     catch (cv_bridge::Exception& e) {
-        ROS_ERROR("cv_bridge exception: %s", e.what());
+        ROS_ERROR("[aruco_tracking] cv_bridge exception: %s", e.what());
         return false;
     }
 }
@@ -608,36 +593,71 @@ tf2::Transform ArucoTracking::CreateTransform(const Vec3d &translation_vector, c
     return transform;
 }
 
-bool ArucoTracking::IsNoise(const bool is_detected, bool& is_counting)
+bool ArucoTracking::IsNoise()
 {
+    static bool is_init = false;
     static unsigned int cnt = 0;
 
     if (!m_target.is_detected){
-        if (!is_counting){
-            is_counting = true;
+        if (!is_init){
+            is_init = true;
             cnt = 0;
-            m_last_detected_time = ros::Time::now();
+            m_last_noise_check_time = ros::Time::now();
         }
         
-        if (((ros::Time::now() - m_last_detected_time) < ros::Duration(0.5)) && is_detected){
+        if ((ros::Time::now() - m_last_noise_check_time) < ros::Duration(1.0)){
             cnt++;
             return true;
         }
         else {
-            is_counting = false;
+            is_init = false;
             
-            if (cnt >= 40){
-                m_target.is_detected = true;
-                return false;
-            }
-            else {
-                m_target.is_detected = false;
-                return true;
-            }
+            if (cnt >= 50) return false;
+            else return true;
         }
     }
     else {
+        return false;
         return !m_target.is_detected;
+    }
+}
+
+bool ArucoTracking::IsNoise(const geometry_msgs::Pose target_pose)
+{
+    if (!m_target.is_detected){
+        return false;
+    }
+    else {
+        geometry_msgs::Point prev_pos;
+        geometry_msgs::Point cur_pos = target_pose.position;
+
+        switch (m_estimating_method_param){
+        case (int)EstimatingMethod::WOF:
+            prev_pos.x = m_target.state[(int)EstimatingMethod::WOF].prev_position.x();
+            prev_pos.y = m_target.state[(int)EstimatingMethod::WOF].prev_position.y();
+            prev_pos.z = m_target.state[(int)EstimatingMethod::WOF].prev_position.z();
+
+            break;
+        case (int)EstimatingMethod::MAF:
+            prev_pos.x = m_target.state[(int)EstimatingMethod::MAF].prev_position.x();
+            prev_pos.y = m_target.state[(int)EstimatingMethod::MAF].prev_position.y();
+            prev_pos.z = m_target.state[(int)EstimatingMethod::MAF].prev_position.z();
+
+            break;
+        case (int)EstimatingMethod::EMAF:
+            prev_pos.x = m_target.state[(int)EstimatingMethod::EMAF].prev_position.x();
+            prev_pos.y = m_target.state[(int)EstimatingMethod::EMAF].prev_position.y();
+            prev_pos.z = m_target.state[(int)EstimatingMethod::EMAF].prev_position.z();
+
+            break;
+        default:
+            break;
+        }
+
+        auto dist = m_utils.Distance3D(prev_pos, cur_pos);
+        
+        if (dist > m_noise_dist_th_m_param) return true;
+        else return false;
     }
 }
 }

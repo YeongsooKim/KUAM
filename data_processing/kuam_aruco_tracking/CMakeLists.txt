@@ -20,7 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2 
   tf2_ros
 )
-message("OpenCV version: ${OpenCV_VERSION}")
+# message("OpenCV version: ${OpenCV_VERSION}")
 
 ###################################
 ## catkin specific configuration ##

@@ -1,13 +1,14 @@
 <launch>
-    <!-- shell script -->
-	<!-- <arg name="is_finding_home" default="false"/> -->
+	<arg name="noise_dist_th_m" default="4.0"/>
+	<arg name="filter_buf_size" default="40"/>
 
     <group ns="/kuam/data">
         <include file="$(find kuam_csv_parser)/launch/csv_parser.launch">
-            <!-- <arg name="is_debug_mode" value="$(arg is_debug_mode)" /> -->
         </include>
 
         <include file="$(find kuam_aruco_tracking)/launch/aruco_tracking.launch">
+            <arg name="noise_dist_th_m" value="$(arg noise_dist_th_m)" />
+            <arg name="filter_buf_size" value="$(arg filter_buf_size)" />
         </include>        
     </group>
 </launch>

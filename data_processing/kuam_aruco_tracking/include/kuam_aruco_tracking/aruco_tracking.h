@@ -25,6 +25,7 @@
 #include <tf2/LinearMath/Transform.h>
 
 #include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/Twist.h>
 
 #include <visualization_msgs/MarkerArray.h>
@@ -101,7 +102,8 @@ private:
     ros::Publisher m_markers_pub;
     ros::Publisher m_target_state_pub;
     ros::Publisher m_target_states_pub;
-    
+    ros::Publisher m_target_list_pub;
+
     // Timer
     ros::Timer m_image_timer;
 
@@ -111,9 +113,11 @@ private:
     int m_filter_buf_size_param; // 
     int m_estimating_method_param;
     bool m_compare_mode_param;
-    bool m_using_gazebo_cam_param;
+    bool m_using_gazebo_data_param;
+    float m_noise_dist_th_m_param;
 
     ros::Time m_last_detected_time;
+    ros::Time m_last_noise_check_time;
     VideoCapture m_input_video;
     const string OPENCV_WINDOW;
     bool m_do_estimate_pose;
@@ -123,6 +127,7 @@ private:
     Ptr<aruco::Dictionary> m_dictionary;
     Mat m_cam_matrix;
     Mat m_dist_coeffs;
+    geometry_msgs::PoseArray m_target_pose_list;
 
 private: // Function
     bool GetParam();
@@ -134,7 +139,7 @@ private: // Function
     void ProcessTimerCallback(const ros::TimerEvent& event);
 
     bool Convert2CVImg(const sensor_msgs::Image::ConstPtr &img_ptr);
-    bool MarkerPoseEstimating(vector<int>& ids, bool& is_detected, geometry_msgs::Pose& target_pose);
+    bool MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& target_pose, bool& is_detected);
     bool TargetStateEstimating(const vector<int> ids, const geometry_msgs::Pose pose, const bool is_detected);
     void VisualizeTarget();
 
@@ -147,7 +152,8 @@ private: // Function
     tf2::Transform CreateTransform(const Vec3d &tvec, const Vec3d &rotation_vector);
 
     bool Camera2World(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, const vector<Vec3d> tvecs, geometry_msgs::Pose& target_pose);
-    bool IsNoise(const bool is_detected, bool& is_counting);
+    bool IsNoise();
+    bool IsNoise(const geometry_msgs::Pose target_pose);
 };
 }
 #endif //  __ARUCO_TRACKING_H__

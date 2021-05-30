@@ -49,11 +49,11 @@ class Landing(smach.State, state.Base):
             # Update virtual border
 
             # Update setpoint
-            # if self.is_detected == True:
-                # self.setpoint.pose = self.target_pose
+            if self.is_detected == True:
+                self.setpoint.pose = self.target_pose
 
             # Publish
-            # self.LandingStatePub()
+            self.LandingStatePub()
 
             rate.sleep()
 

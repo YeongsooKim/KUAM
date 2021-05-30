@@ -57,7 +57,7 @@ int main(int argc, char ** argv)
             ROS_INFO_STREAM("/** command: debugging|rc|offboard|    **/");
             ROS_INFO_STREAM("/**          manual|emerg|local|       **/");
             ROS_INFO_STREAM("/**          global_z|local_z|tool|    **/");
-            ROS_INFO_STREAM("/**          global|                   **/");
+            ROS_INFO_STREAM("/**          global|stop|play          **/");
             ROS_INFO_STREAM("/**                                    **/");
             ROS_INFO_STREAM("/**          wait|undocking|arm|       **/");
             ROS_INFO_STREAM("/**          hovering|flight|          **/");
@@ -88,6 +88,8 @@ int main(int argc, char ** argv)
             (inputString.compare("docking") == 0) ||
             (inputString.compare("disarm") == 0) ||
             (inputString.compare("landing") == 0) ||
+            (inputString.compare("stop") == 0) ||
+            (inputString.compare("play") == 0) ||
             (inputString.compare("local") == 0))
         {
             std::cout << ("[input] " + inputString) << std::endl;

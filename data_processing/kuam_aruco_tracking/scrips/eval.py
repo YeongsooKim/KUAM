@@ -110,9 +110,9 @@ class Plotting:
             list_max = list3_max
     
         list_min = list1_min
-        if list2_min > list_min:
+        if list2_min < list_min:
             list_min = list2_min
-        if list3_min > list_min:
+        if list3_min < list_min:
             list_min = list3_min
 
         ylim = [list_min - Y_AXIS_MARGIN, list_max + Y_AXIS_MARGIN]

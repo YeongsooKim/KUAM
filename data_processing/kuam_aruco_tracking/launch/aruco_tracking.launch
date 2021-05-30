@@ -1,17 +1,21 @@
 <?xml version="1.0"?>
 <launch>
-    <!-- <include file="$(find usb_cam)/launch/usb_cam.launch"/> -->
-
     <arg name="arcuo_parser" default="$(find kuam_aruco_tracking)/../../config/" />
     <arg name="target_marker_id" default="0" />
     <arg name="filter_buf_size" default="20" />
     <arg name="compare_mode" default="false" />
+
+    <!-- Select only one data type -->
+    <arg name="using_gazebo_data" default="true" />
+    <arg name="using_logging_data" default="false" />
+    <arg name="using_device_data" default="false" />
+
     <!-- Estimating method -->
     <!-- 0. Without filter -->
     <!-- 1. Moving average filter -->
     <!-- 2. Exponential moving average filter -->
     <arg name="estimating_method" default="1" />
-    <arg name="using_gazebo_cam" default="true" />
+    <arg name="noise_dist_th_m" default="1.0" />
 
     <node pkg="kuam_aruco_tracking" type="aruco_tracking_node" name="aruco_tracking" cwd="node" output="screen">
         <param name="arcuo_parser" value="$(arg arcuo_parser)" />
@@ -19,8 +23,13 @@
         <param name="filter_buf_size" value="$(arg filter_buf_size)" />
         <param name="compare_mode" value="$(arg compare_mode)" />
         <param name="estimating_method" value="$(arg estimating_method)" />
-        <param name="using_gazebo_cam" value="$(arg using_gazebo_cam)" />
+        <param name="using_gazebo_data" value="$(arg using_gazebo_data)" />
+        <param name="noise_dist_th_m" value="$(arg noise_dist_th_m)" />
     </node>
 
     <include file="$(find kuam_visual)/launch/visualize_rviz.launch"/>
+
+    <group if="$(arg using_device_data)">
+        <include file="$(find kuam_usb_cam)/launch/usb_cam.launch"/>
+    </group>
 </launch>

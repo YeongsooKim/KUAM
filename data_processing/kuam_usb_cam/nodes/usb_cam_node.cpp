@@ -94,7 +94,6 @@ public:
     node_.param("contrast", contrast_, -1); //0-255, -1 "leave alone"
     node_.param("saturation", saturation_, -1); //0-255, -1 "leave alone"
     node_.param("sharpness", sharpness_, -1); //0-255, -1 "leave alone"
-    ROS_ERROR("%d", sharpness_);
     // possible values: mmap, read, userptr
     node_.param("io_method", io_method_name_, std::string("mmap"));
     node_.param("image_width", image_width_, 640);

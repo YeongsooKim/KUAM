@@ -6,32 +6,24 @@ import tf2_geometry_msgs
 from enum import Enum
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from math import pi
-from math import atan2
 from math import tan
 
 # Smach
 import smach
-import smach_ros
 from smach_ros import IntrospectionServer
 from smach import CBState
 
 # Message
 from std_msgs.msg import String
 from std_msgs.msg import ColorRGBA
-from uav_msgs.msg import Chat
 from kuam_msgs.msg import Task
 from kuam_msgs.msg import Setpoint
 from kuam_msgs.msg import MarkerState
 from kuam_msgs.msg import LandingState
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PoseArray
-from geometry_msgs.msg import TwistStamped
-from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
-from geometry_msgs.msg import TransformStamped
-from geographic_msgs.msg import GeoPath
 from geographic_msgs.msg import GeoPose
-from sensor_msgs.msg import NavSatFix
 from mavros_msgs.msg import State
 from visualization_msgs.msg import Marker,MarkerArray
 
@@ -45,6 +37,7 @@ from state.hovering import *
 from state.flight import *
 from state.transition import *
 from state.landing import *
+
 
 '''
 Enum classes
@@ -73,6 +66,7 @@ Parameters
 '''
 freq_ = 1.0
 virtual_border_angle_ = [10, 20]
+
 
 '''
 State Machines
@@ -153,6 +147,28 @@ def VirtualBoderPub(pose):
     cube_marker.pose.orientation.w = qaut[3]
     cube_marker.pose.position = cube_centroid
     marker_array.markers.append(cube_marker)
+
+    # Cube
+    gt_marker = Marker()
+    gt_marker.ns = "ground_truth"
+    gt_marker.header.frame_id = "map"
+    gt_marker.type = gt_marker.CUBE
+    gt_marker.action = gt_marker.ADD
+
+    gt_marker.scale.x = 0.2
+    gt_marker.scale.y = 0.2
+    gt_marker.scale.z = 0.01
+    a = ColorRGBA()
+    gt_marker.color = blue
+    gt_marker.color.a = 1.0
+    gt_marker.pose.orientation.x = 0.0
+    gt_marker.pose.orientation.y = 0.0
+    gt_marker.pose.orientation.z = 0.0
+    gt_marker.pose.orientation.w = 1.0
+    gt_marker.pose.position.x = 2.6600
+    gt_marker.pose.position.y = -2.2974
+    gt_marker.pose.position.z = 0.0
+    marker_array.markers.append(gt_marker)
 
     # Line strip
     line_centroid = Point()
@@ -339,8 +355,8 @@ if __name__ == '__main__':
     Initialize Parameters
     '''
     freq_ = rospy.get_param(nd_name + "/freq")
-    takeoff_alt_m = rospy.get_param(nd_name + "/alt_m")
-    dist_thresh_m = rospy.get_param(nd_name + "/distance_threshold_m")
+    takeoff_alt_m = rospy.get_param(nd_name + "/takeoff_alt_m")
+    dist_thresh_m = rospy.get_param(nd_name + "/reached_dist_th_m")
     guidance_dist_th_m = rospy.get_param(nd_name + "/guidance_dist_th_m")
     data_ns = rospy.get_param(nd_name + "/data_ns")
     target_marker_id = rospy.get_param(nd_name + "/target_marker_id")

@@ -154,7 +154,7 @@ if __name__ == '__main__':
     '''
     Initialize Parameters
     '''
-    # dist_thresh_m = rospy.get_param(nd_name_ + "/distance_threshold_m")
+    # dist_thresh_m = rospy.get_param(nd_name_ + "/reached_dist_th_m")
 
     '''
     Initialize ROS

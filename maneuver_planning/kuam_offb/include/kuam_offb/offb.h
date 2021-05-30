@@ -120,7 +120,7 @@ private: // function
     bool IsOffboard();
     geometry_msgs::Point SetpointError();
     void StateUpdate();
-    void Publish();
+    void SetpointnOffbStatePub();
 };
 }
 #endif //  __MAVROS_OFFB_H__

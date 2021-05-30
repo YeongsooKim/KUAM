@@ -2,21 +2,21 @@
 	<arg name="output" default="screen"/>
 
 	<!-- Do Not Input 0.0 -->
-	<arg name="freq" default="40.0" />
-	<arg name="alt_m" default="3.0" />
-	<arg name="distance_threshold_m" default="0.2" />
-	<arg name="guidance_dist_th_m" default="0.7" />
 	<arg name="data_ns" default="/kuam/data" />
+	<arg name="freq" default="40.0" />
+	<arg name="takeoff_alt_m" default="3.0" />
+	<arg name="reached_dist_th_m" default="0.4" />
+	<arg name="guidance_dist_th_m" default="0.7" />
 	<arg name="target_marker_id" default="0" />
 	<arg name="landing_threshold_m" default="3.0" />
 	<arg name="landing_standby_alt_m" default="5.0" />
 	
 	<node pkg="kuam_state_machine" type="state_machine.py" name="state_machine" output="$(arg output)">
-		<param name="freq" value="$(arg freq)" />
-		<param name="alt_m" value="$(arg alt_m)" />
-		<param name="distance_threshold_m" value="$(arg distance_threshold_m)" />
-		<param name="guidance_dist_th_m" value="$(arg guidance_dist_th_m)" />
 		<param name="data_ns" value="$(arg data_ns)" />
+		<param name="freq" value="$(arg freq)" />
+		<param name="takeoff_alt_m" value="$(arg takeoff_alt_m)" />
+		<param name="reached_dist_th_m" value="$(arg reached_dist_th_m)" />
+		<param name="guidance_dist_th_m" value="$(arg guidance_dist_th_m)" />
 		<param name="target_marker_id" value="$(arg target_marker_id)" />
 		<param name="landing_threshold_m" value="$(arg landing_threshold_m)" />
 		<param name="landing_standby_alt_m" value="$(arg landing_standby_alt_m)" />

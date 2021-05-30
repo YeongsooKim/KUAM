@@ -104,7 +104,7 @@ void TfBroadcaster::InitStaticTf(void)
     tf_stamped.transform.translation.z = 0.0;
     
     tf2::Quaternion q;
-    q.setRPY(0.0, M_PI/2, 0.0);
+    q.setRPY(0.0, M_PI, M_PI/2);
     tf_stamped.transform.rotation.x = q.x();
     tf_stamped.transform.rotation.y = q.y();
     tf_stamped.transform.rotation.z = q.z();

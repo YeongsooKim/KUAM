@@ -2,7 +2,7 @@
 /-v=""
 -ci=0
 -c=../../../src/KUAM/config/calib.txt
-/-l=0.4
 -l=0.2
+/-l=0.08
 -dp=../../../src/KUAM/config/detector_params.yml
 /-r=false

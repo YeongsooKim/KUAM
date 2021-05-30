@@ -155,9 +155,9 @@ void Maneuver::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr)
             }
         }
 
-        // auto ld_pose = (mssn_wps.find("landing")->second).poses.back();
-        // auto& fl_poses = mssn_wps.find("flight")->second;
-        // fl_poses.poses.push_back(ld_pose);
+        auto ld_pose = (mssn_wps.find("landing")->second).poses.back();
+        auto& fl_poses = mssn_wps.find("flight")->second;
+        fl_poses.poses.push_back(ld_pose);
 
         m_mssn_wps_map = mssn_wps;
     }

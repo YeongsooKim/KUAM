@@ -114,7 +114,7 @@ void Offboard::ProcessTimerCallback(const ros::TimerEvent& event)
                 case (int)State::Landing: LandingRequest(); break;
                 default: ROS_ERROR_STREAM("not in case"); break;
             }
-            Publish(); // publish what?
+            SetpointnOffbStatePub(); // publish what?
             StateUpdate();
         }
     }
@@ -146,7 +146,7 @@ bool Offboard::IsOffboard()
         ros::Rate rate(20.0);
 
         for(int i = 100; ros::ok() && i > 0; --i){
-            Publish();
+            SetpointnOffbStatePub();
             ros::spinOnce();
             rate.sleep();
         }
@@ -260,8 +260,8 @@ void Offboard::FlightRequest()
 
 geometry_msgs::Point Offboard::SetpointError()
 {
-    marker_point.x = 15.1205930783;
-    marker_point.y = -15.5050557583;
+    marker_point.x = 2.66001834608;
+    marker_point.y = -2.29745275228;
     marker_point.z = 0.0;
 
     geometry_msgs::Point setpoint_point;
@@ -277,7 +277,7 @@ geometry_msgs::Point Offboard::SetpointError()
     return setpoint_error;
 }
 
-void Offboard::Publish()
+void Offboard::SetpointnOffbStatePub() // Pulbish
 {
     geometry_msgs::PoseStamped msg;
     msg.header = m_setpoint.header;
