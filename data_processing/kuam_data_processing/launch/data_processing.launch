@@ -4,20 +4,16 @@
 
     <!-- - kuam_aruco_tracking - -->
     <!-- Select only one data type -->
-    <arg name="using_gazebo_data" default="true" />
+    <arg name="using_gazebo_data" default="false" />
     <arg name="using_logging_data" default="false" />
-    <arg name="using_device_data" default="false" />
+    <arg name="using_device_data" default="true" />
 
     <group ns="/kuam/data">
-        <include file="$(find kuam_csv_parser)/launch/csv_parser.launch">
-        </include>
-
         <include file="$(find kuam_aruco_tracking)/launch/aruco_tracking.launch">
             <arg name="noise_dist_th_m" value="$(arg noise_dist_th_m)" />
             <arg name="filter_buf_size" value="$(arg filter_buf_size)" />
             <arg name="using_gazebo_data" value="$(arg using_gazebo_data)" />
             <arg name="using_logging_data" value="$(arg using_logging_data)" />
-            <arg name="using_device_data" value="$(arg using_device_data)" />
         </include>        
     </group>
 </launch>
