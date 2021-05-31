@@ -17,8 +17,7 @@ class Parser
 public:
     Parser();
     virtual ~Parser();
-    bool ReadFile(string file_path, bool& do_estimate_pose, 
-                bool& show_rejected, float& marker_length, 
+    bool ReadFile(string file_path, bool& do_estimate_pose, bool& show_rejected, 
                 cv::Ptr<cv::aruco::DetectorParameters>& detector_params, 
                 cv::Ptr<cv::aruco::Dictionary>& dictionary, 
                 cv::Mat& cam_matrix, cv::Mat& dist_coeffs);

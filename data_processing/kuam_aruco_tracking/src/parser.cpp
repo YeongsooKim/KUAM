@@ -34,8 +34,7 @@ Parser::Parser()
 Parser::~Parser()
 {}
 
-bool Parser::ReadFile(string file_path, bool& do_estimate_pose, 
-                bool& show_rejected, float& marker_length, 
+bool Parser::ReadFile(string file_path, bool& do_estimate_pose, bool& show_rejected,
                 cv::Ptr<cv::aruco::DetectorParameters>& detector_params, 
                 cv::Ptr<cv::aruco::Dictionary>& dictionary, 
                 cv::Mat& cam_matrix, cv::Mat& dist_coeffs)
@@ -76,7 +75,6 @@ bool Parser::ReadFile(string file_path, bool& do_estimate_pose,
     int dictionaryId = cv_parser.get<int>("d");
     show_rejected = cv_parser.has("r");
     do_estimate_pose = cv_parser.has("c");
-    marker_length = cv_parser.get<float>("l");
 
     detector_params = aruco::DetectorParameters::create();
     if(cv_parser.has("dp")) {

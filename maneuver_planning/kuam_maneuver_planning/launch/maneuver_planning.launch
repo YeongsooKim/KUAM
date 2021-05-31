@@ -11,7 +11,7 @@
 	<arg name="reached_dist_th_m" default="0.4" />
 	<arg name="guidance_dist_th_m" default="0.7" />
 	<arg name="target_marker_id" default="0" />
-	<arg name="landing_threshold_m" default="3.0" />
+	<arg name="landing_threshold_m" default="0.1" />
 	<arg name="landing_standby_alt_m" default="5.0" />
 
     <group ns="/kuam/maneuver">

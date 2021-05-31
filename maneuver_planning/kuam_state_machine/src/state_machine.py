@@ -16,6 +16,7 @@ from smach import CBState
 # Message
 from std_msgs.msg import String
 from std_msgs.msg import ColorRGBA
+from uav_msgs.msg import Chat
 from kuam_msgs.msg import Task
 from kuam_msgs.msg import Setpoint
 from kuam_msgs.msg import MarkerState
@@ -151,6 +152,7 @@ def VirtualBoderPub(pose):
     # Cube
     gt_marker = Marker()
     gt_marker.ns = "ground_truth"
+    gt_marker.id = 0
     gt_marker.header.frame_id = "map"
     gt_marker.type = gt_marker.CUBE
     gt_marker.action = gt_marker.ADD
@@ -167,6 +169,30 @@ def VirtualBoderPub(pose):
     gt_marker.pose.orientation.w = 1.0
     gt_marker.pose.position.x = 2.6600
     gt_marker.pose.position.y = -2.2974
+    gt_marker.pose.position.z = 0.0
+    marker_array.markers.append(gt_marker)
+
+
+    # Cube
+    gt_marker = Marker()
+    gt_marker.ns = "ground_truth"
+    gt_marker.id = 1
+    gt_marker.header.frame_id = "map"
+    gt_marker.type = gt_marker.CUBE
+    gt_marker.action = gt_marker.ADD
+
+    gt_marker.scale.x = 0.06
+    gt_marker.scale.y = 0.06
+    gt_marker.scale.z = 0.01
+    a = ColorRGBA()
+    gt_marker.color = blue
+    gt_marker.color.a = 1.0
+    gt_marker.pose.orientation.x = 0.0
+    gt_marker.pose.orientation.y = 0.0
+    gt_marker.pose.orientation.z = 0.0
+    gt_marker.pose.orientation.w = 1.0
+    gt_marker.pose.position.x = 2.8
+    gt_marker.pose.position.y = -2.5
     gt_marker.pose.position.z = 0.0
     marker_array.markers.append(gt_marker)
 
@@ -302,8 +328,13 @@ def MarkerCB(msg):
             pose_transformed = tf2_geometry_msgs.do_transform_pose(msg_pose_stamped, transform)
             offb_states_[OffbState.LANDING].target_pose = pose_transformed.pose
 
-def MavrosStateCB(msg):
-    pass
+def CommandCB(msg):
+    if msg.msg == "local_z":
+        alt = msg.point.z
+        cur_mode, cur_state = GetSMStatus()
+
+        if (cur_mode == "OFFBOARD") and (cur_state == "HOVERING"):
+            offb_states_[OffbState[cur_state]].setpoint.pose.position.z = alt
 
 def ProcessCB(timer):
     # Do transition
@@ -379,9 +410,9 @@ if __name__ == '__main__':
     # Init subcriber
     rospy.Subscriber(ns_name + "/mission_manager/task", Task, TaskCB)
     rospy.Subscriber(ns_name + "/mission_manager/mode", String, ModeCB)
-    rospy.Subscriber("/mavros/state", State, MavrosStateCB)
     rospy.Subscriber("/mavros/local_position/pose", PoseStamped, EgoLocalPoseCB)
     rospy.Subscriber(data_ns + "/aruco_tracking/target_state", MarkerState, MarkerCB)
+    rospy.Subscriber(data_ns + "/chat/command", Chat, CommandCB)
 
     # Init publisher
     mode_pub = rospy.Publisher(nd_name + '/mode', String, queue_size=10)

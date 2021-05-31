@@ -14,7 +14,10 @@ const string CAMERA_FRAME = "camera_link";
 ArucoTracking::ArucoTracking() :
     OPENCV_WINDOW("Image window"),
     m_aruco_parser_param("missing"),
-    m_target_marker_id_param(NAN),
+    m_big_marker_id_param(NAN),
+    m_small_marker_id_param(NAN),
+    m_big_marker_size_m_param(NAN),
+    m_small_marker_size_m_param(NAN),
     m_filter_buf_size_param(NAN),
     m_estimating_method_param(NAN),
     m_noise_dist_th_m_param(NAN),
@@ -27,11 +30,14 @@ ArucoTracking::ArucoTracking() :
 
     namedWindow(OPENCV_WINDOW);
     m_parser.ReadFile(m_aruco_parser_param, m_do_estimate_pose, m_show_rejected, 
-                    m_marker_length, m_detector_params, m_dictionary, m_cam_matrix, m_dist_coeffs);
+                    m_detector_params, m_dictionary, m_cam_matrix, m_dist_coeffs);
     
     m_target.state.resize((int)EstimatingMethod::ItemNum);
     m_target.last_detected_time = ros::Time(0);
     m_target_pose_list.header.frame_id = "camera_link";
+
+    m_id_to_markersize_map.insert(pair<int, float>(m_big_marker_id_param, m_big_marker_size_m_param));
+    m_id_to_markersize_map.insert(pair<int, float>(m_small_marker_id_param, m_small_marker_size_m_param));
 }
 
 ArucoTracking::~ArucoTracking()
@@ -51,7 +57,10 @@ bool ArucoTracking::GetParam()
     string nd_name = ros::this_node::getName();
 
     m_nh.getParam(nd_name + "/arcuo_parser", m_aruco_parser_param);
-    m_nh.getParam(nd_name + "/target_marker_id", m_target_marker_id_param);
+    m_nh.getParam(nd_name + "/big_marker_id", m_big_marker_id_param);
+    m_nh.getParam(nd_name + "/small_marker_id", m_small_marker_id_param);
+    m_nh.getParam(nd_name + "/big_marker_size_m", m_big_marker_size_m_param);
+    m_nh.getParam(nd_name + "/small_marker_size_m", m_small_marker_size_m_param);
     m_nh.getParam(nd_name + "/filter_buf_size", m_filter_buf_size_param);
     m_nh.getParam(nd_name + "/estimating_method", m_estimating_method_param);
     m_nh.getParam(nd_name + "/compare_mode", m_compare_mode_param);
@@ -59,7 +68,10 @@ bool ArucoTracking::GetParam()
     m_nh.getParam(nd_name + "/noise_dist_th_m", m_noise_dist_th_m_param);
 
     if (m_aruco_parser_param == "missing") { ROS_ERROR_STREAM("[aruco_tracking] m_aruco_parser_param is missing"); return false; }
-    else if (__isnan(m_target_marker_id_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_target_marker_id_param is NAN"); return false; }
+    else if (__isnan(m_big_marker_id_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_big_marker_id_param is NAN"); return false; }
+    else if (__isnan(m_small_marker_id_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_small_marker_id_param is NAN"); return false; }
+    else if (__isnan(m_big_marker_size_m_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_big_marker_size_m_param is NAN"); return false; }
+    else if (__isnan(m_small_marker_size_m_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_small_marker_size_m_param is NAN"); return false; }
     else if (__isnan(m_filter_buf_size_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_filter_buf_size_param is NAN"); return false; }
     else if (__isnan(m_estimating_method_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_estimating_method_param is NAN"); return false; }
     else if (__isnan(m_noise_dist_th_m_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_noise_dist_th_m_param is NAN"); return false; }
@@ -225,9 +237,13 @@ bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& 
 
     aruco::detectMarkers(image, m_dictionary, corners, ids, m_detector_params, rejected);
     for (auto id : ids){
-        if (id == m_target_marker_id_param){
+        if (m_id_to_markersize_map.find(id) != m_id_to_markersize_map.end()){
             if (IsNoise()) is_detected = false;
-            else is_detected = true;
+            else{
+                is_detected = true;
+                m_target.id = id;
+                m_target.marker_size_m = m_id_to_markersize_map.find(id)->second;
+            } 
         }
     }
 
@@ -235,7 +251,7 @@ bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& 
     image.copyTo(copy_image);
     vector<Vec3d> rvecs, tvecs;
     if (is_detected){
-        aruco::estimatePoseSingleMarkers(corners, m_marker_length, m_cam_matrix, m_dist_coeffs, rvecs, tvecs);
+        aruco::estimatePoseSingleMarkers(corners, m_target.marker_size_m, m_cam_matrix, m_dist_coeffs, rvecs, tvecs);
         
         // if detected value is noise, change is_detected value from true to false
         Camera2World(corners, ids, rvecs, tvecs, target_pose);
@@ -256,10 +272,10 @@ bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& 
         if (is_detected){
             aruco::drawDetectedMarkers(copy_image, corners, ids);
 
-            for(unsigned int i = 0; i < ids.size(); i++){
-                if (ids.at(i) == m_target_marker_id_param){
-                    aruco::drawAxis(copy_image, m_cam_matrix, m_dist_coeffs, rvecs[i], tvecs[i],
-                                    m_marker_length * 0.5f);
+            for (auto id : ids){
+                if (m_id_to_markersize_map.find(id) != m_id_to_markersize_map.end()){
+                    aruco::drawAxis(copy_image, m_cam_matrix, m_dist_coeffs, rvecs[id], tvecs[id],
+                                    m_target.marker_size_m * 0.5f);
                 }
             }
 
@@ -282,8 +298,7 @@ bool ArucoTracking::Camera2World(const vector<vector<Point2f>> corners, const ve
     // Create and publish tf message for each marker
     tf2_msgs::TFMessage tf_msg_list;
     for (auto i = 0; i < rvecs.size(); ++i){
-        if (ids[i] == m_target_marker_id_param){
-
+        if (ids[i] == m_target.id){
             // ROS_ERROR("%f, %f", corners[i][0].x, corners[i][0].y);
             // ROS_ERROR("%f, %f", corners[i][1].x, corners[i][1].y);
             // ROS_ERROR("%f, %f", corners[i][2].x, corners[i][2].y);

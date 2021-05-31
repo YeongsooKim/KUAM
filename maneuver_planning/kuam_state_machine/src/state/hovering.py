@@ -1,7 +1,7 @@
 import rospy
 import smach
-import state
 import copy
+import state
 
 class Hovering(smach.State, state.Base):
     def __init__(self):

@@ -67,5 +67,5 @@ elif [ $gazebo == "true" ]; then
 
     source ./launch-common.sh
 
-    roslaunch kuam_offb control.launch simulation:="$simulation" airsim:="$airsim" gazebo:="$gazebo" init_gps_lat:="${PX4_HOME_LAT}" init_gps_lon:="${PX4_HOME_LON}" init_gps_alt:="${PX4_HOME_ALT}" sync_PX4:="false"
+    roslaunch kuam_flight_control flight_control.launch simulation:="$simulation" airsim:="$airsim" gazebo:="$gazebo" init_gps_lat:="${PX4_HOME_LAT}" init_gps_lon:="${PX4_HOME_LON}" init_gps_alt:="${PX4_HOME_ALT}" sync_PX4:="false"
 fi

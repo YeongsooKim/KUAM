@@ -45,8 +45,11 @@ struct State{
     vector < vector < Point2f > > corners;
 };
 
+using id2markersizes = map < int , float >;
+
 struct Target{
     int id;
+    float marker_size_m;
     bool is_init;
 
     bool is_detected;
@@ -109,24 +112,35 @@ private:
 
     // Param
     string m_aruco_parser_param; // Dictionary
-    int m_target_marker_id_param; // 
+    int m_big_marker_id_param; // 
+    int m_small_marker_id_param; // 
+    float m_big_marker_size_m_param; // 
+    float m_small_marker_size_m_param; //     
     int m_filter_buf_size_param; // 
     int m_estimating_method_param;
     bool m_compare_mode_param;
     bool m_using_gazebo_data_param;
     float m_noise_dist_th_m_param;
 
-    ros::Time m_last_detected_time;
-    ros::Time m_last_noise_check_time;
-    VideoCapture m_input_video;
-    const string OPENCV_WINDOW;
-    bool m_do_estimate_pose;
-    bool m_show_rejected;
-    float m_marker_length;
+
+    // ArUco variable
     Ptr<aruco::DetectorParameters> m_detector_params;
     Ptr<aruco::Dictionary> m_dictionary;
     Mat m_cam_matrix;
     Mat m_dist_coeffs;
+    bool m_do_estimate_pose;
+    bool m_show_rejected;
+    id2markersizes m_id_to_markersize_map;
+
+    // Time variable
+    ros::Time m_last_detected_time;
+    ros::Time m_last_noise_check_time;
+
+    // Video variable
+    VideoCapture m_input_video;
+    const string OPENCV_WINDOW;
+
+
     geometry_msgs::PoseArray m_target_pose_list;
 
 private: // Function

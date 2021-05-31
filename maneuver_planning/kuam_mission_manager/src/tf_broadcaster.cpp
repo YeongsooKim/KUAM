@@ -65,7 +65,7 @@ void TfBroadcaster::InitROS()
     m_home_position_pub = m_nh.advertise<geographic_msgs::GeoPoint>(nd_name + "/home", 1);
 
     // Initialize timer
-    auto freq = 50.0;
+    auto freq = 10.0;
     m_home_position_timer = m_nh.createTimer(ros::Duration(2.0), &TfBroadcaster::HomePositionTimerCallback, this);
     m_test_timer = m_nh.createTimer(ros::Duration(1.0/freq), &TfBroadcaster::ProcessTimerCallback, this);
 }
