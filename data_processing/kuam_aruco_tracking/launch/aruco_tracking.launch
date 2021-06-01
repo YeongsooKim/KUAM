@@ -32,4 +32,8 @@
         <param name="using_gazebo_data" value="$(arg using_gazebo_data)" />
         <param name="noise_dist_th_m" value="$(arg noise_dist_th_m)" />
     </node>
+
+    <group if="$(arg using_device_data)">
+        <include file="$(find kuam_usb_cam)/launch/usb_cam.launch"/>
+    </group>
 </launch>

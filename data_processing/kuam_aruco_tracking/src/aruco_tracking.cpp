@@ -28,7 +28,7 @@ ArucoTracking::ArucoTracking() :
     InitROS();
     InitMarkers();
 
-    namedWindow(OPENCV_WINDOW);
+    //namedWindow(OPENCV_WINDOW);
     m_parser.ReadFile(m_aruco_parser_param, m_do_estimate_pose, m_show_rejected, 
                     m_detector_params, m_dictionary, m_cam_matrix, m_dist_coeffs);
     
@@ -42,7 +42,7 @@ ArucoTracking::ArucoTracking() :
 
 ArucoTracking::~ArucoTracking()
 {
-    destroyWindow(OPENCV_WINDOW);
+    //destroyWindow(OPENCV_WINDOW);
 }
 
 bool ArucoTracking::InitFlag()
@@ -100,7 +100,8 @@ bool ArucoTracking::InitROS()
     m_target_list_pub = m_nh.advertise<geometry_msgs::PoseArray> (nd_name + "/target_list", 1);
     
     // Initialize timer
-    m_image_timer = m_nh.createTimer(ros::Duration(0.01), &ArucoTracking::ProcessTimerCallback, this);
+	auto freq = 30.0;
+    m_image_timer = m_nh.createTimer(ros::Duration(1.0/freq), &ArucoTracking::ProcessTimerCallback, this);
 
     return true;
 }
@@ -627,7 +628,7 @@ bool ArucoTracking::IsNoise()
         else {
             is_init = false;
             
-            if (cnt >= 50) return false;
+            if (cnt >= 20) return false;
             else return true;
         }
     }
