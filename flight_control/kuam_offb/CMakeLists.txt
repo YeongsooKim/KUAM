@@ -54,10 +54,6 @@ include_directories(
   ${EIGEN3_INCLUDE_DIRS}
 )
 
-## generate_waypoints_node
+## offb_node
 add_executable(offb_node src/offb_node.cpp src/offb.cpp src/utils.cpp)
 target_link_libraries(offb_node ${catkin_LIBRARIES})
-
-# ## tf_broadcaster_node
-# add_executable(tf_broadcaster_node src/tf_broadcaster_node.cpp src/tf_broadcaster.cpp src/utils.cpp)
-# target_link_libraries(tf_broadcaster_node ${catkin_LIBRARIES})
