@@ -22,12 +22,21 @@ find_package(Boost REQUIRED COMPONENTS system)
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
+  MarkerState.msg
+  MarkerStateArray.msg
+  Waypoint.msg
+  Waypoints.msg
+  Task.msg
+  TaskList.msg
+  OffbCmd.msg
+  Setpoint.msg
+  LandingState.msg
 )
 
 ## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-)
+# add_service_files(
+#   FILES
+# )
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(

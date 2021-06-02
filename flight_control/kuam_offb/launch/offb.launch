@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+	<arg name="process_freq" default="30.0" />
+	<arg name="maneuver_ns" default="/kuam/maneuver" />
+
+    <node pkg="kuam_offb" type="offb_node" name="offb" output="screen">
+        <param name="process_freq" value="$(arg process_freq)" />
+        <param name="maneuver_ns" value="$(arg maneuver_ns)" />
+    </node>
+</launch>

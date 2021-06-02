@@ -1,0 +1,125 @@
+[global_config]
+  suppress_multiple_term_dialog = True
+[keybindings]
+[layouts]
+  [[default]]
+    [[[child1]]]
+      parent = window0
+      type = Terminal
+    [[[window0]]]
+      parent = ""
+      type = Window
+  [[prcz_landing]]
+    [[[child0]]]
+      fullscreen = False
+      last_active_term = 89aed4a2-3a01-4f23-af34-148780e2ac9c
+      last_active_window = True
+      maximised = True
+      order = 0
+      parent = ""
+      position = 1987:27
+      size = 1853, 1025
+      title = ys@ys-u-gt63: ~
+      type = Window
+    [[[child1]]]
+      order = 0
+      parent = child0
+      position = 924
+      ratio = 0.5
+      type = HPaned
+    [[[child11]]]
+      order = 1
+      parent = child1
+      position = 510
+      ratio = 0.5
+      type = VPaned
+    [[[child13]]]
+      order = 1
+      parent = child11
+      position = 461
+      ratio = 0.5
+      type = HPaned
+    [[[child2]]]
+      order = 0
+      parent = child1
+      position = 461
+      ratio = 0.501632208923
+      type = HPaned
+    [[[child3]]]
+      order = 0
+      parent = child2
+      position = 510
+      ratio = 0.5
+      type = VPaned
+    [[[child6]]]
+      order = 1
+      parent = child2
+      position = 510
+      ratio = 0.5
+      type = VPaned
+    [[[child8]]]
+      order = 1
+      parent = child6
+      position = 254
+      ratio = 0.5
+      type = VPaned
+    [[[terminal10]]]
+      command = "bash -c 'sleep 2; source /opt/ros/melodic/setup.bash; source /home/ys/kuam_ws/devel/setup.bash; roslaunch kuam_visual visualize_rviz.launch; $SHELL'"
+      order = 1
+      parent = child8
+      profile = default
+      type = Terminal
+      uuid = da700d73-21e0-4751-83a7-9b129463e322
+    [[[terminal12]]]
+      command = "bash -c 'sleep 2; source /opt/ros/melodic/setup.bash; source /home/ys/kuam_ws/devel/setup.bash; roslaunch kuam_data_utils chat.launch; $SHELL'"
+      order = 0
+      parent = child11
+      profile = default
+      type = Terminal
+      uuid = 2764a3f0-1197-4c6b-8527-75e61a042251
+    [[[terminal14]]]
+      command = "bash -c 'sleep 2; source /opt/ros/melodic/setup.bash; source /home/ys/kuam_ws/devel/setup.bash; rosrun kuam_offb eval.py; $SHELL'"
+      order = 0
+      parent = child13
+      profile = default
+      type = Terminal
+      uuid = 46c60d03-ba8e-4a19-a7cf-b7fa1b499a9f
+    [[[terminal15]]]
+      order = 1
+      parent = child13
+      profile = default
+      type = Terminal
+      uuid = b1987651-3d26-4713-8566-2e0106eeaa0e
+    [[[terminal4]]]
+      command = "bash -c 'source /opt/ros/melodic/setup.bash; source /home/ys/kuam_ws/devel/setup.bash; roslaunch kuam_data_processing data_processing.launch; $SHELL'"
+      order = 0
+      parent = child3
+      profile = default
+      type = Terminal
+      uuid = 93984ae9-bcde-4d81-9bec-0256bb88cec3
+    [[[terminal5]]]
+      command = "bash -c 'source /opt/ros/melodic/setup.bash; source /home/ys/kuam_ws/devel/setup.bash; roscd kuam_flight_control/scripts; sleep 2; ./launch-offb.sh -s gazebo; $SHELL'"
+      order = 1
+      parent = child3
+      profile = default
+      type = Terminal
+      uuid = b45b1949-7857-464b-af6f-960b453a43cd
+    [[[terminal7]]]
+      command = "bash -c 'sleep 2; source /opt/ros/melodic/setup.bash; source /home/ys/kuam_ws/devel/setup.bash; roslaunch kuam_maneuver_planning maneuver_planning.launch; $SHELL'"
+      order = 0
+      parent = child6
+      profile = default
+      type = Terminal
+      uuid = 89aed4a2-3a01-4f23-af34-148780e2ac9c
+    [[[terminal9]]]
+      command = "bash -c 'sleep 2; source /opt/ros/melodic/setup.bash; source /home/ys/kuam_ws/devel/setup.bash; rosrun smach_viewer smach_viewer.py; $SHELL'"
+      order = 0
+      parent = child8
+      profile = default
+      type = Terminal
+      uuid = 1ee297ae-aed6-4f85-9d21-1da89cb53184
+[plugins]
+[profiles]
+  [[default]]
+    cursor_color = "#aaaaaa"
+    scrollback_infinite = True

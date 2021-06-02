@@ -1,0 +1,6 @@
+-d=0
+/-v=""
+-ci=0
+-c=../../../src/KUAM/config/calib.txt
+-dp=../../../src/KUAM/config/detector_params.yml
+/-r=false

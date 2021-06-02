@@ -1,0 +1,17 @@
+<launch>
+	<arg name="output" default="screen"/>
+
+	<arg name="process_freq" default="50.0" />
+	<arg name="is_finding_home" default="false" />
+	<arg name="target_height_m" default="20" />
+	<arg name="data_ns" default="/kuam/data" />
+	<arg name="drone_offset_m" default="0.188" />
+
+	<node pkg="kuam_mission_manager" type="kuam_tf_broadcaster_node" name="tf_broadcaster" output="$(arg output)">
+        <param name="process_freq" value="$(arg process_freq)" />
+		<param name="is_finding_home" value="$(arg is_finding_home)" />
+		<param name="target_height_m" value="$(arg target_height_m)" />
+		<param name="data_ns" value="$(arg data_ns)" />
+		<param name="drone_offset_m" value="$(arg drone_offset_m)" />
+	</node>
+</launch>
