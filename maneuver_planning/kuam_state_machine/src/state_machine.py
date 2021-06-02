@@ -16,6 +16,7 @@ from smach import CBState
 # Message
 from std_msgs.msg import String
 from std_msgs.msg import ColorRGBA
+from sensor_msgs.msg import BatteryState
 from uav_msgs.msg import Chat
 from kuam_msgs.msg import Task
 from kuam_msgs.msg import Setpoint
@@ -63,10 +64,11 @@ class SMMode(Enum):
 
 
 '''
-Parameters
+Parameters. Defined by ros param
 '''
-freq_ = 1.0
+freq_ = 1.0 
 virtual_border_angle_ = [10, 20]
+battery_th_ = 5.0
 
 
 '''
@@ -88,6 +90,7 @@ offb_states_[OffbState.LANDING] = Landing()
 # Init transition
 state_transitions_ = []
 mode_transitions_ = 'manual'
+prev_mode_transitions_ = 'manual'
 
 #
 setpoints_ = None
@@ -111,6 +114,19 @@ def GetSMStatus():
     cur_state = sm_offb_.get_active_states()[0]
 
     return [cur_mode, cur_state]
+
+def IsValid(pose_stamped):
+    x = pose_stamped.pose.position.x
+    y = pose_stamped.pose.position.y
+    z = pose_stamped.pose.position.z
+
+    if (x>1e+100) or (x<-1e+100):
+        return False
+    if (y>1e+100) or (y<-1e+100):
+        return False
+    if (z>1e+100) or (z<-1e+100):
+        return False
+    return True
 
 def VirtualBoderPub(pose):
     marker_array = MarkerArray()
@@ -297,19 +313,20 @@ def TaskCB(msg):
 
 def ModeCB(msg):
     global mode_transitions_
+    global prev_mode_transitions_
     mode_transitions_ = msg.data
 
     cur_mode = sm_mode_.get_active_states()[0]
     if cur_mode == 'OFFBOARD':
         cur_state = sm_offb_.get_active_states()[0]
         offb_states_[OffbState[cur_state]].transition = mode_transitions_
+        prev_mode_transitions_ = mode_transitions_
 
 def EgoLocalPoseCB(msg):
     for state in offb_states_.values():
         state.ego_pose = msg.pose
 
 def MarkerCB(msg):
-    offb_states_[OffbState.LANDING].is_detected = msg.is_detected
     offb_states_[OffbState.LANDING].target_id = msg.id
 
     if msg.is_detected == True:
@@ -326,7 +343,12 @@ def MarkerCB(msg):
 
         if is_transformed == True:
             pose_transformed = tf2_geometry_msgs.do_transform_pose(msg_pose_stamped, transform)
-            offb_states_[OffbState.LANDING].target_pose = pose_transformed.pose
+            if IsValid(pose_transformed):
+                offb_states_[OffbState.LANDING].is_detected = True
+                offb_states_[OffbState.LANDING].target_pose = pose_transformed.pose
+                target_pose_pub.publish(pose_transformed)
+            else:
+                offb_states_[OffbState.LANDING].is_detected = False
 
 def CommandCB(msg):
     if msg.msg == "local_z":
@@ -335,6 +357,21 @@ def CommandCB(msg):
 
         if (cur_mode == "OFFBOARD") and (cur_state == "HOVERING"):
             offb_states_[OffbState[cur_state]].setpoint.pose.position.z = alt
+
+def BatteryCB(msg):
+    global mode_transitions_
+    global prev_mode_transitions_
+    percentage = msg.percentage
+    voltage = msg.voltage
+
+    if percentage < battery_th_:
+        mode_transitions_ = 'emerg'
+
+        cur_mode = sm_mode_.get_active_states()[0]
+        if cur_mode == 'OFFBOARD':
+            cur_state = sm_offb_.get_active_states()[0]
+            offb_states_[OffbState[cur_state]].transition = mode_transitions_
+            prev_mode_transitions_ = mode_transitions_
 
 def ProcessCB(timer):
     # Do transition
@@ -358,25 +395,39 @@ Smach callback function
 # define state MANUAL
 @smach.cb_interface(input_keys=[], output_keys=[], outcomes=['offboard', 'finished'])
 def ManualCB(userdata):
+    global prev_mode_transitions_
+    global mode_transitions_
     rate = rospy.Rate(freq_)
-    while mode_transitions_ == 'manual':
+    while not rospy.is_shutdown():
+        # Break condition
+        if (mode_transitions_ == 'offboard') or (mode_transitions_ == 'finished'):
+            break
+        else:
+            mode_transitions_ = prev_mode_transitions_
+
         rate.sleep()
 
-    if mode_transitions_ == 'offboard':
-        return 'offboard'
-    elif mode_transitions_ == 'finished':
-        return 'finished'
+    prev_mode_transitions_ = mode_transitions_        
+    return mode_transitions_
 
 # define state EMERG
 @smach.cb_interface(input_keys=[], output_keys=[], outcomes=['emerg'])
 def EmergCB(userdata):
+    global prev_mode_transitions_
+    global mode_transitions_
     rate = rospy.Rate(freq_)
-    while mode_transitions_ == 'emerg':
+    while not rospy.is_shutdown():
+        # Break condition
+        if mode_transitions_ == 'emerg':
+            break
+        else:
+            mode_transitions_ = prev_mode_transitions_
+
         rate.sleep()
 
-    return 'emerg'
-
-
+    prev_mode_transitions_ = mode_transitions_
+    return mode_transitions_
+                    
 if __name__ == '__main__':
     rospy.init_node('state_machine')
     nd_name = rospy.get_name()
@@ -393,6 +444,7 @@ if __name__ == '__main__':
     target_marker_id = rospy.get_param(nd_name + "/target_marker_id")
     landing_threshold_m = rospy.get_param(nd_name + "/landing_threshold_m")
     landing_standby_alt_m = rospy.get_param(nd_name + "/landing_standby_alt_m")
+    battery_th_ = rospy.get_param(nd_name + "/battery_th_per")
 
     for state in offb_states_.values():
         state.freq = freq_
@@ -408,11 +460,12 @@ if __name__ == '__main__':
     Initialize ROS
     '''
     # Init subcriber
-    rospy.Subscriber(ns_name + "/mission_manager/task", Task, TaskCB)
-    rospy.Subscriber(ns_name + "/mission_manager/mode", String, ModeCB)
+    rospy.Subscriber(ns_name + "mission_manager/task", Task, TaskCB)
+    rospy.Subscriber(ns_name + "mission_manager/mode", String, ModeCB)
     rospy.Subscriber("/mavros/local_position/pose", PoseStamped, EgoLocalPoseCB)
     rospy.Subscriber(data_ns + "/aruco_tracking/target_state", MarkerState, MarkerCB)
     rospy.Subscriber(data_ns + "/chat/command", Chat, CommandCB)
+    rospy.Subscriber("/mavros/battery", BatteryState, BatteryCB)
 
     # Init publisher
     mode_pub = rospy.Publisher(nd_name + '/mode', String, queue_size=10)
@@ -421,6 +474,8 @@ if __name__ == '__main__':
     setpoints_pub = rospy.Publisher(nd_name + '/setpoints', PoseArray, queue_size=10)
     marker_pub = rospy.Publisher(nd_name + '/test_marker', MarkerArray, queue_size=10)
     landing_state_pub = rospy.Publisher(nd_name + '/landing_state', LandingState, queue_size=10)
+    target_pose_pub = rospy.Publisher(nd_name + '/target_pose', PoseStamped, queue_size=10)
+
     offb_states_[OffbState.LANDING].landing_state_pub = landing_state_pub
 
     # Init timer

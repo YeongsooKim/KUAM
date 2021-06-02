@@ -13,7 +13,7 @@ geometry_msgs::Point marker_point;
 Offboard::Offboard() : 
     m_tfListener(m_tfBuffer),
     m_last_request_time(ros::Time::now()),
-    m_setpoint_pub_interval_param(NAN),
+    m_process_freq_param(NAN),
     m_maneuver_ns_param("missing"),
     m_prev_sm_state("none"),
     m_hovering_count(0)
@@ -41,11 +41,11 @@ bool Offboard::GetParam()
 {
     string nd_name = ros::this_node::getName();
 
-    m_nh.getParam(nd_name + "/setpoint_pub_interval", m_setpoint_pub_interval_param);
+    m_nh.getParam(nd_name + "/process_freq", m_process_freq_param);
     m_nh.getParam(nd_name + "/maneuver_ns", m_maneuver_ns_param);
     m_nh.getParam(nd_name + "/maneuver_ns", m_maneuver_ns_param);
 
-    if (__isnan(m_setpoint_pub_interval_param)) { ROS_ERROR_STREAM("m_setpoint_pub_interval_param is NAN"); return false; }
+    if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("m_process_freq_param is NAN"); return false; }
     else if (m_maneuver_ns_param == "missing") { ROS_ERROR_STREAM("m_maneuver_ns_param is missing"); return false; }
 
     return true;
@@ -75,15 +75,16 @@ bool Offboard::InitROS()
     m_set_mode_serv_client = m_nh.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
     
     // Time callback
-    m_timer = m_nh.createTimer(ros::Duration(m_setpoint_pub_interval_param), &Offboard::ProcessTimerCallback, this);
+    
+    m_timer = m_nh.createTimer(ros::Duration(1.0/m_process_freq_param), &Offboard::ProcessTimerCallback, this);
 
     return true;
 }
 
 bool Offboard::InitClient()
 {
-    if (m_setpoint_pub_interval_param == 0.0) return false;
-    ros::Rate rate(1/m_setpoint_pub_interval_param);
+    if (m_process_freq_param == 0.0) return false;
+    ros::Rate rate(m_process_freq_param);
 
     // wait for FCU
     while(ros::ok() && !m_mavros_status.connected){
@@ -120,6 +121,7 @@ void Offboard::ProcessTimerCallback(const ros::TimerEvent& event)
     }
     else if (m_sm_mode == "EMERG"){
         m_offb_init = false;
+        EmergRequest();
     }
 }
 
@@ -135,6 +137,23 @@ void Offboard::ManualRequest()
 
             m_offb_state = Enum2String(Mode::Manual);
             ROS_INFO("Manual enabled");
+        }
+        m_last_request_time = ros::Time::now();
+    }
+}
+
+void Offboard::EmergRequest()
+{
+    mavros_msgs::SetMode manual_set_mode;
+    manual_set_mode.request.custom_mode = "AUTO.RTL";
+
+    if( m_mavros_status.mode != "AUTO.RTL" &&
+        (ros::Time::now() - m_last_request_time > ros::Duration(5.0))){
+        if(m_set_mode_serv_client.call(manual_set_mode) &&
+            manual_set_mode.response.mode_sent){
+
+            m_offb_state = Enum2String(Mode::Manual);
+            ROS_INFO("Emergy enabled");
         }
         m_last_request_time = ros::Time::now();
     }
@@ -166,29 +185,6 @@ bool Offboard::IsOffboard()
         return false;
     }
     return true;
-    // mavros_msgs::SetMode offb_set_mode;
-    // offb_set_mode.request.custom_mode = "OFFBOARD";
-
-    // mavros_msgs::CommandBool arm_cmd;
-    // arm_cmd.request.value = true;
-
-    // if( m_mavros_status.mode != "OFFBOARD" &&
-    //     (ros::Time::now() - m_last_request_time > ros::Duration(5.0))){
-    //     if(m_set_mode_serv_client.call(offb_set_mode) &&
-    //         offb_set_mode.response.mode_sent){
-    //         ROS_INFO("Offboard enabled");
-    //     }
-    //     m_last_request_time = ros::Time::now();
-    // } else {
-    //     if(!m_mavros_status.armed &&
-    //         (ros::Time::now() - m_last_request_time > ros::Duration(5.0))){
-    //         if( m_arming_serv_client.call(arm_cmd) &&
-    //             arm_cmd.response.success){
-    //             ROS_INFO("Vehicle armed");
-    //         }
-    //         m_last_request_time = ros::Time::now();
-    //     }
-    // }
 }
 
 void Offboard::ArmRequest()

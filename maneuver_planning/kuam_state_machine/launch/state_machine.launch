@@ -10,7 +10,8 @@
 	<arg name="target_marker_id" default="0" />
 	<arg name="landing_threshold_m" default="3.0" />
 	<arg name="landing_standby_alt_m" default="5.0" />
-	
+	<arg name="battery_th_per" default="0.05" />
+
 	<node pkg="kuam_state_machine" type="state_machine.py" name="state_machine" output="$(arg output)">
 		<param name="data_ns" value="$(arg data_ns)" />
 		<param name="freq" value="$(arg freq)" />
@@ -20,5 +21,6 @@
 		<param name="target_marker_id" value="$(arg target_marker_id)" />
 		<param name="landing_threshold_m" value="$(arg landing_threshold_m)" />
 		<param name="landing_standby_alt_m" value="$(arg landing_standby_alt_m)" />
+		<param name="battery_th_per" value="$(arg battery_th_per)" />
 	</node>
 </launch>

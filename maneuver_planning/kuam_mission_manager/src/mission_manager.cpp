@@ -13,6 +13,7 @@ namespace kuam
 using namespace mission;
 
 Maneuver::Maneuver() :
+    m_process_freq_param(NAN),
     m_cur_task(NO_TASK),
     m_mode("manual"),
     m_data_ns_param("missing"),
@@ -39,15 +40,17 @@ bool Maneuver::GetParam()
 {
     string nd_name = ros::this_node::getName();
 
+    m_nh.getParam(nd_name + "/process_freq", m_process_freq_param);
     m_nh.getParam(nd_name + "/mode", m_is_auto_param);
     m_nh.getParam(nd_name + "/data_ns", m_data_ns_param);
     m_nh.getParam(nd_name + "/control_ns", m_control_ns_param);
     m_nh.getParam(nd_name + "/home_poses", m_control_ns_param);
     m_nh.getParam(nd_name + "/target_height_m", m_target_height_m_param);
 
-    if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("m_data_ns_param is missing"); return false; }
-    else if (m_control_ns_param == "missing") { ROS_ERROR_STREAM("m_control_ns_param is missing"); return false; }
-    else if (__isnan(m_target_height_m_param)) { ROS_ERROR_STREAM("m_target_height_m_param is NAN"); return false; }
+    if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("[mission_manager] m_data_ns_param is missing"); return false; }
+    else if (m_control_ns_param == "missing") { ROS_ERROR_STREAM("[mission_manager] m_control_ns_param is missing"); return false; }
+    else if (__isnan(m_target_height_m_param)) { ROS_ERROR_STREAM("[mission_manager] m_target_height_m_param is NAN"); return false; }
+    else if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[mission_manager] m_process_freq_param is NAN"); return false; }
     return true;
 }
 
@@ -80,7 +83,7 @@ bool Maneuver::InitROS()
     m_waypoint_pub = m_nh.advertise<std_msgs::String>(nd_name + "/mode", 10);
 
     // // Initialize timer
-    m_mission_timer = m_nh.createTimer(ros::Duration(0.05), &Maneuver::ProcessTimerCallback, this);
+    m_mission_timer = m_nh.createTimer(ros::Duration(1.0/m_process_freq_param), &Maneuver::ProcessTimerCallback, this);
     
     return true;
 }

@@ -12,6 +12,7 @@ namespace kuam{
 const string CAMERA_FRAME = "camera_link";
 
 ArucoTracking::ArucoTracking() :
+    m_process_freq_param(NAN),
     OPENCV_WINDOW("Image window"),
     m_aruco_parser_param("missing"),
     m_big_marker_id_param(NAN),
@@ -21,6 +22,7 @@ ArucoTracking::ArucoTracking() :
     m_filter_buf_size_param(NAN),
     m_estimating_method_param(NAN),
     m_noise_dist_th_m_param(NAN),
+    m_noise_cnt_th_param(NAN),
     m_cv_ptr(nullptr)
 {
     InitFlag();
@@ -66,6 +68,8 @@ bool ArucoTracking::GetParam()
     m_nh.getParam(nd_name + "/compare_mode", m_compare_mode_param);
     m_nh.getParam(nd_name + "/using_gazebo_data", m_using_gazebo_data_param);
     m_nh.getParam(nd_name + "/noise_dist_th_m", m_noise_dist_th_m_param);
+    m_nh.getParam(nd_name + "/noise_cnt_th", m_noise_cnt_th_param);
+    m_nh.getParam(nd_name + "/process_freq", m_process_freq_param);
 
     if (m_aruco_parser_param == "missing") { ROS_ERROR_STREAM("[aruco_tracking] m_aruco_parser_param is missing"); return false; }
     else if (__isnan(m_big_marker_id_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_big_marker_id_param is NAN"); return false; }
@@ -75,6 +79,8 @@ bool ArucoTracking::GetParam()
     else if (__isnan(m_filter_buf_size_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_filter_buf_size_param is NAN"); return false; }
     else if (__isnan(m_estimating_method_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_estimating_method_param is NAN"); return false; }
     else if (__isnan(m_noise_dist_th_m_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_noise_dist_th_m_param is NAN"); return false; }
+    else if (__isnan(m_noise_cnt_th_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_noise_cnt_th_param is NAN"); return false; }
+    else if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_process_freq_param is NAN"); return false; }
 
     return true;
 }
@@ -100,8 +106,7 @@ bool ArucoTracking::InitROS()
     m_target_list_pub = m_nh.advertise<geometry_msgs::PoseArray> (nd_name + "/target_list", 1);
     
     // Initialize timer
-	auto freq = 30.0;
-    m_image_timer = m_nh.createTimer(ros::Duration(1.0/freq), &ArucoTracking::ProcessTimerCallback, this);
+    m_image_timer = m_nh.createTimer(ros::Duration(1.0/m_process_freq_param), &ArucoTracking::ProcessTimerCallback, this);
 
     return true;
 }
@@ -628,7 +633,7 @@ bool ArucoTracking::IsNoise()
         else {
             is_init = false;
             
-            if (cnt >= 20) return false;
+            if (cnt >= m_noise_cnt_th_param) return false;
             else return true;
         }
     }

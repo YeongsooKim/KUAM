@@ -9,7 +9,9 @@ using namespace std;
 using namespace kuam;
 
 TfBroadcaster::TfBroadcaster() :
+    m_process_freq_param(NAN),
     m_target_height_m_param(NAN),
+    m_drone_offset_m_param(NAN),
     m_data_ns_param("missing")
 {
     InitFlag();
@@ -32,12 +34,16 @@ bool TfBroadcaster::GetParam()
 {
     string nd_name = ros::this_node::getName();
 
+    m_nh.getParam(nd_name + "/process_freq", m_process_freq_param);
     m_nh.getParam(nd_name + "/is_finding_home", m_is_finding_home_param);
     m_nh.getParam(nd_name + "/target_height_m", m_target_height_m_param);
     m_nh.getParam(nd_name + "/data_ns", m_data_ns_param);
+    m_nh.getParam(nd_name + "/drone_offset_m", m_drone_offset_m_param);
 
     if (__isnan(m_target_height_m_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_target_height_m_param is NAN"); return false; }
     else if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("[tf_broadcaster] m_data_ns_param is missing"); return false; }
+    else if (__isnan(m_drone_offset_m_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_drone_offset_m_param is NAN"); return false; }
+    else if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_process_freq_param is NAN"); return false; }
 
     return true;
 }
@@ -65,9 +71,8 @@ void TfBroadcaster::InitROS()
     m_home_position_pub = m_nh.advertise<geographic_msgs::GeoPoint>(nd_name + "/home", 1);
 
     // Initialize timer
-    auto freq = 10.0;
     m_home_position_timer = m_nh.createTimer(ros::Duration(2.0), &TfBroadcaster::HomePositionTimerCallback, this);
-    m_test_timer = m_nh.createTimer(ros::Duration(1.0/freq), &TfBroadcaster::ProcessTimerCallback, this);
+    m_tf_broadcaster_timer = m_nh.createTimer(ros::Duration(1.0/m_process_freq_param), &TfBroadcaster::ProcessTimerCallback, this);
 }
 
 
@@ -194,14 +199,13 @@ void TfBroadcaster::NovatelINSPVACallback(const novatel_oem7_msgs::INSPVA::Const
 void TfBroadcaster::EgoVehicleLocalPositionCallback(const geometry_msgs::PoseStamped::ConstPtr &pose_stamped_ptr)
 {
     m_base_cb = true;
-    // Get offset
     m_base_tf_stamped.header.stamp = pose_stamped_ptr->header.stamp;
     m_base_tf_stamped.header.frame_id = "map";
     m_base_tf_stamped.child_frame_id = "base_link";
 
-    // Get offset
     m_base_tf_stamped.transform.translation.x = pose_stamped_ptr->pose.position.x;
     m_base_tf_stamped.transform.translation.y = pose_stamped_ptr->pose.position.y;
+    // m_base_tf_stamped.transform.translation.z = pose_stamped_ptr->pose.position.z - m_drone_offset_m_param;
     m_base_tf_stamped.transform.translation.z = pose_stamped_ptr->pose.position.z;
 
     m_base_tf_stamped.transform.rotation.x = pose_stamped_ptr->pose.orientation.x;
@@ -238,13 +242,10 @@ void TfBroadcaster::MarkerCallback(const tf2_msgs::TFMessage::ConstPtr &marker_p
         double tmp_r = marker_roll;
         double tmp_p = marker_pitch;
         double tmp_w = marker_yaw;
-        // ROS_WARN("%f, %f, %f", marker_roll, marker_pitch, marker_yaw);
         marker_roll -= ego_roll;
         marker_pitch -= ego_pitch;
         marker_yaw -= ego_yaw;
 
-        // ROS_INFO("%f, %f, %f", marker_roll, marker_pitch, marker_yaw);
-        // ROS_ERROR("%f, %f, %f", tmp_r - marker_roll, tmp_p - marker_pitch, tmp_w - marker_yaw);
         tf2::Quaternion q;
         q.setRPY(marker_roll, marker_pitch, marker_yaw);
         m_marker_tf_stamped.transform.rotation.x = q.x();

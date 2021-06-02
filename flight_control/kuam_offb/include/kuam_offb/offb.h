@@ -68,7 +68,7 @@ private:
     ros::Timer m_timer;
 
     // Param
-    float m_setpoint_pub_interval_param;
+    float m_process_freq_param;
     std::string m_maneuver_ns_param;
     bool m_is_debug_mode_param;
 
@@ -110,6 +110,7 @@ private: // function
 
     // Request
     void ManualRequest();
+    void EmergRequest();
     void ArmRequest();
     void HoveringRequest();
     void TakeoffRequest();

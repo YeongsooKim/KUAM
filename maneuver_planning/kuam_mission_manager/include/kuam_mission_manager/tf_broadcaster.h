@@ -48,12 +48,14 @@ private:
 
     // Timer
     ros::Timer m_home_position_timer;
-    ros::Timer m_test_timer;
+    ros::Timer m_tf_broadcaster_timer;
 
     // Param
+    float m_process_freq_param;
     bool m_is_finding_home_param;
     float m_target_height_m_param;
     std::string m_data_ns_param;
+    float m_drone_offset_m_param;
 
     // Flag
     bool m_base_cb;

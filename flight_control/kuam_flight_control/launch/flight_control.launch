@@ -12,7 +12,7 @@
     <!-- <arg name="fcu_url" default="/dev/ttyPixhawk"/> -->
 
     <!-- offb_node  -->
-	<arg name="setpoint_pub_interval" default="0.05" />
+	<arg name="process_freq" default="30.0" />
     
 
     <group unless="$(arg simulation)">
@@ -27,7 +27,7 @@
 
     <group ns="/kuam/control">
         <include file="$(find kuam_offb)/launch/offb.launch">
-            <arg name="setpoint_pub_interval" value="$(arg setpoint_pub_interval)" />
+            <arg name="process_freq" value="$(arg process_freq)" />
         </include>
     </group>
 </launch>
