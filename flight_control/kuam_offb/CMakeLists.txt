@@ -61,8 +61,3 @@ target_link_libraries(offb_node ${catkin_LIBRARIES})
 # ## tf_broadcaster_node
 # add_executable(tf_broadcaster_node src/tf_broadcaster_node.cpp src/tf_broadcaster.cpp src/utils.cpp)
 # target_link_libraries(tf_broadcaster_node ${catkin_LIBRARIES})
-
-
-catkin_install_python(PROGRAMS src/eval.py
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
