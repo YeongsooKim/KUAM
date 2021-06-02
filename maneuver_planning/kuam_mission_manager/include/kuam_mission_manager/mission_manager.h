@@ -68,7 +68,7 @@ private:
     bool m_is_home_set;
 
     int m_cur_task;
-    string m_mode;
+    string m_cur_mode;
     mssn_poses_map m_mssn_wps_map;
     uav_msgs::OffboardState m_offb_state;
     geographic_msgs::GeoPoint m_home_position;
@@ -92,8 +92,9 @@ private: // Function
     bool HasTodoTask();
     bool DoTask();
     void CheckComplete();
+    void CheckModeChange();
 
-    void Publish();
+    void TaskListPub();
 };
 }
 #endif //  __MISSION_MANAGER__

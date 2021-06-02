@@ -15,7 +15,7 @@ using namespace mission;
 Maneuver::Maneuver() :
     m_process_freq_param(NAN),
     m_cur_task(NO_TASK),
-    m_mode("manual"),
+    m_cur_mode("manual"),
     m_data_ns_param("missing"),
     m_control_ns_param("missing"),
     m_target_height_m_param(NAN)
@@ -101,8 +101,8 @@ void Maneuver::ProcessTimerCallback(const ros::TimerEvent& event)
     else {
         CheckComplete();
     }
-    Publish();
-
+    CheckModeChange();
+    TaskListPub();
 }
 
 void Maneuver::ChatterCallback(const uav_msgs::Chat::ConstPtr &chat_ptr)
@@ -111,11 +111,10 @@ void Maneuver::ChatterCallback(const uav_msgs::Chat::ConstPtr &chat_ptr)
 
     if (IsTransition(msg)) InsertTask(msg);
     else if (IsMode(msg)){
-        m_mode = msg;
 
         // Publish current mode
         std_msgs::String mode_msg;
-        mode_msg.data = m_mode;
+        mode_msg.data = msg;
         m_mode_pub.publish(mode_msg);
     } 
 }
@@ -335,7 +334,20 @@ void Maneuver::CheckComplete()
     }
 }
 
-void Maneuver::Publish()
+void Maneuver::CheckModeChange()
+{
+    string offb_mode = Ascii2Lower(m_offb_state.offb_mode);
+    if (offb_mode != m_cur_mode){
+        if (IsMode(offb_mode)){
+            std_msgs::String mode_msg;
+            mode_msg.data = offb_mode;
+            m_mode_pub.publish(mode_msg);
+            m_cur_mode = offb_mode;
+        }
+    }
+}
+
+void Maneuver::TaskListPub()
 {
     // Publish whole tasks
     kuam_msgs::TaskList tasklist_msg;

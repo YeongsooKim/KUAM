@@ -411,14 +411,14 @@ def ManualCB(userdata):
     return mode_transitions_
 
 # define state EMERG
-@smach.cb_interface(input_keys=[], output_keys=[], outcomes=['emerg'])
+@smach.cb_interface(input_keys=[], output_keys=[], outcomes=['manual'])
 def EmergCB(userdata):
     global prev_mode_transitions_
     global mode_transitions_
     rate = rospy.Rate(freq_)
     while not rospy.is_shutdown():
         # Break condition
-        if mode_transitions_ == 'emerg':
+        if mode_transitions_ == 'manual':
             break
         else:
             mode_transitions_ = prev_mode_transitions_
@@ -498,7 +498,7 @@ if __name__ == '__main__':
                                 transitions={'offboard':'OFFBOARD',
                                              'finished':'finished'})
         smach.StateMachine.add('EMERG', CBState(EmergCB),
-                                transitions={'emerg':'EMERG'})
+                                transitions={'manual':'MANUAL'})
 
         # Open the container
         with sm_offb_:
