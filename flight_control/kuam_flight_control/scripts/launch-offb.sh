@@ -59,8 +59,7 @@ export PX4_HOME_LON=127.078922
 export PX4_HOME_ALT=43.479396
 
 if [ $simulation == "false" ] || [ $airsim == "true" ]; then
-    # roslaunch kuam_offb control.launch simulation:="$simulation" airsim:="$airsim" gazebo:="$gazebo" fcu_url:="/dev/ttyACM0:57600"
-    echo "Not yet prepared"
+    roslaunch kuam_flight_control flight_control.launch simulation:="$simulation" airsim:="$airsim" gazebo:="$gazebo" fcu_url:="/dev/ttyACM0:57600"
 elif [ $gazebo == "true" ]; then
     killall gzclient
     killall gzserver
