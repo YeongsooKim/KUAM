@@ -56,6 +56,8 @@ private:
     float m_target_height_m_param;
     std::string m_data_ns_param;
     float m_drone_offset_m_param;
+    float m_camera_alt_m_param;
+    bool m_is_experiment_validation_param;
 
     // Flag
     bool m_base_cb;
