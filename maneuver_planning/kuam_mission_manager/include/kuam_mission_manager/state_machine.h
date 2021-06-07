@@ -70,6 +70,17 @@ inline string Ascii2Lower(string str)
     return str;
 }
 
+inline string Ascii2Upper(string str)
+{
+    size_t size = str.size();
+
+    for (char &c : str){
+        if (c >= 'a' && c <= 'z')
+            c = c - ('a' - 'A');
+    }
+    return str;
+}
+
 inline string Enum2String(State state)
 {
     switch((int)state){
