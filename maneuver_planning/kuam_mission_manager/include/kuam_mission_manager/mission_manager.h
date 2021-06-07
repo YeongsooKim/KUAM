@@ -51,7 +51,6 @@ private:
     ros::Publisher m_task_pub;
     ros::Publisher m_tasklist_pub;
     ros::Publisher m_mode_pub;
-    ros::Publisher m_waypoint_pub;
     
     // Timer
     ros::Timer m_mission_timer;
@@ -66,9 +65,11 @@ private:
     // Flag
     bool m_is_init_auto_mission;
     bool m_is_home_set;
+    bool m_has_cmd;
 
     int m_cur_task;
     string m_cur_mode;
+    string m_cmd_mode;
     mssn_poses_map m_mssn_wps_map;
     uav_msgs::OffboardState m_offb_state;
     geographic_msgs::GeoPoint m_home_position;

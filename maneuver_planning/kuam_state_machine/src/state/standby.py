@@ -20,7 +20,7 @@ class Standby(smach.State, state.Base):
 
     def Start(self, userdata):
         # Initialize setpoint
-        self.setpoint = copy.deepcopy(userdata.setpoint)
+        pass
         
     def Running(self):
         rate = rospy.Rate(self.freq)
