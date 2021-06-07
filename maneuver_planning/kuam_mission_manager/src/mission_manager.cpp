@@ -4,6 +4,7 @@
 // message
 #include <kuam_msgs/TaskList.h>
 #include <kuam_msgs/Task.h>
+#include <kuam_msgs/Mode.h>
 #include <geometry_msgs/Pose.h>
 
 using namespace std;
@@ -15,7 +16,7 @@ using namespace mission;
 Maneuver::Maneuver() :
     m_process_freq_param(NAN),
     m_cur_task(NO_TASK),
-    m_cur_mode("manual"),
+    m_cur_mode("none"),
     m_data_ns_param("missing"),
     m_control_ns_param("missing"),
     m_target_height_m_param(NAN)
@@ -23,6 +24,8 @@ Maneuver::Maneuver() :
     GetParam();
     InitFlag();
     InitROS();   
+
+    m_offb_state.offb_mode = "none";
 }
 
 Maneuver::~Maneuver()
@@ -32,6 +35,7 @@ bool Maneuver::InitFlag()
 {
     m_is_init_auto_mission = false;
     m_is_home_set = false;
+    m_has_cmd = false;
 
     return true;
 }
@@ -79,8 +83,7 @@ bool Maneuver::InitROS()
     // // Initialize publisher
     m_tasklist_pub = m_nh.advertise<kuam_msgs::TaskList>(nd_name + "/tasklist", 10);
     m_task_pub = m_nh.advertise<kuam_msgs::Task>(nd_name + "/task", 10);
-    m_mode_pub = m_nh.advertise<std_msgs::String>(nd_name + "/mode", 10);
-    m_waypoint_pub = m_nh.advertise<std_msgs::String>(nd_name + "/mode", 10);
+    m_mode_pub = m_nh.advertise<kuam_msgs::Mode>(nd_name + "/mode", 10);
 
     // // Initialize timer
     m_mission_timer = m_nh.createTimer(ros::Duration(1.0/m_process_freq_param), &Maneuver::ProcessTimerCallback, this);
@@ -90,6 +93,7 @@ bool Maneuver::InitROS()
 
 void Maneuver::ProcessTimerCallback(const ros::TimerEvent& event)
 {
+    CheckModeChange();
     if (!IsTaskRunning()){
         if (HasTodoTask()){
             DoTask();
@@ -101,7 +105,6 @@ void Maneuver::ProcessTimerCallback(const ros::TimerEvent& event)
     else {
         CheckComplete();
     }
-    CheckModeChange();
     TaskListPub();
 }
 
@@ -111,11 +114,10 @@ void Maneuver::ChatterCallback(const uav_msgs::Chat::ConstPtr &chat_ptr)
 
     if (IsTransition(msg)) InsertTask(msg);
     else if (IsMode(msg)){
-
-        // Publish current mode
-        std_msgs::String mode_msg;
-        mode_msg.data = msg;
-        m_mode_pub.publish(mode_msg);
+        if (msg != m_cur_mode){
+            m_cmd_mode = msg;
+            m_has_cmd = true;
+        }
     } 
 }
 
@@ -337,13 +339,31 @@ void Maneuver::CheckComplete()
 void Maneuver::CheckModeChange()
 {
     string offb_mode = Ascii2Lower(m_offb_state.offb_mode);
-    if (offb_mode != m_cur_mode){
+    kuam_msgs::Mode mode;
+    bool is_mode_changed = false;
+    if (m_has_cmd){
+        mode.px4 = m_offb_state.offb_mode;
+        mode.kuam = m_cmd_mode;
+        m_cur_mode = offb_mode;
+        m_has_cmd = false;
+
+        is_mode_changed = true;
+    }
+    else if (m_cur_mode != offb_mode){
+        mode.px4 = m_offb_state.offb_mode;
+
         if (IsMode(offb_mode)){
-            std_msgs::String mode_msg;
-            mode_msg.data = offb_mode;
-            m_mode_pub.publish(mode_msg);
+            mode.kuam = offb_mode;
             m_cur_mode = offb_mode;
         }
+        else {
+            mode.kuam = m_cur_mode;
+        }
+        is_mode_changed = true;
+    }
+
+    if (is_mode_changed){
+        m_mode_pub.publish(mode);
     }
 }
 

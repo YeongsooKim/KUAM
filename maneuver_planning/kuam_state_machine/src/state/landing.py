@@ -1,9 +1,14 @@
-from geometry_msgs.msg import Pose
-from kuam_msgs.msg import LandingState
 import rospy
 import smach
 import state
 import copy
+
+import tf2_ros
+import tf2_geometry_msgs
+
+from geometry_msgs.msg import Pose
+from geometry_msgs.msg import PoseStamped
+from kuam_msgs.msg import LandingState
 
 class Landing(smach.State, state.Base):
     def __init__(self):
@@ -13,13 +18,22 @@ class Landing(smach.State, state.Base):
         state.Base.__init__(self)
 
         self.transition = 'none'
+        
+        # Flag
         self.is_detected = False
         self.is_land = False
+        
+        # Target state
         self.target_id = 0 # Change to param
         self.target_pose = Pose()
-        self.landing_state_pub = None
+        
+        # Param
         self.landing_threshold_m = None
         self.landing_standby_alt_m = 5.0
+
+        # tf
+        self.tfBuffer = None
+        self.listener = None
 
         '''
         Change target pose and target id to dictionary when the id is more than two
@@ -30,7 +44,9 @@ class Landing(smach.State, state.Base):
         self.Running()
         return self.Terminate(userdata)
 
-
+    '''
+    State functions
+    '''
     def Start(self, userdata):
         # Initialize setpoint
         self.setpoints = copy.deepcopy(userdata.setpoints)
@@ -52,8 +68,8 @@ class Landing(smach.State, state.Base):
             if self.is_detected == True:
                 self.setpoint.pose = self.target_pose
 
-            # Publish
-            self.LandingStatePub()
+            # Update landing state
+            self.UpdateLandingState()
 
             rate.sleep()
 
@@ -63,7 +79,10 @@ class Landing(smach.State, state.Base):
         self.transition = 'none'
         return trans
 
-    def LandingStatePub(self):
+    '''
+    Util functions
+    '''
+    def UpdateLandingState(self):
         if self.landing_threshold_m is None:
             pass
         else:
@@ -72,10 +91,45 @@ class Landing(smach.State, state.Base):
             if h < self.landing_threshold_m:
                 self.is_land = True
 
-            landing_state_msg = LandingState()
-            landing_state_msg.is_detected = self.is_detected
-            landing_state_msg.is_land = self.is_land
-            self.landing_state_pub.publish(landing_state_msg)
+    def IsValid(self, pose_stamped):
+        x = pose_stamped.pose.position.x
+        y = pose_stamped.pose.position.y
+        z = pose_stamped.pose.position.z
+
+        if (x>1e+100) or (x<-1e+100):
+            return False
+        if (y>1e+100) or (y<-1e+100):
+            return False
+        if (z>1e+100) or (z<-1e+100):
+            return False
+        return True
+
+    '''
+    Callback functions
+    '''
+    def MarkerCB(self, msg):
+        self.target_id = msg.id
+
+        if msg.is_detected == True:
+            msg_pose_stamped = PoseStamped()
+            msg_pose_stamped.header = msg.header
+            msg_pose_stamped.pose = msg.pose
+            # transform from camera_link to map
+            is_transformed = False
+            try:
+                transform = self.tfBuffer.lookup_transform('map', msg_pose_stamped.header.frame_id, rospy.Time())
+                is_transformed = True
+            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+                pass
+
+            if is_transformed == True:
+                pose_transformed = tf2_geometry_msgs.do_transform_pose(msg_pose_stamped, transform)
+                if self.IsValid(pose_transformed):
+                    self.is_detected = True
+                    self.target_pose = pose_transformed.pose
+                    # target_pose_pub.publish(pose_transformed)
+                else:
+                    self.is_detected = False
 
     # # Get virtual border side
     # def GetVBside(self):

@@ -24,6 +24,7 @@
 #include "uav_msgs/Chat.h"
 #include "uav_msgs/OffboardState.h"
 
+#include "kuam_msgs/TransReq.h"
 #include "kuam_msgs/Setpoint.h"
 #include "kuam_msgs/LandingState.h"
 #include "kuam_mission_manager/state_machine.h"
@@ -44,20 +45,11 @@ public:
 private:
     // Subscriber
     ros::Subscriber m_mavros_state_sub;
-    ros::Subscriber m_sm_state_sub; // state machine state sub
-    ros::Subscriber m_sm_mode_sub; // state machine mode sub
     ros::Subscriber m_setpoint_sub;
-    ros::Subscriber m_geo_setpoint_sub;
-    ros::Subscriber m_target_waypoints_sub;
-    ros::Subscriber m_landing_state_sub;
-
-    ros::Subscriber m_current_global_pose_sub;
-    ros::Subscriber m_command_sub;
+    ros::Subscriber m_trans_req_sub;
 
     // Publisher
     ros::Publisher m_local_pose_pub;
-    ros::Publisher m_global_pose_pub;
-    ros::Publisher m_velocity_pub;
     ros::Publisher m_offboard_state_pub;
     ros::Publisher m_err_pub;
     
@@ -79,17 +71,22 @@ private:
     bool m_is_land;
     
     ros::Time m_last_request_time;
+
     mavros_msgs::State m_mavros_status;
-    std::string m_sm_state;
+    
+    std::string m_cur_sm_state;
     std::string m_prev_sm_state;
-    std::string m_sm_mode;
+    std::string m_sm_kuam_mode;
+    std::string m_px4_mode;
     std::string m_offb_state;
+
     kuam_msgs::Setpoint m_setpoint;
+    geometry_msgs::Pose m_setpoint_pose;
+    geometry_msgs::Twist m_setpoint_vel;
     geographic_msgs::GeoPoseStamped m_global_setpoint;
-    geometry_msgs::Twist m_vel_setpoint;
+    
 	tf2_ros::Buffer m_tfBuffer;
 	tf2_ros::TransformListener m_tfListener;
-    unsigned int m_hovering_count;
 
 private: // function
     // Initialization fucntion
@@ -103,10 +100,18 @@ private: // function
 
     // Callback functions
     inline void MavrosStateCallback(const mavros_msgs::State::ConstPtr &state_ptr) { m_mavros_status = *state_ptr; }
-    inline void SMStateCallback(const std_msgs::String::ConstPtr &state_ptr) { m_sm_state = state_ptr->data; }
-    inline void SMModeCallback(const std_msgs::String::ConstPtr &mode_ptr) { m_sm_mode = mode_ptr->data; }
-    inline void SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_ptr) { m_setpoint = *setpoint_ptr; }
-    inline void LandingStateCallback(const kuam_msgs::LandingState::ConstPtr &state_ptr) { m_is_detected = state_ptr->is_detected; m_is_land = state_ptr->is_land; }
+    inline void SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_ptr) { 
+        m_setpoint_pose = setpoint_ptr->pose;
+        m_setpoint_vel = setpoint_ptr->vel;
+        m_is_detected = setpoint_ptr->landing_state.is_detected;
+        m_is_land = setpoint_ptr->landing_state.is_land;
+    }
+    inline void TransReqCallback(const kuam_msgs::TransReq::ConstPtr &trans_req_ptr) { 
+        m_sm_kuam_mode = trans_req_ptr->mode.kuam;
+        m_px4_mode = trans_req_ptr->mode.px4;
+        m_cur_sm_state = trans_req_ptr->state; 
+    }
+    
 
     // Request
     void ManualRequest();
@@ -121,7 +126,9 @@ private: // function
     bool IsOffboard();
     geometry_msgs::Point SetpointError();
     void StateUpdate();
-    void SetpointnOffbStatePub();
+    void SetpointPub();
+    void OffbStatusPub();
+
 };
 }
 #endif //  __MAVROS_OFFB_H__
