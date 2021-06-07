@@ -31,6 +31,8 @@ add_message_files(
   OffbCmd.msg
   Setpoint.msg
   LandingState.msg
+  Mode.msg
+  TransReq.msg
 )
 
 ## Generate services in the 'srv' folder
