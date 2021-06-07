@@ -12,6 +12,7 @@ TfBroadcaster::TfBroadcaster() :
     m_process_freq_param(NAN),
     m_target_height_m_param(NAN),
     m_drone_offset_m_param(NAN),
+    m_camera_alt_m_param(NAN),
     m_data_ns_param("missing")
 {
     InitFlag();
@@ -28,6 +29,7 @@ void TfBroadcaster::InitFlag()
     m_is_home_set = false;
     m_base_cb = false;
     m_marker_cb = false;
+    m_is_experiment_validation_param = false;
 }
 
 bool TfBroadcaster::GetParam()
@@ -39,11 +41,14 @@ bool TfBroadcaster::GetParam()
     m_nh.getParam(nd_name + "/target_height_m", m_target_height_m_param);
     m_nh.getParam(nd_name + "/data_ns", m_data_ns_param);
     m_nh.getParam(nd_name + "/drone_offset_m", m_drone_offset_m_param);
+    m_nh.getParam(nd_name + "/camera_alt_m", m_camera_alt_m_param);
+    m_nh.getParam(nd_name + "/is_experiment_validation", m_is_experiment_validation_param);
 
     if (__isnan(m_target_height_m_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_target_height_m_param is NAN"); return false; }
     else if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("[tf_broadcaster] m_data_ns_param is missing"); return false; }
     else if (__isnan(m_drone_offset_m_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_drone_offset_m_param is NAN"); return false; }
     else if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_process_freq_param is NAN"); return false; }
+    else if (__isnan(m_camera_alt_m_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_camera_alt_m_param is NAN"); return false; }
 
     return true;
 }
@@ -56,13 +61,16 @@ void TfBroadcaster::InitROS()
     // Initialize subscriber
     m_novatel_sub = m_nh.subscribe<novatel_oem7_msgs::INSPVA>("/novatel/oem7/inspva", 10, boost::bind(&TfBroadcaster::NovatelINSPVACallback, this, _1));
     m_ego_vehicle_local_pose_sub = m_nh.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, boost::bind(&TfBroadcaster::EgoVehicleLocalPositionCallback, this, _1));
-    if (!m_is_finding_home_param){
-        m_home_position_sub = m_nh.subscribe<mavros_msgs::HomePosition>("/mavros/home_position/home", 10, boost::bind(&TfBroadcaster::HomePositionCallback, this, _1));
-        
-        ros::Rate rate(10);
-        while (ros::ok() && !m_is_home_set){
-            ros::spinOnce();
-            rate.sleep();
+
+    if (!m_is_experiment_validation_param){
+        if (!m_is_finding_home_param){
+            m_home_position_sub = m_nh.subscribe<mavros_msgs::HomePosition>("/mavros/home_position/home", 10, boost::bind(&TfBroadcaster::HomePositionCallback, this, _1));
+            
+            ros::Rate rate(10);
+            while (ros::ok() && !m_is_home_set){
+                ros::spinOnce();
+                rate.sleep();
+            }
         }
     }
     m_aruco_sub = m_nh.subscribe<tf2_msgs::TFMessage>(m_data_ns_param + "/aruco_tracking/tf_list", 10, boost::bind(&TfBroadcaster::MarkerCallback, this, _1));
@@ -100,20 +108,38 @@ void TfBroadcaster::InitStaticTf(void)
     transform_vector.push_back(tf_stamped);
 
     // camera_link static transformation
-    tf_stamped.header.stamp = ros::Time::now();
-    tf_stamped.header.frame_id = "base_link";
-    tf_stamped.child_frame_id = "camera_link";
+    if (!m_is_experiment_validation_param){
+        tf_stamped.header.stamp = ros::Time::now();
+        tf_stamped.header.frame_id = "base_link";
+        tf_stamped.child_frame_id = "camera_link";
 
-    tf_stamped.transform.translation.x = 0.1;
-    tf_stamped.transform.translation.y = 0.0;
-    tf_stamped.transform.translation.z = 0.0;
-    
-    tf2::Quaternion q;
-    q.setRPY(0.0, M_PI, M_PI/2);
-    tf_stamped.transform.rotation.x = q.x();
-    tf_stamped.transform.rotation.y = q.y();
-    tf_stamped.transform.rotation.z = q.z();
-    tf_stamped.transform.rotation.w = q.w();
+        tf_stamped.transform.translation.x = 0.1;
+        tf_stamped.transform.translation.y = 0.0;
+        tf_stamped.transform.translation.z = 0.0;
+        
+        tf2::Quaternion q;
+        q.setRPY(0.0, M_PI, M_PI/2);
+        tf_stamped.transform.rotation.x = q.x();
+        tf_stamped.transform.rotation.y = q.y();
+        tf_stamped.transform.rotation.z = q.z();
+        tf_stamped.transform.rotation.w = q.w();
+    }
+    else {
+        tf_stamped.header.stamp = ros::Time::now();
+        tf_stamped.header.frame_id = "map";
+        tf_stamped.child_frame_id = "camera_link";
+
+        tf_stamped.transform.translation.x = 0.0;
+        tf_stamped.transform.translation.y = 0.0;
+        tf_stamped.transform.translation.z = m_camera_alt_m_param;
+        
+        tf2::Quaternion q;
+        q.setRPY(0.0, M_PI, M_PI);
+        tf_stamped.transform.rotation.x = q.x();
+        tf_stamped.transform.rotation.y = q.y();
+        tf_stamped.transform.rotation.z = q.z();
+        tf_stamped.transform.rotation.w = q.w();
+    }
 
     transform_vector.push_back(tf_stamped);
 
