@@ -50,8 +50,8 @@ private:
 
     // Publisher
     ros::Publisher m_local_pose_pub;
+    ros::Publisher m_local_pos_tar_pub;
     ros::Publisher m_offboard_state_pub;
-    ros::Publisher m_err_pub;
     
     // ServiceClient
     ros::ServiceClient m_arming_serv_client;
@@ -83,6 +83,8 @@ private:
     kuam_msgs::Setpoint m_setpoint;
     geometry_msgs::Pose m_setpoint_pose;
     geometry_msgs::Twist m_setpoint_vel;
+    geometry_msgs::Pose m_test_pose;
+    geometry_msgs::Twist m_test_vel;
     geographic_msgs::GeoPoseStamped m_global_setpoint;
     
 	tf2_ros::Buffer m_tfBuffer;
@@ -124,7 +126,6 @@ private: // function
 
     // Util functions
     bool IsOffboard();
-    geometry_msgs::Point SetpointError();
     void StateUpdate();
     void SetpointPub();
     void OffbStatusPub();
