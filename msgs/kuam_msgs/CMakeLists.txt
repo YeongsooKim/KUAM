@@ -33,6 +33,7 @@ add_message_files(
   LandingState.msg
   Mode.msg
   TransReq.msg
+  AlphaEval.msg
 )
 
 ## Generate services in the 'srv' folder
