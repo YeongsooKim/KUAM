@@ -4,9 +4,6 @@ import rospy
 import tf2_ros
 import tf2_geometry_msgs
 from enum import Enum
-from tf.transformations import euler_from_quaternion, quaternion_from_euler
-from math import pi
-from math import tan
 
 # Smach
 import smach
@@ -14,19 +11,16 @@ from smach_ros import IntrospectionServer
 from smach import CBState
 
 # Message
-from std_msgs.msg import ColorRGBA
 from sensor_msgs.msg import BatteryState
 from uav_msgs.msg import Chat
 from kuam_msgs.msg import TransReq
 from kuam_msgs.msg import Mode
-from kuam_msgs.msg import LandingState
 from kuam_msgs.msg import Task
 from kuam_msgs.msg import Setpoint
 from kuam_msgs.msg import MarkerState
 from kuam_msgs.msg import LandingState
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PoseArray
-from geometry_msgs.msg import Point
 from visualization_msgs.msg import Marker,MarkerArray
 
 # State
@@ -67,7 +61,6 @@ class SMMode(Enum):
 Parameters. Defined by ros param
 '''
 freq_ = 1.0 
-virtual_border_angle_ = [10, 20]
 battery_th_ = 5.0
 
 
@@ -98,6 +91,7 @@ prev_kuam_mode_ = "none"
 cur_px4_mode_ = "none"
 prev_px4_mode_ = "none"
 
+
 '''
 Util functions
 '''
@@ -107,6 +101,65 @@ def GetSMStatus():
 
     return [cur_kuam_mode, cur_state]
 
+
+'''
+Callback functions
+'''
+def TaskCB(msg):
+    state_transitions_.append(msg.task)
+    global setpoints_
+    setpoints_ = msg.pose_array
+
+def ModeCB(msg):
+    global mode_transitions_
+    global prev_mode_transitions_
+    global cur_px4_mode_
+    # mode update
+    mode_transitions_ = msg.kuam
+    cur_px4_mode_ = msg.px4
+    
+    # Check state machine mode change
+    cur_kuam_mode, cur_state = GetSMStatus()
+    if (cur_kuam_mode == 'OFFBOARD') and (cur_state != 'None'):
+        if (mode_transitions_ == 'manual') or (mode_transitions_ == 'emerg'):
+            offb_states_[OffbState[cur_state]].transition = mode_transitions_
+            prev_mode_transitions_ = mode_transitions_
+        else:
+            mode_transitions_ = prev_mode_transitions_
+
+def EgoLocalPoseCB(msg):
+    for state in offb_states_.values():
+        try:
+            state.ego_pose = msg.pose
+        except:
+            pass
+
+def CommandCB(msg):
+    if msg.msg == "local_z":
+        alt = msg.point.z
+        cur_kuam_mode, cur_state = GetSMStatus()
+
+        if (cur_kuam_mode == "OFFBOARD") and (cur_state == "HOVERING"):
+            offb_states_[OffbState[cur_state]].setpoint.pose.position.z = alt
+
+def BatteryCB(msg):
+    global mode_transitions_
+    global prev_mode_transitions_
+    percentage = msg.percentage
+    voltage = msg.voltage
+
+    if percentage < battery_th_:
+        mode_transitions_ = 'emerg'
+
+        cur_kuam_mode, cur_state = GetSMStatus()
+        if (cur_kuam_mode == 'OFFBOARD') and (cur_state != 'None'):
+            offb_states_[OffbState[cur_state]].transition = mode_transitions_
+            prev_mode_transitions_ = mode_transitions_
+
+
+'''
+Process functions
+'''
 def DoTransition():
     cur_kuam_mode, cur_state = GetSMStatus()
 
@@ -119,12 +172,12 @@ def SetpointPub():
     # Publish setpoint
     cur_kuam_mode, cur_state = GetSMStatus()
     pose = Pose()
+
     landing_state = LandingState()
     if cur_kuam_mode == "OFFBOARD" and cur_state != "None":
         pose = offb_states_[OffbState[cur_state]].setpoint.pose
         if cur_state == "LANDING":
-            landing_state.is_detected = offb_states_[OffbState[cur_state]].is_detected
-            landing_state.is_land = offb_states_[OffbState[cur_state]].is_land
+            landing_state = offb_states_[OffbState[cur_state]].landing_state
         else:
             landing_state.is_detected = False
             landing_state.is_land = False
@@ -177,238 +230,17 @@ def TransRequest():
         trans_req_msg.state = cur_state
         trans_req_pub.publish(trans_req_msg)
 
-
-def VirtualBoderPub(pose):
-    marker_array = MarkerArray()
-    red = ColorRGBA(1.0, 0.0, 0.0, 1.0)
-    green = ColorRGBA(0.0, 1.0, 0.0, 1.0)
-    blue = ColorRGBA(0.0, 0.0, 1.0, 1.0)
-
-    # Cube
-    MARGIN = 1.0 # meter
-    cube_centroid = Point()
-    cube_centroid.x = pose.position.x
-    cube_centroid.y = pose.position.y
-    cube_centroid.z = pose.position.z/2
-    
-    z_scale = pose.position.z + MARGIN
-    
-    yaw_rad = GetYawRad(pose)
-
-    qaut = quaternion_from_euler(0.0, 0.0, yaw_rad)
-    cube_marker = Marker()
-    cube_marker.ns = "virtual_boder_cube"
-    cube_marker.header.frame_id = "map"
-    cube_marker.type = cube_marker.CUBE
-    cube_marker.action = cube_marker.ADD
-
-    cube_marker.scale.x = BorderEdgeSize(pose)
-    cube_marker.scale.y = BorderEdgeSize(pose)
-    cube_marker.scale.z = z_scale
-    a = ColorRGBA()
-    cube_marker.color = red
-    cube_marker.color.a = 0.4
-    cube_marker.pose.orientation.x = qaut[0]
-    cube_marker.pose.orientation.y = qaut[1]
-    cube_marker.pose.orientation.z = qaut[2]
-    cube_marker.pose.orientation.w = qaut[3]
-    cube_marker.pose.position = cube_centroid
-    marker_array.markers.append(cube_marker)
-
-    # Cube
-    gt_marker = Marker()
-    gt_marker.ns = "ground_truth"
-    gt_marker.id = 0
-    gt_marker.header.frame_id = "map"
-    gt_marker.type = gt_marker.CUBE
-    gt_marker.action = gt_marker.ADD
-
-    gt_marker.scale.x = 0.2
-    gt_marker.scale.y = 0.2
-    gt_marker.scale.z = 0.01
-    a = ColorRGBA()
-    gt_marker.color = blue
-    gt_marker.color.a = 1.0
-    gt_marker.pose.orientation.x = 0.0
-    gt_marker.pose.orientation.y = 0.0
-    gt_marker.pose.orientation.z = 0.0
-    gt_marker.pose.orientation.w = 1.0
-    gt_marker.pose.position.x = 2.6600
-    gt_marker.pose.position.y = -2.2974
-    gt_marker.pose.position.z = 0.0
-    marker_array.markers.append(gt_marker)
-
-
-    # Cube
-    gt_marker = Marker()
-    gt_marker.ns = "ground_truth"
-    gt_marker.id = 1
-    gt_marker.header.frame_id = "map"
-    gt_marker.type = gt_marker.CUBE
-    gt_marker.action = gt_marker.ADD
-
-    gt_marker.scale.x = 0.06
-    gt_marker.scale.y = 0.06
-    gt_marker.scale.z = 0.01
-    a = ColorRGBA()
-    gt_marker.color = blue
-    gt_marker.color.a = 1.0
-    gt_marker.pose.orientation.x = 0.0
-    gt_marker.pose.orientation.y = 0.0
-    gt_marker.pose.orientation.z = 0.0
-    gt_marker.pose.orientation.w = 1.0
-    gt_marker.pose.position.x = 2.8
-    gt_marker.pose.position.y = -2.5
-    gt_marker.pose.position.z = 0.0
-    marker_array.markers.append(gt_marker)
-
-    # Line strip
-    line_centroid = Point()
-    line_centroid.x = pose.position.x
-    line_centroid.y = pose.position.y
-    line_centroid.z = 0.0
-
-    line_marker = Marker()
-    line_marker.ns = "vitual_border_edge"
-    line_marker.header.frame_id = "map"
-    line_marker.type = line_marker.LINE_STRIP
-    line_marker.action = line_marker.ADD
-
-    line_marker.scale.x = 0.1
-
-    line_marker.color = green
-    a = Point()
-    b = Point()
-    c = Point()
-    d = Point()
-    e = Point()
-    a.x = 0.0
-    a.y = 0.0
-    b.x = 1.0
-    b.y = 0.0
-    c.x = 1.0
-    c.y = 1.0
-    d.x = 0.0
-    d.y = 1.0
-    e.x = 0.0
-    e.y = 0.0
-    line_marker.points.append(a)
-    line_marker.points.append(b)
-    line_marker.points.append(c)
-    line_marker.points.append(d)
-    line_marker.points.append(e)
-    
-    line_marker.pose.orientation.x = qaut[0]
-    line_marker.pose.orientation.y = qaut[1]
-    line_marker.pose.orientation.z = qaut[2]
-    line_marker.pose.orientation.w = qaut[3]
-    line_marker.pose.position = line_centroid
-    marker_array.markers.append(line_marker)
-    marker_pub.publish(marker_array)
-
-def BorderEdgeSize(pose):
-    h = pose.position.z
-    
-    edge = 2*h*tan(virtual_border_angle_[0])
-    if edge > 10.0:
-        edge = 10.0
-
-    return edge
-
-# def BoderVertex(pose):
-#     size = BorderEdgeSize(pose)
-#     half_size = size/2.0
-
-#     transform_stamped = TransformStamped()
-#     transform_stamped.header.frame_id = 'map'
-#     transform_stamped.header.stamp = rospy.Time.now()
-#     transform_stamped.child_frame_id = 'base_link'
-#     transform_stamped.transform.rotation = pose.orientation
-
-#     l_top = pose.position
-#     r_top = 
-#     l_bot = 
-#     r_bot = 
-
-    # is_transformed = False
-    # try:
-    #     transform_stamped = tfBuffer_.lookup_transform('map', 'base_link', rospy.Time())
-    #     is_transformed = True
-    # except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-    #     pass
-
-    
-
-    # pose_transformed = tf2_geometry_msgs.do_transform_pose(msg_pose_stamped, transform)
-    # offb_states_[OffbState.LANDING].target_pose = pose_transformed.pose
-
-def GetYawRad(pose):
-    orientation = pose.orientation
-    euler = euler_from_quaternion([orientation.x, orientation.y, orientation.z, orientation.w])
-    yaw_rad = euler[2]
-    # yaw_deg = yaw_rad*180.0/pi
-
-    return yaw_rad
-
-'''
-Callback functions
-'''
-def TaskCB(msg):
-    state_transitions_.append(msg.task)
-    global setpoints_
-    setpoints_ = msg.pose_array
-
-def ModeCB(msg):
-    global mode_transitions_
-    global prev_mode_transitions_
-    global cur_px4_mode_
-    # mode update
-    mode_transitions_ = msg.kuam
-    cur_px4_mode_ = msg.px4
-    
-    # Check state machine mode change
+def MarkerPub():
     cur_kuam_mode, cur_state = GetSMStatus()
-    if cur_kuam_mode == 'OFFBOARD':
-        if (mode_transitions_ == 'manual') or (mode_transitions_ == 'emerg'):
-            offb_states_[OffbState[cur_state]].transition = mode_transitions_
-            prev_mode_transitions_ = mode_transitions_
-        else:
-            mode_transitions_ = prev_mode_transitions_
 
-def EgoLocalPoseCB(msg):
-    for state in offb_states_.values():
-        state.ego_pose = msg.pose
-
-def CommandCB(msg):
-    if msg.msg == "local_z":
-        alt = msg.point.z
-        cur_kuam_mode, cur_state = GetSMStatus()
-
-        if (cur_kuam_mode == "OFFBOARD") and (cur_state == "HOVERING"):
-            offb_states_[OffbState[cur_state]].setpoint.pose.position.z = alt
-
-def BatteryCB(msg):
-    global mode_transitions_
-    global prev_mode_transitions_
-    percentage = msg.percentage
-    voltage = msg.voltage
-
-    if percentage < battery_th_:
-        mode_transitions_ = 'emerg'
-
-        cur_kuam_mode = sm_mode_.get_active_states()[0]
-        if cur_kuam_mode == 'OFFBOARD':
-            cur_state = sm_offb_.get_active_states()[0]
-            offb_states_[OffbState[cur_state]].transition = mode_transitions_
-            prev_mode_transitions_ = mode_transitions_
+    if (cur_kuam_mode == "OFFBOARD") and (cur_state == "LANDING"):
+        landing_marker_pub.publish(offb_states_[OffbState[cur_state]].marker_array)
 
 def ProcessCB(timer):
     DoTransition()
-    SetpointPub()
     TransRequest()
-    
-    # if (cur_kuam_mode == "OFFBOARD") and (cur_state != "None"):
-    #     VirtualBoderPub(offb_states_[OffbState[cur_state]].ego_pose)
+    SetpointPub()
+    MarkerPub()
 
 
 '''
@@ -487,7 +319,6 @@ if __name__ == '__main__':
     dist_thresh_m = rospy.get_param(nd_name + "/reached_dist_th_m")
     guidance_dist_th_m = rospy.get_param(nd_name + "/guidance_dist_th_m")
     data_ns = rospy.get_param(nd_name + "/data_ns")
-    target_marker_id = rospy.get_param(nd_name + "/target_marker_id")
     landing_threshold_m = rospy.get_param(nd_name + "/landing_threshold_m")
     landing_standby_alt_m = rospy.get_param(nd_name + "/landing_standby_alt_m")
     battery_th_ = rospy.get_param(nd_name + "/battery_th_per")
@@ -516,7 +347,7 @@ if __name__ == '__main__':
     # Init publisher
     setpoint_pub = rospy.Publisher(nd_name + '/setpoint', Setpoint, queue_size=10)
     trans_req_pub = rospy.Publisher(nd_name + '/trans_request', TransReq, queue_size=10)
-    marker_pub = rospy.Publisher(nd_name + '/test_marker', MarkerArray, queue_size=10)
+    landing_marker_pub = rospy.Publisher(nd_name + '/landing_marker', MarkerArray, queue_size=10)
 
 
     # Init timer

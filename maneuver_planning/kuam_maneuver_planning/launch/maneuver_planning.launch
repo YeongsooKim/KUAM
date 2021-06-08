@@ -10,7 +10,6 @@
 	<arg name="takeoff_alt_m" default="3.0" />
 	<arg name="reached_dist_th_m" default="0.4" />
 	<arg name="guidance_dist_th_m" default="0.7" />
-	<arg name="target_marker_id" default="0" />
 	<arg name="landing_threshold_m" default="0.1" />
 	<arg name="landing_standby_alt_m" default="5.0" />
 
@@ -32,7 +31,6 @@
             <arg name="takeoff_alt_m" value="$(arg takeoff_alt_m)" />
             <arg name="reached_dist_th_m" value="$(arg reached_dist_th_m)" />
             <arg name="guidance_dist_th_m" value="$(arg guidance_dist_th_m)" />
-            <arg name="target_marker_id" value="$(arg target_marker_id)" />
             <arg name="landing_threshold_m" value="$(arg landing_threshold_m)" />
             <arg name="landing_standby_alt_m" value="$(arg landing_standby_alt_m)" />
         </include>
