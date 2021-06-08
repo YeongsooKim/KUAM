@@ -1,4 +1,5 @@
 from kuam_msgs.msg import Setpoint
+from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseArray
 
@@ -8,6 +9,7 @@ class Base():
         self.freq = 1.0
 
         self.ego_pose = Pose()
+        self.ego_vel = Twist()
 
         self.setpoint = Setpoint()
         self.setpoints = PoseArray()

@@ -12,6 +12,11 @@
 	<arg name="guidance_dist_th_m" default="0.7" />
 	<arg name="landing_threshold_m" default="0.1" />
 	<arg name="landing_standby_alt_m" default="5.0" />
+	<arg name="battery_th_per" default="0.05" />
+	<arg name="virtual_border_max_side_m" default="6.0" />
+    <arg name="virtual_border_angle_0_deg" default="20.0" />
+    <arg name="virtual_border_angle_1_deg" default="10.0" />
+	<arg name="alt_division_m" default="10.0" />
 
     <group ns="/kuam/maneuver">
         <include file="$(find kuam_mission_manager)/launch/mission_manager.launch">
@@ -33,6 +38,10 @@
             <arg name="guidance_dist_th_m" value="$(arg guidance_dist_th_m)" />
             <arg name="landing_threshold_m" value="$(arg landing_threshold_m)" />
             <arg name="landing_standby_alt_m" value="$(arg landing_standby_alt_m)" />
+            <arg name="battery_th_per" value="$(arg battery_th_per)" />
+            <arg name="virtual_border_max_side_m" value="$(arg virtual_border_max_side_m)" />
+            <arg name="virtual_border_angle_0_deg" value="$(arg virtual_border_angle_0_deg)" />
+            <arg name="virtual_border_angle_1_deg" value="$(arg virtual_border_angle_1_deg)" />
         </include>
     </group>
 </launch>

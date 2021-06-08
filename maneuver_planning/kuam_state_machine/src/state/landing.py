@@ -2,8 +2,10 @@ import rospy
 import smach
 import state
 import copy
+from utils import *
 from math import pi
 from math import tan
+from math import atan2
 
 import tf2_ros
 import tf2_geometry_msgs
@@ -15,12 +17,14 @@ from std_msgs.msg import ColorRGBA
 from geometry_msgs.msg import Point
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import Twist
 from kuam_msgs.msg import LandingState
+from kuam_msgs.msg import AlphaEval
 
 class Landing(smach.State, state.Base):
     def __init__(self):
-        smach.State.__init__(self, input_keys=['setpoint', 'setpoints'], 
-                                output_keys=['setpoint', 'setpoints'], 
+        smach.State.__init__(self, input_keys=['setpoint', 'setpoints', 'ego_pose', 'ego_vel'], 
+                                output_keys=['setpoint', 'setpoints', 'ego_pose', 'ego_vel'], 
                                 outcomes=['emerg', 'manual'])
         state.Base.__init__(self)
 
@@ -30,6 +34,7 @@ class Landing(smach.State, state.Base):
         self.landing_state = LandingState()
         self.landing_state.is_detected = False
         self.landing_state.is_land = False
+        self.is_init_z = False
         
         # Target state
         self.target_id = 0 # Change to param
@@ -38,13 +43,22 @@ class Landing(smach.State, state.Base):
         # Param
         self.landing_threshold_m = None
         self.landing_standby_alt_m = 5.0
-        self.virtual_border_angle = [10, 20]
+        self.virtual_border_angle_0_deg = 20.0
+        self.virtual_border_angle_1_deg = 10.0
+        self.virtual_border_max_side_m = 6.0
+        self.alt_division_m = 10.0
 
         # tf
         self.tfBuffer = None
         self.listener = None
 
         self.marker_array = MarkerArray()
+        self.vb_angle_deg = [self.virtual_border_angle_0_deg, self.virtual_border_angle_1_deg]
+        self.alpha_eval = AlphaEval()
+        self.alpha_list = []
+
+        self.z_traj = []
+        self.cnt = 0
 
         '''
         Change target pose and target id to dictionary when the id is more than two
@@ -61,6 +75,8 @@ class Landing(smach.State, state.Base):
     def Start(self, userdata):
         # Initialize setpoint
         self.setpoints = copy.deepcopy(userdata.setpoints)
+        self.ego_pose = copy.deepcopy(userdata.ego_pose)
+        self.ego_vel = copy.deepcopy(userdata.ego_vel)
         self.setpoint.pose = self.setpoints.poses[-1]
         self.setpoint.pose.position.z = self.landing_standby_alt_m
 
@@ -78,8 +94,7 @@ class Landing(smach.State, state.Base):
             self.UpdateVirtualBorder()
 
             # Update setpoint
-            if self.landing_state.is_detected == True:
-                self.setpoint.pose = self.target_pose
+            self.UpdateSetpoint()
 
             # Update landing state
             self.UpdateLandingState()
@@ -87,36 +102,18 @@ class Landing(smach.State, state.Base):
             rate.sleep()
 
     def Terminate(self, userdata):
+        userdata.ego_pose = copy.deepcopy(self.ego_pose)
+        userdata.ego_vel = copy.deepcopy(self.ego_vel)
+
         trans = self.transition
 
         self.transition = 'none'
         return trans
 
+
     '''
-    Util functions
+    Process functions
     '''
-    def UpdateLandingState(self):
-        if self.landing_threshold_m is None:
-            pass
-        else:
-            h = self.ego_pose.position.z
-
-            if h < self.landing_threshold_m:
-                self.landing_state.is_land = True
-
-    def IsValid(self, pose_stamped):
-        x = pose_stamped.pose.position.x
-        y = pose_stamped.pose.position.y
-        z = pose_stamped.pose.position.z
-
-        if (x>1e+100) or (x<-1e+100):
-            return False
-        if (y>1e+100) or (y<-1e+100):
-            return False
-        if (z>1e+100) or (z<-1e+100):
-            return False
-        return True
-
     def UpdateVirtualBorder(self):
         # clear marker_array
         del self.marker_array.markers[:]
@@ -156,130 +153,113 @@ class Landing(smach.State, state.Base):
         cube_marker.pose.position = cube_centroid
         self.marker_array.markers.append(cube_marker)
 
-        # Cube
-        gt_marker = Marker()
-        gt_marker.ns = "ground_truth"
-        gt_marker.id = 0
-        gt_marker.header.frame_id = "map"
-        gt_marker.type = gt_marker.CUBE
-        gt_marker.action = gt_marker.ADD
-
-        gt_marker.scale.x = 0.2
-        gt_marker.scale.y = 0.2
-        gt_marker.scale.z = 0.01
-        gt_marker.color = blue
-        gt_marker.color.a = 1.0
-        gt_marker.pose.orientation.x = 0.0
-        gt_marker.pose.orientation.y = 0.0
-        gt_marker.pose.orientation.z = 0.0
-        gt_marker.pose.orientation.w = 1.0
-        gt_marker.pose.position.x = 2.6600
-        gt_marker.pose.position.y = -2.2974
-        gt_marker.pose.position.z = 0.0
-        self.marker_array.markers.append(gt_marker)
-
-        # Cube
-        gt_marker = Marker()
-        gt_marker.ns = "ground_truth"
-        gt_marker.id = 1
-        gt_marker.header.frame_id = "map"
-        gt_marker.type = gt_marker.CUBE
-        gt_marker.action = gt_marker.ADD
-
-        gt_marker.scale.x = 0.06
-        gt_marker.scale.y = 0.06
-        gt_marker.scale.z = 0.01
-        gt_marker.color = blue
-        gt_marker.color.a = 1.0
-        gt_marker.pose.orientation.x = 0.0
-        gt_marker.pose.orientation.y = 0.0
-        gt_marker.pose.orientation.z = 0.0
-        gt_marker.pose.orientation.w = 1.0
-        gt_marker.pose.position.x = 2.8
-        gt_marker.pose.position.y = -2.5
-        gt_marker.pose.position.z = 0.0
-        self.marker_array.markers.append(gt_marker)
-
-        # Line strip
-        line_centroid = Point()
-        line_centroid.x = pose.position.x
-        line_centroid.y = pose.position.y
-        line_centroid.z = 0.0
-
-        line_marker = Marker()
-        line_marker.ns = "vitual_border_edge"
-        line_marker.header.frame_id = "map"
-        line_marker.type = line_marker.LINE_STRIP
-        line_marker.action = line_marker.ADD
-
-        line_marker.scale.x = 0.1
-
-        line_marker.color = green
-        a = Point()
-        b = Point()
-        c = Point()
-        d = Point()
-        e = Point()
-        a.x = 0.0
-        a.y = 0.0
-        b.x = 1.0
-        b.y = 0.0
-        c.x = 1.0
-        c.y = 1.0
-        d.x = 0.0
-        d.y = 1.0
-        e.x = 0.0
-        e.y = 0.0
-        line_marker.points.append(a)
-        line_marker.points.append(b)
-        line_marker.points.append(c)
-        line_marker.points.append(d)
-        line_marker.points.append(e)
-        
-        line_marker.pose.orientation.x = qaut[0]
-        line_marker.pose.orientation.y = qaut[1]
-        line_marker.pose.orientation.z = qaut[2]
-        line_marker.pose.orientation.w = qaut[3]
-        line_marker.pose.position = line_centroid
-        self.marker_array.markers.append(line_marker)
-
         return self.marker_array
+
+    def UpdateLandingState(self):
+        if self.landing_threshold_m is None:
+            pass
+        else:
+            h = self.ego_pose.position.z
+
+            if h < self.landing_threshold_m:
+                self.landing_state.is_land = True
+
+    def UpdateSetpoint(self):
+        if self.landing_state.is_detected == True:
+            if self.is_init_z == False:
+                self.is_init_z = True
+                # self.init_vel_z_ms = self.ego_vel.linear.z
+
+                init_z = self.ego_pose.position.z
+                dt = 1.0/self.freq
+
+                cnt = 1
+                while cnt*dt < 80:
+                    self.z_traj.append(self.Z(cnt*dt, init_z))
+                    cnt += 1
+
+            if self.is_init_z:
+                dt = 1.0/self.freq
+                if self.cnt + 1 < len(self.z_traj):
+                    self.setpoint.pose = self.target_pose
+                    self.setpoint.pose.position.z = self.z_traj[self.cnt]
+                    self.setpoint.vel.linear.z = (self.z_traj[self.cnt + 1] - self.z_traj[self.cnt])/dt
+                    self.cnt += 1
+                else:
+                    self.setpoint.pose = self.target_pose
+
+
+            # # Vertical distance to marker
+            # h_m = self.ego_pose.position.z
+
+            # # Horizontal distance to marker
+            # ego_xy_pos = Point()
+            # ego_xy_pos.x = self.ego_pose.position.x
+            # ego_xy_pos.y = self.ego_pose.position.y
+
+            # target_xy_pos = Point()
+            # target_xy_pos.x = self.target_pose.position.x
+            # target_xy_pos.y = self.target_pose.position.y
+
+            # xy_m = Distance2D(ego_xy_pos, target_xy_pos)
+
+            # # Angle between edge of drone to marker and drone to marker horizontal 
+            # alpha_deg = Rad2Deg(atan2(h_m, xy_m))
+
+
+            # # Update setpoint
+            # if self.is_init_z:
+            #     self.alpha_list.append(alpha_deg)
+            #     z_vel = min(self.alpha_list)*0.001
+            #     if z_vel < 0.01:
+            #         z_vel = 0
+            #     rospy.logwarn(str(z_vel))
+
+            # else:
+            #     z_vel = 0.0
+            #     rospy.logerr(str(z_vel))
+
+
+
+            # self.setpoint.pose = self.target_pose
+            # self.setpoint.vel.linear.z = z_vel
+
+            # # Publish evaluate alpha
+            # self.alpha_eval.alpha_deg.data = alpha_deg
+            # self.alpha_eval.d_m.data = xy_m
+            # self.alpha_eval.h_m.data = h_m
+            # self.alpha_eval.target_pos = self.target_pose.position
+
+            
+            # self.setpoint.pose = self.target_pose
+
+    '''
+    Util functions
+    '''
+    def IsValid(self, pose_stamped):
+        x = pose_stamped.pose.position.x
+        y = pose_stamped.pose.position.y
+        z = pose_stamped.pose.position.z
+
+        if (x>1e+100) or (x<-1e+100):
+            return False
+        if (y>1e+100) or (y<-1e+100):
+            return False
+        if (z>1e+100) or (z<-1e+100):
+            return False
+        return True
 
     def BorderEdgeSize(self, pose):
         h = pose.position.z
-        
-        edge = 2*h*tan(self.virtual_border_angle[0])
-        if edge > 10.0:
-            edge = 10.0
+
+        if h > self.alt_division_m:
+            angle = Deg2Rad(self.vb_angle_deg[0])
+        else: 
+            angle = Deg2Rad(self.vb_angle_deg[1])
+
+        edge = 2*h*tan(angle)
 
         return edge
-
-    # def BoderVertex(pose):
-    #     size = self.BorderEdgeSize(pose)
-    #     half_size = size/2.0
-
-    #     transform_stamped = TransformStamped()
-    #     transform_stamped.header.frame_id = 'map'
-    #     transform_stamped.header.stamp = rospy.Time.now()
-    #     transform_stamped.child_frame_id = 'base_link'
-    #     transform_stamped.transform.rotation = pose.orientation
-
-    #     l_top = pose.position
-    #     r_top = 
-    #     l_bot = 
-    #     r_bot = 
-
-        # is_transformed = False
-        # try:
-        #     transform_stamped = tfBuffer_.lookup_transform('map', 'base_link', rospy.Time())
-        #     is_transformed = True
-        # except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-        #     pass
-
-        
-
-        # pose_transformed = tf2_geometry_msgs.do_transform_pose(msg_pose_stamped, transform)
-        # offb_states_[OffbState.LANDING].target_pose = pose_transformed.pose
 
     def GetYawRad(self, pose):
         orientation = pose.orientation
@@ -288,6 +268,14 @@ class Landing(smach.State, state.Base):
         # yaw_deg = yaw_rad*180.0/pi
 
         return yaw_rad
+
+    def Z(self, t, init_z):
+        # z = a (x - last_time)**4  -> (0, init_z), (last_time, 0)
+        last_time = 100
+        a = init_z/last_time**4
+        z = a*(t-last_time)**4
+        return z
+
 
 
     '''

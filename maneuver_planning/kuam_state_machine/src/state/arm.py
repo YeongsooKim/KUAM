@@ -5,8 +5,8 @@ import copy
 
 class Arm(smach.State, state.Base):
     def __init__(self):
-        smach.State.__init__(self, input_keys=['setpoint', 'setpoints'], 
-                                output_keys=['setpoint', 'setpoints'], 
+        smach.State.__init__(self, input_keys=['setpoint', 'setpoints', 'ego_pose', 'ego_vel'], 
+                                output_keys=['setpoint', 'setpoints', 'ego_pose', 'ego_vel'], 
                                 outcomes=['disarm', 'takeoff', 'emerg', 'manual'])
         state.Base.__init__(self)
 
@@ -40,6 +40,8 @@ class Arm(smach.State, state.Base):
         trans = self.transition
         userdata.setpoint = copy.deepcopy(self.setpoint)
         userdata.setpoints = copy.deepcopy(self.setpoints)
-        
+        userdata.ego_pose = copy.deepcopy(self.ego_pose)
+        userdata.ego_vel = copy.deepcopy(self.ego_vel)
+
         self.transition = 'none'
         return trans

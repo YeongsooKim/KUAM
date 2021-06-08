@@ -11,6 +11,10 @@
 	<arg name="landing_threshold_m" default="3.0" />
 	<arg name="landing_standby_alt_m" default="5.0" />
 	<arg name="battery_th_per" default="0.05" />
+	<arg name="virtual_border_max_side_m" default="6.0" />
+	<arg name="virtual_border_angle_0_deg" default="20.0" />
+	<arg name="virtual_border_angle_1_deg" default="10.0" />
+	<arg name="alt_division_m" default="10.0" />
 
 	<node pkg="kuam_state_machine" type="state_machine.py" name="state_machine" output="$(arg output)">
 		<param name="data_ns" value="$(arg data_ns)" />
@@ -22,5 +26,9 @@
 		<param name="landing_threshold_m" value="$(arg landing_threshold_m)" />
 		<param name="landing_standby_alt_m" value="$(arg landing_standby_alt_m)" />
 		<param name="battery_th_per" value="$(arg battery_th_per)" />
+		<param name="virtual_border_max_side_m" value="$(arg virtual_border_max_side_m)" />
+		<param name="virtual_border_angle_0_deg" value="$(arg virtual_border_angle_0_deg)" />
+		<param name="virtual_border_angle_1_deg" value="$(arg virtual_border_angle_1_deg)" />
+		<param name="alt_division_m" value="$(arg alt_division_m)" />
 	</node>
 </launch>

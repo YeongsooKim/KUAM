@@ -13,6 +13,7 @@ from smach import CBState
 # Message
 from sensor_msgs.msg import BatteryState
 from uav_msgs.msg import Chat
+from kuam_msgs.msg import AlphaEval
 from kuam_msgs.msg import TransReq
 from kuam_msgs.msg import Mode
 from kuam_msgs.msg import Task
@@ -21,6 +22,7 @@ from kuam_msgs.msg import MarkerState
 from kuam_msgs.msg import LandingState
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PoseArray
+from geometry_msgs.msg import TwistStamped
 from visualization_msgs.msg import Marker,MarkerArray
 
 # State
@@ -134,6 +136,13 @@ def EgoLocalPoseCB(msg):
         except:
             pass
 
+def EgoVelCB(msg):
+    for state in offb_states_.values():
+        try:
+            state.ego_vel = msg.twist
+        except:
+            pass
+
 def CommandCB(msg):
     if msg.msg == "local_z":
         alt = msg.point.z
@@ -172,22 +181,25 @@ def SetpointPub():
     # Publish setpoint
     cur_kuam_mode, cur_state = GetSMStatus()
     pose = Pose()
+    vel = Twist()
 
     landing_state = LandingState()
     if cur_kuam_mode == "OFFBOARD" and cur_state != "None":
         pose = offb_states_[OffbState[cur_state]].setpoint.pose
+        vel = offb_states_[OffbState[cur_state]].setpoint.vel
         if cur_state == "LANDING":
             landing_state = offb_states_[OffbState[cur_state]].landing_state
         else:
             landing_state.is_detected = False
             landing_state.is_land = False
     else:
-        pose.position.x = 0; pose.position.y = 0; pose.position.z = 0
+        pose.position.x = 0.0; pose.position.y = 0.0; pose.position.z = 0.0
         landing_state.is_detected = False
         landing_state.is_land = False
 
     msg = Setpoint()
     msg.pose = pose
+    msg.vel = vel
     msg.landing_state = landing_state
     
     setpoint_pub.publish(msg)
@@ -236,11 +248,21 @@ def MarkerPub():
     if (cur_kuam_mode == "OFFBOARD") and (cur_state == "LANDING"):
         landing_marker_pub.publish(offb_states_[OffbState[cur_state]].marker_array)
 
+# def AlphaPub():
+#     cur_kuam_mode, cur_state = GetSMStatus()
+    
+#     if (cur_kuam_mode == "OFFBOARD") and (cur_state == "LANDING"):
+#         if offb_states_[OffbState[cur_state]].landing_state.is_detected:
+#             alpha_pub.publish(offb_states_[OffbState[cur_state]].alpha_eval)
+
+
 def ProcessCB(timer):
     DoTransition()
     TransRequest()
     SetpointPub()
     MarkerPub()
+    # AlphaPub()
+
 
 
 '''
@@ -304,7 +326,8 @@ def EmergCB(userdata):
     return mode_transitions_
                     
 if __name__ == '__main__':
-    rospy.init_node('state_machine')
+    rospy.init_node('state_machine', disable_signals=False)
+    	
     nd_name = rospy.get_name()
     ns_name = rospy.get_namespace()
 
@@ -322,9 +345,20 @@ if __name__ == '__main__':
     landing_threshold_m = rospy.get_param(nd_name + "/landing_threshold_m")
     landing_standby_alt_m = rospy.get_param(nd_name + "/landing_standby_alt_m")
     battery_th_ = rospy.get_param(nd_name + "/battery_th_per")
+    virtual_border_max_side_m = rospy.get_param(nd_name + "/virtual_border_max_side_m")
+    virtual_border_angle_0_deg = rospy.get_param(nd_name + "/virtual_border_angle_0_deg")
+    virtual_border_angle_1_deg = rospy.get_param(nd_name + "/virtual_border_angle_1_deg")
+    alt_division_m = rospy.get_param(nd_name + "/alt_division_m")
+    
+
 
     for state in offb_states_.values():
-        state.freq = freq_
+        try:
+            state.freq = freq_
+        except:
+            cur_kuam_mode, cur_state = GetSMStatus()
+            rospy.logerr("Fail init %s freq" %(cur_state))
+    
 
     offb_states_[OffbState.TAKEOFF].takeoff_alt_m = takeoff_alt_m
     offb_states_[OffbState.TAKEOFF].dist_thresh_m = dist_thresh_m
@@ -332,6 +366,10 @@ if __name__ == '__main__':
     offb_states_[OffbState.FLIGHT].guidance_dist_th_m = guidance_dist_th_m
     offb_states_[OffbState.LANDING].landing_threshold_m = landing_threshold_m
     offb_states_[OffbState.LANDING].landing_standby_alt_m = landing_standby_alt_m
+    offb_states_[OffbState.LANDING].virtual_border_max_side_m = virtual_border_max_side_m
+    offb_states_[OffbState.LANDING].virtual_border_angle_0_deg = virtual_border_angle_0_deg
+    offb_states_[OffbState.LANDING].virtual_border_angle_1_deg = virtual_border_angle_1_deg
+    offb_states_[OffbState.LANDING].alt_division_m = alt_division_m
 
     '''
     Initialize ROS
@@ -340,6 +378,7 @@ if __name__ == '__main__':
     rospy.Subscriber(ns_name + "mission_manager/task", Task, TaskCB)
     rospy.Subscriber(ns_name + "mission_manager/mode", Mode, ModeCB)
     rospy.Subscriber("/mavros/local_position/pose", PoseStamped, EgoLocalPoseCB)
+    rospy.Subscriber("/mavros/local_position/velocity_body", TwistStamped, EgoVelCB)
     rospy.Subscriber(data_ns + "/aruco_tracking/target_state", MarkerState, offb_states_[OffbState.LANDING].MarkerCB)
     rospy.Subscriber(data_ns + "/chat/command", Chat, CommandCB)
     rospy.Subscriber("/mavros/battery", BatteryState, BatteryCB)
@@ -348,6 +387,7 @@ if __name__ == '__main__':
     setpoint_pub = rospy.Publisher(nd_name + '/setpoint', Setpoint, queue_size=10)
     trans_req_pub = rospy.Publisher(nd_name + '/trans_request', TransReq, queue_size=10)
     landing_marker_pub = rospy.Publisher(nd_name + '/landing_marker', MarkerArray, queue_size=10)
+    alpha_pub = rospy.Publisher(nd_name + '/alpha', AlphaEval, queue_size=10)
 
 
     # Init timer
@@ -360,6 +400,8 @@ if __name__ == '__main__':
     with sm_mode_:
         sm_mode_.userdata.setpoint = Setpoint()
         sm_mode_.userdata.setpoints = PoseArray()
+        sm_mode_.userdata.ego_pose = Pose()
+        sm_mode_.userdata.ego_vel = Twist()
 
         # Add states to the container
         smach.StateMachine.add('MANUAL', CBState(ManualCB),
