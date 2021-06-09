@@ -24,8 +24,7 @@ namespace kuam{
 
 using namespace mission;
 const int NO_TASK = 99;
-using poses = geometry_msgs::PoseArray;
-using mssn_poses_map = map < string, poses >;
+using mssn_poses_map = map < string, geometry_msgs::PoseArray >;
 
 class Maneuver
 {

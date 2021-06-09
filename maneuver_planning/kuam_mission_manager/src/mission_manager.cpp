@@ -127,19 +127,49 @@ void Maneuver::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr)
     if (!m_is_init_auto_mission){
         m_is_init_auto_mission = true;
         
+        // Get missions
         vector<string> missions;
         for (auto wp : wps_ptr->waypoints){
             string mission = wp.mission;
             missions.push_back(mission);
         }
 
+        // Get pose
+        vector<geometry_msgs::Pose> poses;
+        for (auto wp : wps_ptr->waypoints){
+            auto lat = wp.geopose.position.latitude;
+            auto lon = wp.geopose.position.longitude;
+            auto alt = m_target_height_m_param;
+            auto pose = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
+            poses.push_back(pose);
+        }
+
+        for (int i = 0; i < poses.size(); i++){
+            if (poses.size() != 1){
+                if (i + 1 < poses.size()){
+                    auto orientation = m_utils.GetOrientation(poses[i].position, poses[i+1].position);
+                    poses[i].orientation = orientation;
+                }
+                else {
+                    poses[i].orientation = poses[i-1].orientation;
+                }
+            }
+            else{
+                poses[i].orientation.x = 0.0;
+                poses[i].orientation.y = 0.0;
+                poses[i].orientation.z = 0.0;
+                poses[i].orientation.w = 1.0;
+            }
+        }
+
+        // Allocate mission to posearray
         mssn_poses_map mssn_wps;
         string str = "none";
         for (auto mission : missions){
             if (str != mission){
                 str = mission;
-                poses dummy;
-                mssn_wps.insert(pair<string, poses>(str, dummy));
+                geometry_msgs::PoseArray dummy;
+                mssn_wps.insert(pair<string, geometry_msgs::PoseArray>(str, dummy));
 
                 if (IsTransition(str)){
                     InsertTask(str);
@@ -147,19 +177,16 @@ void Maneuver::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr)
             }
         }
 
+        // Allocate posearray
         for (auto& mssn_wp : mssn_wps){
-            for (auto wp : wps_ptr->waypoints){
-                if (mssn_wp.first == wp.mission){
-                    auto lat = wp.geopose.position.latitude;
-                    auto lon = wp.geopose.position.longitude;
-                    auto alt = m_target_height_m_param;
-                    auto pose = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
-                    pose.orientation = wp.geopose.orientation;
-                    mssn_wp.second.poses.push_back(pose);
+            for (int i = 0; i < wps_ptr->waypoints.size(); i++){
+                if (mssn_wp.first == wps_ptr->waypoints[i].mission){
+                    mssn_wp.second.poses.push_back(poses[i]);
                 }
             }
         }
 
+        // Add flight last waypoint
         auto mssn_wps_it = mssn_wps.find("landing");
         if (mssn_wps_it != mssn_wps.end()){
             if (mssn_wps_it->second.poses.size() != 0){
