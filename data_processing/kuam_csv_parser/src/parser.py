@@ -81,7 +81,7 @@ with open('csv/waypoints.csv') as f:
 
     way = copy.deepcopy(ex_waypoint)
     ex_waypoints.append(way)
-    del ex_waypoints[0] # remove launch waypoint
+    # del ex_waypoints[0] # remove launch waypoint
 
     '''
     Gen waypoints
