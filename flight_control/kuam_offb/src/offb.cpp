@@ -27,7 +27,7 @@ Offboard::~Offboard()
 
 bool Offboard::InitFlag()
 {
-    m_is_global = false;
+    m_setpoint.is_global = false;
 
     return true;
 }
@@ -57,6 +57,7 @@ bool Offboard::InitROS()
     m_trans_req_sub = m_nh.subscribe<kuam_msgs::TransReq>(m_maneuver_ns_param + "/state_machine/trans_request", 10, boost::bind(&Offboard::TransReqCallback, this, _1));
 
     // Initialize publisher
+    m_global_pose_pub = m_nh.advertise<geographic_msgs::GeoPoseStamped>("/mavros/setpoint_position/global", 10);
     m_local_pos_tar_pub = m_nh.advertise<mavros_msgs::PositionTarget>("/mavros/setpoint_raw/local", 10);
     m_offboard_state_pub = m_nh.advertise<uav_msgs::OffboardState>(nd_name + "/offboard_state", 1000);
 
@@ -199,7 +200,7 @@ void Offboard::TakeoffRequest()
 
 void Offboard::LandingRequest()
 {
-    if (m_is_land){
+    if (m_setpoint.landing_state.is_land){
         mavros_msgs::SetMode landing_mode;
         landing_mode.request.custom_mode = "AUTO.LAND";
 
@@ -234,39 +235,45 @@ void Offboard::FlightRequest()
 
 void Offboard::SetpointPub()
 {
-    mavros_msgs::PositionTarget pos_tar;
-    pos_tar.header.stamp = ros::Time::now();
-    pos_tar.header.frame_id = "map";
+    if (m_setpoint.is_global){
+        geographic_msgs::GeoPoseStamped msg;
+        msg.header.frame_id = "map";
+        msg.header.stamp = ros::Time::now();
 
-    pos_tar.type_mask = mavros_msgs::PositionTarget::IGNORE_AFX
-        | mavros_msgs::PositionTarget::IGNORE_AFY
-        | mavros_msgs::PositionTarget::IGNORE_AFZ
-        | mavros_msgs::PositionTarget::FORCE
-        | mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
+        msg.header = m_setpoint.header;
+        msg.pose = m_setpoint.geopose;
 
-    // This makes it so our velocities are sent in the UAV frame.
-    // If you use FRAME_LOCAL_NED then it will be in map frame
-    pos_tar.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
+        m_global_pose_pub.publish(msg);
+    }
+    else {
+        mavros_msgs::PositionTarget pos_tar;
+        pos_tar.header.stamp = ros::Time::now();
+        pos_tar.header.frame_id = "base_link";
 
-    // Set the velocities we want (it is in m/s)
-    // On the real drone send a minimum of 0.3 m/s in x/y (except when you send 0.0 m/s).
-    // If the velocity is lower than 0.3 m/s then the UAV can move in any direction!
+        pos_tar.type_mask = mavros_msgs::PositionTarget::IGNORE_PX
+            | mavros_msgs::PositionTarget::IGNORE_PY
+            | mavros_msgs::PositionTarget::IGNORE_PZ 
+            | mavros_msgs::PositionTarget::IGNORE_AFX
+            | mavros_msgs::PositionTarget::IGNORE_AFY
+            | mavros_msgs::PositionTarget::IGNORE_AFZ
+            | mavros_msgs::PositionTarget::FORCE
+            | mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
 
-    pos_tar.position = m_setpoint_pose.position;
-    pos_tar.velocity.x = m_setpoint_vel.linear.x;
-    pos_tar.velocity.y = m_setpoint_vel.linear.y;
-    pos_tar.velocity.z = m_setpoint_vel.linear.z;
+        pos_tar.coordinate_frame = mavros_msgs::PositionTarget::FRAME_BODY_NED;
 
-    auto euler = m_utils.Quat2Euler(m_setpoint_pose.orientation);
-    auto yaw_rad = euler.y;
-    if (__isnan(yaw_rad)) yaw_rad = 0.0;
+        pos_tar.velocity.x = m_setpoint.vel.linear.x;
+        pos_tar.velocity.y = m_setpoint.vel.linear.y;
+        pos_tar.velocity.z = m_setpoint.vel.linear.z;
 
-    pos_tar.yaw = yaw_rad;
+        auto euler = m_utils.Quat2Euler(m_setpoint.pose.orientation);
+        auto yaw_rad = euler.y;
+        if (__isnan(yaw_rad)) yaw_rad = 0.0;
+
+        pos_tar.yaw = yaw_rad;
+        
+        m_local_pos_tar_pub.publish(pos_tar);
+    }
     
-    // Set the yaw rate (it is in rad/s)
-    // pos_tar.yaw_rate = 0.1;
-    
-    m_local_pos_tar_pub.publish(pos_tar);
 }
 
 void Offboard::OffbStatusPub()

@@ -5,8 +5,8 @@ import state
 
 class Hovering(smach.State, state.Base):
     def __init__(self):
-        smach.State.__init__(self, input_keys=['setpoint', 'setpoints', 'ego_pose', 'ego_vel'], 
-                                output_keys=['setpoint', 'setpoints', 'ego_pose', 'ego_vel'], 
+        smach.State.__init__(self, input_keys=['setpoint', 'setpoints', 'ego_geopose', 'ego_pose', 'ego_vel'], 
+                                output_keys=['setpoint', 'setpoints', 'ego_geopose', 'ego_pose', 'ego_vel'], 
                                 outcomes=['flight', 'landing', 'emerg', 'manual'])
         state.Base.__init__(self)
         
@@ -39,6 +39,7 @@ class Hovering(smach.State, state.Base):
         userdata.setpoint = copy.deepcopy(self.setpoint)
         userdata.setpoints = copy.deepcopy(self.setpoints)
         userdata.ego_pose = copy.deepcopy(self.ego_pose)
+        userdata.ego_geopose = copy.deepcopy(self.ego_geopose)
         userdata.ego_vel = copy.deepcopy(self.ego_vel)
 
         self.transition = 'none'

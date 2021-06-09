@@ -5,14 +5,19 @@ from matplotlib.animation import FuncAnimation
 import rospy
 import sys
 from enum import Enum
+from math import sqrt
 
 from geometry_msgs.msg import TwistStamped
 from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import Point
 from std_msgs.msg import Int16
 from uav_msgs.msg import Chat
 
-Y_AXIS_MARGIN = [1.0, 1.0, 2.0]
+Y_AXIS_MARGIN = [1.0, 1.0, 2.0, 0.15]
 BUF_SIZE = 200
+
+BIG_MARKER = [6.2933, -6.5594, 0.0]
+SMALL_MARKER = [6.4333, -6.7594, 0.0]
 
 class Val(Enum):
     TARGET = 0
@@ -20,14 +25,20 @@ class Val(Enum):
     VEL_X = 0
     VEL_Y = 1
     VEL_Z = 2
+    RMSE_X = 0
+    RMSE_Y = 1
 
-alt_ = 0
+ego_pos_ = Point()
 target_ = 0
 
 class Plotting:
     def __init__(self):
         self.init_time = None
         self.is_first = True
+        self.err_squar_sums = [0.0, 0.0]
+        self.err_cnt = 0
+        self.big_rmse_init = False
+        self.small_rmse_init = False
 
         self.time_s = []
         
@@ -52,13 +63,20 @@ class Plotting:
         self.h_ylabel = 'distance [m]'
         self.h_title = 'Ego Vehicle Height'
 
-        self.list_set = [self.heights, self.vels, self.target]
-        self.color_set = [self.h_colors, self.v_colors, self.t_colors]
-        self.label_set = [self.h_labels, self.v_labels, self.t_labels]
-        self.xlabel_set = [self.h_xlabel, self.v_xlabel, self.t_xlabel]
-        self.ylabel_set = [self.h_ylabel, self.v_ylabel, self.t_ylabel]
-        self.title_set = [self.h_title, self.v_title, self.t_title]
-        self.fig, self.axs = plt.subplots(1, 3)
+        self.rmses = [[], []]
+        self.r_colors = ['red', 'green']
+        self.r_labels = ['x rmse', 'y rmse']
+        self.r_xlabel = 'time [s]'
+        self.r_ylabel = 'rmse [m]'
+        self.r_title = "Error between Marker Ground Truth and Ego Pos"
+
+        self.list_set = [self.heights, self.vels, self.target, self.rmses]
+        self.color_set = [self.h_colors, self.v_colors, self.t_colors, self.r_colors]
+        self.label_set = [self.h_labels, self.v_labels, self.t_labels, self.r_labels]
+        self.xlabel_set = [self.h_xlabel, self.v_xlabel, self.t_xlabel, self.r_xlabel]
+        self.ylabel_set = [self.h_ylabel, self.v_ylabel, self.t_ylabel, self.r_ylabel]
+        self.title_set = [self.h_title, self.v_title, self.t_title, self.r_title]
+        self.fig, self.axs = plt.subplots(2, 2)
 
     '''
     Callback functions
@@ -79,12 +97,43 @@ class Plotting:
         global target_
         self.target[Val.TARGET.value].append(target_)
 
-        global alt_
-        self.heights[Val.ALT.value].append(alt_)
+        global ego_pos_
+        self.heights[Val.ALT.value].append(ego_pos_.z)
 
+        if target_ == 1:
+            if self.big_rmse_init == False:
+                self.big_rmse_init = True
+                self.err_cnt = 0
+                self.err_squar_sums = [0.0, 0.0]
+
+            err_x = BIG_MARKER[0] - ego_pos_.x
+            err_y = BIG_MARKER[1] - ego_pos_.y
+            rmses = self.RMSE([err_x, err_y])
+
+            self.rmses[Val.RMSE_X.value].append(rmses[0])
+            self.rmses[Val.RMSE_Y.value].append(rmses[1])
+
+        elif target_ == 2:
+            if self.small_rmse_init == False:
+                self.small_rmse_init = True
+                self.err_cnt = 0
+                self.err_squar_sums = [0.0, 0.0]
+
+            err_x = SMALL_MARKER[0] - ego_pos_.x
+            err_y = SMALL_MARKER[1] - ego_pos_.y
+            rmses = self.RMSE([err_x, err_y])
+
+            self.rmses[Val.RMSE_X.value].append(rmses[0])
+            self.rmses[Val.RMSE_Y.value].append(rmses[1])
+        else:
+            self.rmses[Val.RMSE_X.value].append(0.0)
+            self.rmses[Val.RMSE_Y.value].append(0.0)
+            
     def EgoLocalPoseCB(self, msg):
-        global alt_
-        alt_ = msg.pose.position.z
+        global ego_pos_
+        ego_pos_.x = msg.pose.position.x
+        ego_pos_.y = msg.pose.position.y
+        ego_pos_.z = msg.pose.position.z
 
     def TargetMarkerCB(self, msg):
         global target_
@@ -103,28 +152,45 @@ class Plotting:
     Plot
     '''
     def PlotInit(self):
-        for ax in self.axs:
-            ax.set_xlim(0, BUF_SIZE - 1)
-            ax.set_ylim(0.0, 1.0)
+        pass
+        # for ax in self.axs:
+        #     ax.set_xlim(0, BUF_SIZE - 1)
+        #     ax.set_ylim(0.0, 1.0)
 
     def UdatePlot(self, frame):
-        for type, ax in enumerate(self.axs):
-            ax.clear()
-            ylim = self.GetLimMinMax(self.list_set[type], Y_AXIS_MARGIN[type])
-            ax.set_ylim(ylim[0], ylim[1])
+        type = 0
+        for i in range(len(self.axs)):
+            for j in range(len(self.axs[i])):
+                self.axs[i][j].clear()
+                ylim = self.GetLimMinMax(self.list_set[type], Y_AXIS_MARGIN[type])
+                self.axs[i][j].set_ylim(ylim[0], ylim[1])
+                
+                for element in range(len(self.list_set[type])):
+                    if (len(self.time_s) == len(self.list_set[type][element])):
+                        self.axs[i][j].plot(self.time_s, self.list_set[type][element], color=self.color_set[type][element], label=self.label_set[type][element])
 
-            for element in range(len(self.list_set[type])):
-                if (len(self.time_s) == len(self.list_set[type][element])):
-                    ax.plot(self.time_s, self.list_set[type][element], color=self.color_set[type][element], label=self.label_set[type][element])
+                self.axs[i][j].set_xlabel(self.xlabel_set[type])  # Add an x-label to the axes.
+                self.axs[i][j].set_ylabel(self.ylabel_set[type])  # Add a y-label to the axes.
+                self.axs[i][j].set_title(self.title_set[type])  # Add a title to the axes.            
+                self.axs[i][j].legend()  # Add a legend.
 
-            ax.set_xlabel(self.xlabel_set[type])  # Add an x-label to the axes.
-            ax.set_ylabel(self.ylabel_set[type])  # Add a y-label to the axes.
-            ax.set_title(self.title_set[type])  # Add a title to the axes.            
-            ax.legend()  # Add a legend.
+                type += 1
 
     '''
     Util functions
     '''
+    def RMSE(self, errs):
+        self.err_cnt += 1
+
+        rmses = []
+        for i, err in enumerate(errs):
+            self.err_squar_sums[i] += pow(err,2)
+        
+            rmse = sqrt(self.err_squar_sums[i]/self.err_cnt)
+            rmses.append(rmse)
+
+        return rmses
+
     def GetLimMinMax(self, lists, margin):
         ylim = [0, BUF_SIZE - 1]
         lengths = []
@@ -162,7 +228,7 @@ class Plotting:
 
         return ylim
 
-rospy.init_node('alpha_eval')
+rospy.init_node('multi_marker_eval')
 plotting = Plotting()
 
 vel_sub = rospy.Subscriber('/kuam/data/aruco_tracking/target_marker', Int16, plotting.TargetMarkerCB)

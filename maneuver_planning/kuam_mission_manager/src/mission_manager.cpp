@@ -136,7 +136,11 @@ void Maneuver::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr)
 
         // Get pose
         vector<geometry_msgs::Pose> poses;
+        vector<geographic_msgs::GeoPose> geoposes;
         for (auto wp : wps_ptr->waypoints){
+            wp.geopose.position.altitude = m_target_height_m_param;
+            geoposes.push_back(wp.geopose);
+
             auto lat = wp.geopose.position.latitude;
             auto lon = wp.geopose.position.longitude;
             auto alt = m_target_height_m_param;
@@ -144,14 +148,17 @@ void Maneuver::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr)
             poses.push_back(pose);
         }
 
+        // Allocate orientation
         for (int i = 0; i < poses.size(); i++){
             if (poses.size() != 1){
                 if (i + 1 < poses.size()){
                     auto orientation = m_utils.GetOrientation(poses[i].position, poses[i+1].position);
                     poses[i].orientation = orientation;
+                    geoposes[i].orientation = orientation;
                 }
                 else {
                     poses[i].orientation = poses[i-1].orientation;
+                    geoposes[i].orientation = geoposes[i-1].orientation;
                 }
             }
             else{
@@ -159,17 +166,22 @@ void Maneuver::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr)
                 poses[i].orientation.y = 0.0;
                 poses[i].orientation.z = 0.0;
                 poses[i].orientation.w = 1.0;
+
+                geoposes[i].orientation.x = 0.0;
+                geoposes[i].orientation.y = 0.0;
+                geoposes[i].orientation.z = 0.0;
+                geoposes[i].orientation.w = 1.0;
             }
         }
 
         // Allocate mission to posearray
-        mssn_poses_map mssn_wps;
+        mssn_geoposes_map mssn_wps;
         string str = "none";
         for (auto mission : missions){
             if (str != mission){
                 str = mission;
-                geometry_msgs::PoseArray dummy;
-                mssn_wps.insert(pair<string, geometry_msgs::PoseArray>(str, dummy));
+                geographic_msgs::GeoPath dummy;
+                mssn_wps.insert(pair<string, geographic_msgs::GeoPath>(str, dummy));
 
                 if (IsTransition(str)){
                     InsertTask(str);
@@ -181,7 +193,11 @@ void Maneuver::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr)
         for (auto& mssn_wp : mssn_wps){
             for (int i = 0; i < wps_ptr->waypoints.size(); i++){
                 if (mssn_wp.first == wps_ptr->waypoints[i].mission){
-                    mssn_wp.second.poses.push_back(poses[i]);
+                    geographic_msgs::GeoPoseStamped p;
+                    p.header.frame_id = "map";
+                    p.header.stamp = ros::Time::now();
+                    p.pose = geoposes[i];
+                    mssn_wp.second.poses.push_back(p);
                 }
             }
         }
@@ -314,16 +330,17 @@ bool Maneuver::DoTask()
         task_msg.task = Enum2String(m_tasklist[m_cur_task].first);
 
         geometry_msgs::PoseArray pose_array;
+        geographic_msgs::GeoPath geopath;
         pose_array.header.frame_id = "map";
         if ((task_msg.task != "arm") && (task_msg.task != "disarm")){
 
             for (auto p : m_mssn_wps_map.find(task_msg.task)->second.poses){
-                geometry_msgs::Pose pose = p;
+                geographic_msgs::GeoPoseStamped geopose = p;
 
-                pose_array.poses.push_back(pose);
+                geopath.poses.push_back(geopose);
             }
         }
-        task_msg.pose_array = pose_array;
+        task_msg.geopath = geopath;
 
         m_task_pub.publish(task_msg);
     }

@@ -115,7 +115,7 @@ void TfBroadcaster::InitStaticTf(void)
 
         tf_stamped.transform.translation.x = 0.1;
         tf_stamped.transform.translation.y = 0.0;
-        tf_stamped.transform.translation.z = 0.0;
+        tf_stamped.transform.translation.z = 0.28;
         
         tf2::Quaternion q;
         q.setRPY(0.0, M_PI, M_PI/2);

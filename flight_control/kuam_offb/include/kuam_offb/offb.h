@@ -49,8 +49,8 @@ private:
     ros::Subscriber m_trans_req_sub;
 
     // Publisher
-    ros::Publisher m_local_pose_pub;
     ros::Publisher m_local_pos_tar_pub;
+    ros::Publisher m_global_pose_pub;
     ros::Publisher m_offboard_state_pub;
     
     // ServiceClient
@@ -65,10 +65,6 @@ private:
     bool m_is_debug_mode_param;
 
     // Flag
-    bool m_is_global;
-    bool m_offb_init;
-    bool m_is_detected;
-    bool m_is_land;
     
     ros::Time m_last_request_time;
 
@@ -81,11 +77,6 @@ private:
     std::string m_offb_state;
 
     kuam_msgs::Setpoint m_setpoint;
-    geometry_msgs::Pose m_setpoint_pose;
-    geometry_msgs::Twist m_setpoint_vel;
-    geometry_msgs::Pose m_test_pose;
-    geometry_msgs::Twist m_test_vel;
-    geographic_msgs::GeoPoseStamped m_global_setpoint;
     
 	tf2_ros::Buffer m_tfBuffer;
 	tf2_ros::TransformListener m_tfListener;
@@ -102,12 +93,7 @@ private: // function
 
     // Callback functions
     inline void MavrosStateCallback(const mavros_msgs::State::ConstPtr &state_ptr) { m_mavros_status = *state_ptr; }
-    inline void SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_ptr) { 
-        m_setpoint_pose = setpoint_ptr->pose;
-        m_setpoint_vel = setpoint_ptr->vel;
-        m_is_detected = setpoint_ptr->landing_state.is_detected;
-        m_is_land = setpoint_ptr->landing_state.is_land;
-    }
+    inline void SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_ptr) { m_setpoint = *setpoint_ptr; }
     inline void TransReqCallback(const kuam_msgs::TransReq::ConstPtr &trans_req_ptr) { 
         m_sm_kuam_mode = trans_req_ptr->mode.kuam;
         m_px4_mode = trans_req_ptr->mode.px4;
