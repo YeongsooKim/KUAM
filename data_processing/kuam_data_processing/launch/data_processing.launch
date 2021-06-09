@@ -4,7 +4,9 @@
     <arg name="noise_cnt_th" default="20" />
 
     <!-- - kuam_aruco_tracking - -->
-    <!-- Select only one data type -->
+    <arg name="marker_cnt_th" default="25" />
+
+        <!-- Select only one data type -->
     <arg name="using_gazebo_data" default="true" />
     <arg name="using_logging_data" default="false" />
     <arg name="using_device_data" default="false" />
@@ -20,6 +22,7 @@
             <arg name="using_logging_data" value="$(arg using_logging_data)" />
             <arg name="using_device_data" value="$(arg using_device_data)" />
             <arg name="noise_cnt_th" value="$(arg noise_cnt_th)" />
+            <arg name="marker_cnt_th" value="$(arg marker_cnt_th)" />
         </include>        
     </group>
 </launch>

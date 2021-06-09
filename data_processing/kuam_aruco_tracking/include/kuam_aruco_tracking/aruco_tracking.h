@@ -106,11 +106,14 @@ private:
     ros::Publisher m_target_state_pub;
     ros::Publisher m_target_states_pub;
     ros::Publisher m_target_list_pub;
+    ros::Publisher m_cnt_pub;
+    ros::Publisher m_target_marker_pub;
 
     // Timer
     ros::Timer m_image_timer;
 
     // Param
+    bool m_is_eval_param;
     string m_aruco_parser_param; // Dictionary
     int m_big_marker_id_param; // 
     int m_small_marker_id_param; // 
@@ -123,6 +126,10 @@ private:
     float m_noise_dist_th_m_param;
     float m_noise_cnt_th_param;
     float m_process_freq_param;
+    int m_marker_cnt_th_param;
+
+    // Const value
+    const int MARKER_ID_STACK_SIZE;
 
     // ArUco variable
     Ptr<aruco::DetectorParameters> m_detector_params;
@@ -132,6 +139,9 @@ private:
     bool m_do_estimate_pose;
     bool m_show_rejected;
     id2markersizes m_id_to_markersize_map;
+    vector<int> m_detected_marker_num_stack;
+    bool m_fix_small_marker;
+    ros::Time m_last_enough_time;
 
     // Time variable
     ros::Time m_last_detected_time;

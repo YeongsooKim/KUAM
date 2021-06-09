@@ -5,6 +5,8 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_msgs/TFMessage.h>
 
+#include <std_msgs/Int16.h>
+
 using namespace std;
 using namespace cv;
 
@@ -23,7 +25,9 @@ ArucoTracking::ArucoTracking() :
     m_estimating_method_param(NAN),
     m_noise_dist_th_m_param(NAN),
     m_noise_cnt_th_param(NAN),
-    m_cv_ptr(nullptr)
+    m_cv_ptr(nullptr),
+    MARKER_ID_STACK_SIZE(30),
+    m_marker_cnt_th_param(NAN)
 {
     InitFlag();
     if (!GetParam()) ROS_ERROR_STREAM("[aruco_tracking] Fail GetParam");
@@ -51,6 +55,7 @@ bool ArucoTracking::InitFlag()
 {
     m_target.is_detected = false;
     m_target.is_init = false;
+    m_fix_small_marker = false;
     return true;
 }
 
@@ -59,6 +64,7 @@ bool ArucoTracking::GetParam()
     string nd_name = ros::this_node::getName();
 
     m_nh.getParam(nd_name + "/arcuo_parser", m_aruco_parser_param);
+    m_nh.getParam(nd_name + "/is_eval", m_is_eval_param);
     m_nh.getParam(nd_name + "/big_marker_id", m_big_marker_id_param);
     m_nh.getParam(nd_name + "/small_marker_id", m_small_marker_id_param);
     m_nh.getParam(nd_name + "/big_marker_size_m", m_big_marker_size_m_param);
@@ -70,6 +76,7 @@ bool ArucoTracking::GetParam()
     m_nh.getParam(nd_name + "/noise_dist_th_m", m_noise_dist_th_m_param);
     m_nh.getParam(nd_name + "/noise_cnt_th", m_noise_cnt_th_param);
     m_nh.getParam(nd_name + "/process_freq", m_process_freq_param);
+    m_nh.getParam(nd_name + "/marker_cnt_th", m_marker_cnt_th_param);
 
     if (m_aruco_parser_param == "missing") { ROS_ERROR_STREAM("[aruco_tracking] m_aruco_parser_param is missing"); return false; }
     else if (__isnan(m_big_marker_id_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_big_marker_id_param is NAN"); return false; }
@@ -81,6 +88,7 @@ bool ArucoTracking::GetParam()
     else if (__isnan(m_noise_dist_th_m_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_noise_dist_th_m_param is NAN"); return false; }
     else if (__isnan(m_noise_cnt_th_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_noise_cnt_th_param is NAN"); return false; }
     else if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_process_freq_param is NAN"); return false; }
+    else if (__isnan(m_marker_cnt_th_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_marker_cnt_th_param is NAN"); return false; }
 
     return true;
 }
@@ -104,6 +112,10 @@ bool ArucoTracking::InitROS()
     m_target_state_pub = m_nh.advertise<kuam_msgs::MarkerState> (nd_name + "/target_state", 1);
     m_target_states_pub = m_nh.advertise<kuam_msgs::MarkerStateArray> (nd_name + "/target_states", 1);
     m_target_list_pub = m_nh.advertise<geometry_msgs::PoseArray> (nd_name + "/target_list", 1);
+    if (m_is_eval_param){
+        m_cnt_pub = m_nh.advertise<std_msgs::Int16> (nd_name + "/cnt", 1);
+        m_target_marker_pub = m_nh.advertise<std_msgs::Int16> (nd_name + "/target_marker", 1);
+    }
     
     // Initialize timer
     m_image_timer = m_nh.createTimer(ros::Duration(1.0/m_process_freq_param), &ArucoTracking::ProcessTimerCallback, this);
@@ -242,6 +254,89 @@ bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& 
     image = m_cv_ptr->image;
 
     aruco::detectMarkers(image, m_dictionary, corners, ids, m_detector_params, rejected);
+
+    bool is_enough = false;
+    if (ids.size() > 0){
+        // Shift detected marker stack vector
+        if (m_detected_marker_num_stack.size() < MARKER_ID_STACK_SIZE){
+            m_detected_marker_num_stack.push_back(ids.size());
+        }
+        else {
+            int index;
+            for (index = 0; index < MARKER_ID_STACK_SIZE - 1; index++){
+                m_detected_marker_num_stack[index] = m_detected_marker_num_stack[index + 1];
+            }
+            m_detected_marker_num_stack[index] = ids.size();
+        }
+
+        // Count multi aruco marker detected in detected marker stack vector
+        int cnt = 0;
+        for (auto num : m_detected_marker_num_stack){
+            if (num == 2) cnt++;
+        }
+        if (cnt > m_marker_cnt_th_param){
+            is_enough = true;
+        }
+
+        // Timer for multi aruco marker detected
+        static bool is_start_timer = false;
+        if (is_enough){
+            if (!is_start_timer){
+                is_start_timer = true;
+                m_last_enough_time = ros::Time::now();
+            }
+            if ((ros::Time::now() - m_last_enough_time) > ros::Duration(3)){
+                m_fix_small_marker = true;
+            }
+            auto eclapse = ros::Time::now() - m_last_enough_time;
+        }
+        else{
+            is_start_timer = false;
+        }
+
+        // For comparing detected marker count and ego vehicle height
+        if (m_is_eval_param){
+            std_msgs::Int16 msg;
+            msg.data = cnt;
+            m_cnt_pub.publish(msg);
+        }
+    }
+
+    // Remove unused marker
+    if (ids.size() > 0){
+        if (m_fix_small_marker){
+            unsigned int big_index;
+            bool has_big = false;
+            for (int index = 0; index < ids.size(); index++){
+                if (ids[index] == m_big_marker_id_param){
+                    big_index = index;
+                    has_big = true;
+                }
+            }
+
+            if (has_big){
+                corners.erase(corners.begin() + big_index);
+                ids.erase(ids.begin() + big_index);
+            }
+        }
+        else{
+            unsigned int small_index;
+            bool has_small = false;
+            for (int index = 0; index < ids.size(); index++){
+                if (ids[index] == m_small_marker_id_param){
+                    small_index = index;
+                    has_small = true;
+                }
+            }
+
+            if (has_small){
+                corners.erase(corners.begin() + small_index);
+                ids.erase(ids.begin() + small_index);
+            }
+        }
+    }
+
+    // Noise filter
     for (auto id : ids){
         if (m_id_to_markersize_map.find(id) != m_id_to_markersize_map.end()){
             if (IsNoise()) is_detected = false;
@@ -249,12 +344,16 @@ bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& 
                 is_detected = true;
                 m_target.id = id;
                 m_target.marker_size_m = m_id_to_markersize_map.find(id)->second;
+
+                std_msgs::Int16 msg;
+                msg.data = id;
+                m_target_marker_pub.publish(msg);
             } 
         }
     }
 
     Mat copy_image;
-    image.copyTo(copy_image);
+    image.copyTo(copy_image);  
     vector<Vec3d> rvecs, tvecs;
     if (is_detected){
         aruco::estimatePoseSingleMarkers(corners, m_target.marker_size_m, m_cam_matrix, m_dist_coeffs, rvecs, tvecs);
@@ -305,10 +404,6 @@ bool ArucoTracking::Camera2World(const vector<vector<Point2f>> corners, const ve
     tf2_msgs::TFMessage tf_msg_list;
     for (auto i = 0; i < rvecs.size(); ++i){
         if (ids[i] == m_target.id){
-            // ROS_ERROR("%f, %f", corners[i][0].x, corners[i][0].y);
-            // ROS_ERROR("%f, %f", corners[i][1].x, corners[i][1].y);
-            // ROS_ERROR("%f, %f", corners[i][2].x, corners[i][2].y);
-            // ROS_ERROR("%f, %f", corners[i][3].x, corners[i][3].y);
 
             geometry_msgs::TransformStamped aruco_tf_stamped;
             aruco_tf_stamped.header.stamp = ros::Time::now();
@@ -329,18 +424,6 @@ bool ArucoTracking::Camera2World(const vector<vector<Point2f>> corners, const ve
             aruco_tf_stamped.transform.rotation.z = transform.getRotation().getZ();
             aruco_tf_stamped.transform.rotation.w = transform.getRotation().getW();
             tf_msg_list.transforms.push_back(aruco_tf_stamped);
-
-            // Marker corner coordinate 
-            // geometry_msgs::TransformStamped transformStamped;
-            // geometry_msgs::Pose transformed_pose;
-            // try{
-            //     transformStamped = m_tfBuffer.lookupTransform("base_link", "map", ros::Time(0));
-            //     tf2::doTransform(target_state_ptr->pose, transformed_pose, transformStamped);
-            // }
-            // catch (tf2::TransformException &ex) {
-            //     ROS_WARN("%s", ex.what());
-            //     ros::Duration(1.0).sleep();
-            // }
 
             target_pose.position.x = transform.getOrigin().getX();
             target_pose.position.y = transform.getOrigin().getY();
