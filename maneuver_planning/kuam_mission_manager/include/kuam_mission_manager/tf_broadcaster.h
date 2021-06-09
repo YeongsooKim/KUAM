@@ -18,7 +18,6 @@
 
 #include <geometry_msgs/PoseStamped.h>
 #include <geographic_msgs/GeoPoint.h>
-#include <novatel_oem7_msgs/INSPVA.h>
 
 #include <sensor_msgs/Imu.h>
 
@@ -37,7 +36,6 @@ public:
 
 private:
     // Subscriber
-    ros::Subscriber m_novatel_sub;
     ros::Subscriber m_ego_vehicle_imu_sub;
     ros::Subscriber m_ego_vehicle_local_pose_sub;
     ros::Subscriber m_home_position_sub;
@@ -81,7 +79,6 @@ private:
     void ProcessTimerCallback(const ros::TimerEvent& event);
 
     void HomePositionCallback(const mavros_msgs::HomePosition::ConstPtr &home_ptr);
-    void NovatelINSPVACallback(const novatel_oem7_msgs::INSPVA::ConstPtr &inspva_msg_ptr);
     void EgoVehicleLocalPositionCallback(const geometry_msgs::PoseStamped::ConstPtr &pose_stamped_ptr);
     void MarkerCallback(const tf2_msgs::TFMessage::ConstPtr &marker_ptr);
     

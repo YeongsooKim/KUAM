@@ -49,6 +49,7 @@ class Landing(smach.State, state.Base):
         self.alt_division_m = 10.0
         self.standby_dist_th_m = 1.5
         self.landing_duration_s = 80
+        self.using_aruco = False
 
         # tf
         self.tfBuffer = None
@@ -176,44 +177,53 @@ class Landing(smach.State, state.Base):
             if self.IsLandingStandby():
                 self.is_pass_landing_standby = True
 
-        if self.landing_state.is_detected and self.is_pass_landing_standby:
-            if self.is_init_z == False:
-                self.is_init_z = True
+        if self.using_aruco:
 
-                dt = 1.0/self.freq
-                init_z = -self.target_pose.position.z
+            if self.landing_state.is_detected and self.is_pass_landing_standby:
 
-                cnt = 1
-                while cnt*dt < self.landing_duration_s:
-                    self.z_traj.append(self.Z(cnt*dt, init_z, self.landing_duration_s))
-                    cnt += 1
+                if self.is_init_z == False:
+                    self.is_init_z = True
 
-            if self.is_init_z:
-                dt = 1.0/self.freq
-                init_x = self.target_pose.position.x
-                init_y = self.target_pose.position.y
-                duration = self.landing_duration_s - self.cnt*dt
+                    dt = 1.0/self.freq
+                    init_z = -self.target_pose.position.z
 
-                x_traj = []
-                y_traj = []
+                    cnt = 1
+                    while cnt*dt < self.landing_duration_s:
+                        self.z_traj.append(self.Z(cnt*dt, init_z, self.landing_duration_s))
+                        cnt += 1
 
-                cnt = 1
-                while cnt*dt < duration:
-                    x_traj.append(self.X(cnt*dt, init_x, duration))
-                    y_traj.append(self.Y(cnt*dt, init_y, duration))
-                    cnt += 1
+                if self.is_init_z:
+                    dt = 1.0/self.freq
+                    init_x = self.target_pose.position.x
+                    init_y = self.target_pose.position.y
+                    duration = self.landing_duration_s - self.cnt*dt
 
-                if len(x_traj) > 1:
-                    self.setpoint.vel.linear.x = (x_traj[1] - x_traj[0])/dt
-                    self.setpoint.vel.linear.y = (y_traj[1] - y_traj[0])/dt
-                else:
-                    self.setpoint.vel.linear.x = 0.0                    
-                    self.setpoint.vel.linear.y = 0.0
+                    x_traj = []
+                    y_traj = []
 
-                if self.cnt + 1 < len(self.z_traj):
-                    self.setpoint.vel.linear.z = (self.z_traj[self.cnt + 1] - self.z_traj[self.cnt])/dt
-                    self.cnt += 1
-                    # rospy.logerr("x: %f, y: %f, z: %f" %(self.target_pose.position.x, self.target_pose.position.y, self.target_pose.position.z))
+                    cnt = 1
+                    while cnt*dt < duration:
+                        x_traj.append(self.X(cnt*dt, init_x, duration))
+                        y_traj.append(self.Y(cnt*dt, init_y, duration))
+                        cnt += 1
+
+                    if len(x_traj) > 1:
+                        self.setpoint.vel.linear.x = (x_traj[1] - x_traj[0])/dt
+                        self.setpoint.vel.linear.y = (y_traj[1] - y_traj[0])/dt
+                    else:
+                        self.setpoint.vel.linear.x = 0.0                    
+                        self.setpoint.vel.linear.y = 0.0
+
+                    if self.cnt + 1 < len(self.z_traj):
+                        self.setpoint.vel.linear.z = (self.z_traj[self.cnt + 1] - self.z_traj[self.cnt])/dt
+                        self.cnt += 1
+                        # rospy.logerr("x: %f, y: %f, z: %f" %(self.target_pose.position.x, self.target_pose.position.y, self.target_pose.position.z))
+        # only gps
+        else :
+            if self.is_pass_landing_standby:
+                self.setpoint.vel.linear.x = 0.0
+                self.setpoint.vel.linear.y = 0.0
+                self.setpoint.vel.linear.z = -0.3
 
 
     '''

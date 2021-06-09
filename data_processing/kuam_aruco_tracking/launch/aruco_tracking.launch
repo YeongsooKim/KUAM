@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
 	<arg name="process_freq" default="30.0" />
-	<arg name="is_eval" default="true" />
+	<arg name="is_eval" default="false" />
     <arg name="arcuo_parser" default="$(find kuam_aruco_tracking)/../../config/" />
     <arg name="big_marker_id" default="0" />
     <arg name="small_marker_id" default="1" />

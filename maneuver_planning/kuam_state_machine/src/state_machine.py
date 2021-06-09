@@ -371,6 +371,7 @@ if __name__ == '__main__':
     alt_division_m = rospy.get_param(nd_name + "/alt_division_m")
     alt_offset_m_ = rospy.get_param(nd_name + "/alt_offset_m")
     landing_duration_s = rospy.get_param(nd_name + "/landing_duration_s")
+    using_aruco = rospy.get_param(nd_name + "/using_aruco")
 
     for state in offb_states_.values():
         try:
@@ -391,6 +392,7 @@ if __name__ == '__main__':
     offb_states_[OffbState.LANDING].alt_division_m = alt_division_m
     offb_states_[OffbState.LANDING].standby_dist_th_m = standby_dist_th_m
     offb_states_[OffbState.LANDING].landing_duration_s = landing_duration_s
+    offb_states_[OffbState.LANDING].using_aruco = using_aruco
 
     '''
     Initialize ROS

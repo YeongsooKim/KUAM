@@ -59,7 +59,6 @@ void TfBroadcaster::InitROS()
     string nd_name = ros::this_node::getName();
     
     // Initialize subscriber
-    m_novatel_sub = m_nh.subscribe<novatel_oem7_msgs::INSPVA>("/novatel/oem7/inspva", 10, boost::bind(&TfBroadcaster::NovatelINSPVACallback, this, _1));
     m_ego_vehicle_local_pose_sub = m_nh.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, boost::bind(&TfBroadcaster::EgoVehicleLocalPositionCallback, this, _1));
 
     if (!m_is_experiment_validation_param){
@@ -178,46 +177,6 @@ void TfBroadcaster::HomePositionCallback(const mavros_msgs::HomePosition::ConstP
         m_home_position.latitude = home_ptr->geo.latitude;
         m_home_position.longitude = home_ptr->geo.longitude;
         m_home_position.altitude = home_ptr->geo.altitude;
-        ROS_WARN_STREAM("[tf_broadcaster] Home set");
-    }
-}
-
-void TfBroadcaster::NovatelINSPVACallback(const novatel_oem7_msgs::INSPVA::ConstPtr &inspva_msg_ptr)
-{
-    if (m_is_home_set){
-        // geometry_msgs::TransformStamped novatel_tf_stamped;
-
-        // novatel_tf_stamped.header.stamp = inspva_msg_ptr->header.stamp;
-        // novatel_tf_stamped.header.frame_id = "map";
-        // novatel_tf_stamped.child_frame_id = inspva_msg_ptr->header.frame_id;
-
-        // // Get offset
-        // geometry_msgs::Pose novatel_enu_pose = m_utils.ConvertToMapFrame(inspva_msg_ptr->latitude, 
-        //                                                                         inspva_msg_ptr->longitude, 
-        //                                                                         m_target_height_m_param, 
-        //                                                                         m_home_position);
-        // novatel_tf_stamped.transform.translation.x = novatel_enu_pose.position.x;
-        // novatel_tf_stamped.transform.translation.y = novatel_enu_pose.position.y;
-        // novatel_tf_stamped.transform.translation.z = novatel_enu_pose.position.z;
-        
-        // tf2::Quaternion q;
-        // q.setRPY(inspva_msg_ptr->roll * M_PI / 180., inspva_msg_ptr->pitch * M_PI / 180., (-1*inspva_msg_ptr->azimuth + 90.0) * M_PI / 180.);
-        // novatel_tf_stamped.transform.rotation.x = q.x();
-        // novatel_tf_stamped.transform.rotation.y = q.y();
-        // novatel_tf_stamped.transform.rotation.z = q.z();
-        // novatel_tf_stamped.transform.rotation.w = q.w();
-
-        // if (!m_novatel_tf_init){
-        //     m_transforms.push_back(novatel_tf_stamped);
-        // }
-        // m_novatel_tf_init = true;
-    }
-    else if (!m_is_home_set && m_is_finding_home_param){
-        m_is_home_set = true;
-
-        m_home_position.latitude = inspva_msg_ptr->latitude;
-        m_home_position.longitude = inspva_msg_ptr->longitude;
-        m_home_position.altitude = inspva_msg_ptr->height;
         ROS_WARN_STREAM("[tf_broadcaster] Home set");
     }
 }

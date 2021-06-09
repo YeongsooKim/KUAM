@@ -21,6 +21,7 @@
 	<arg name="alt_offset_m" default="23.156" />
 	<arg name="standby_dist_th_m" default="1.5" />
 	<arg name="landing_duration_s" default="80" />
+	<arg name="using_aruco" default="False" />
 
     <group ns="/kuam/maneuver">
         <include file="$(find kuam_mission_manager)/launch/mission_manager.launch">
@@ -50,6 +51,7 @@
             <arg name="alt_offset_m" value="$(arg alt_offset_m)" />
             <arg name="standby_dist_th_m" value="$(arg standby_dist_th_m)" />
             <arg name="landing_duration_s" value="$(arg landing_duration_s)" />
+            <arg name="using_aruco" value="$(arg using_aruco)" />
         </include>
     </group>
 </launch>

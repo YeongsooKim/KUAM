@@ -18,6 +18,7 @@
 	<arg name="alt_division_m" default="10.0" />
 	<arg name="alt_offset_m" default="23.156" />
 	<arg name="landing_duration_s" default="80" />
+	<arg name="using_aruco" default="False" />
 
 	<node pkg="kuam_state_machine" type="state_machine.py" name="state_machine" output="$(arg output)">
 		<param name="data_ns" value="$(arg data_ns)" />
@@ -36,5 +37,6 @@
 		<param name="alt_division_m" value="$(arg alt_division_m)" />
 		<param name="alt_offset_m" value="$(arg alt_offset_m)" />
 		<param name="landing_duration_s" value="$(arg landing_duration_s)" />
+		<param name="using_aruco" value="$(arg using_aruco)" />
 	</node>
 </launch>

@@ -18,7 +18,6 @@
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/NavSatFix.h>
 
-#include <novatel_oem7_msgs/INSPVA.h>
 #include <std_msgs/String.h>
 
 #include "uav_msgs/Chat.h"
