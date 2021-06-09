@@ -68,7 +68,8 @@ private:
     bool m_has_cmd;
 
     int m_cur_task;
-    string m_cur_mode;
+    string m_kuam_mode;
+    string m_px4_mode;
     string m_cmd_mode;
     mssn_poses_map m_mssn_wps_map;
     uav_msgs::OffboardState m_offb_state;

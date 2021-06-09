@@ -16,7 +16,8 @@ using namespace mission;
 Maneuver::Maneuver() :
     m_process_freq_param(NAN),
     m_cur_task(NO_TASK),
-    m_cur_mode("none"),
+    m_kuam_mode("none"),
+    m_px4_mode("none"),
     m_data_ns_param("missing"),
     m_control_ns_param("missing"),
     m_target_height_m_param(NAN)
@@ -114,7 +115,7 @@ void Maneuver::ChatterCallback(const uav_msgs::Chat::ConstPtr &chat_ptr)
 
     if (IsTransition(msg)) InsertTask(msg);
     else if (IsMode(msg)){
-        if (msg != m_cur_mode){
+        if (msg != m_kuam_mode){
             m_cmd_mode = msg;
             m_has_cmd = true;
         }
@@ -344,21 +345,29 @@ void Maneuver::CheckModeChange()
     if (m_has_cmd){
         mode.px4 = m_offb_state.offb_mode;
         mode.kuam = m_cmd_mode;
-        m_cur_mode = offb_mode;
+        m_kuam_mode = offb_mode;
         m_has_cmd = false;
 
         is_mode_changed = true;
     }
-    else if (m_cur_mode != offb_mode){
+    else if (m_kuam_mode != offb_mode){
         mode.px4 = m_offb_state.offb_mode;
+        m_px4_mode = m_offb_state.offb_mode;
 
         if (IsMode(offb_mode)){
             mode.kuam = offb_mode;
-            m_cur_mode = offb_mode;
+            m_kuam_mode = offb_mode;
         }
         else {
-            mode.kuam = m_cur_mode;
+            mode.kuam = m_kuam_mode;
         }
+        is_mode_changed = true;
+    }
+    else if (m_px4_mode != m_offb_state.offb_mode){
+        mode.kuam = m_kuam_mode;
+        mode.px4 = m_offb_state.offb_mode;
+        m_px4_mode = m_offb_state.offb_mode;
+
         is_mode_changed = true;
     }
 
