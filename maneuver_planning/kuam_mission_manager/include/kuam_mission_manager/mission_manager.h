@@ -13,6 +13,7 @@
 #include <geometry_msgs/PoseArray.h>
 #include <geographic_msgs/GeoPose.h>
 #include <geographic_msgs/GeoPoint.h>
+#include <geographic_msgs/GeoPath.h>
 #include <kuam_msgs/Waypoints.h>
 #include <mavros_msgs/HomePosition.h>
 
@@ -24,7 +25,7 @@ namespace kuam{
 
 using namespace mission;
 const int NO_TASK = 99;
-using mssn_poses_map = map < string, geometry_msgs::PoseArray >;
+using mssn_geoposes_map = map < string, geographic_msgs::GeoPath >;
 
 class Maneuver
 {
@@ -70,7 +71,7 @@ private:
     string m_kuam_mode;
     string m_px4_mode;
     string m_cmd_mode;
-    mssn_poses_map m_mssn_wps_map;
+    mssn_geoposes_map m_mssn_wps_map;
     uav_msgs::OffboardState m_offb_state;
     geographic_msgs::GeoPoint m_home_position;
 

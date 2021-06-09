@@ -19,12 +19,11 @@ from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Twist
 from kuam_msgs.msg import LandingState
-from kuam_msgs.msg import AlphaEval
 
 class Landing(smach.State, state.Base):
     def __init__(self):
-        smach.State.__init__(self, input_keys=['setpoint', 'setpoints', 'ego_pose', 'ego_vel'], 
-                                output_keys=['setpoint', 'setpoints', 'ego_pose', 'ego_vel'], 
+        smach.State.__init__(self, input_keys=['setpoint', 'setpoints', 'ego_geopose', 'ego_pose', 'ego_vel'], 
+                                output_keys=['setpoint', 'setpoints', 'ego_geopose', 'ego_pose', 'ego_vel'], 
                                 outcomes=['disarm', 'emerg', 'manual'])
         state.Base.__init__(self)
 
@@ -35,6 +34,7 @@ class Landing(smach.State, state.Base):
         self.landing_state.is_detected = False
         self.landing_state.is_land = False
         self.is_init_z = False
+        self.is_pass_landing_standby = False
         
         # Target state
         self.target_id = 0 # Change to param
@@ -47,6 +47,8 @@ class Landing(smach.State, state.Base):
         self.virtual_border_angle_1_deg = 10.0
         self.virtual_border_max_side_m = 6.0
         self.alt_division_m = 10.0
+        self.standby_dist_th_m = 1.5
+        self.landing_duration_s = 80
 
         # tf
         self.tfBuffer = None
@@ -54,8 +56,6 @@ class Landing(smach.State, state.Base):
 
         self.marker_array = MarkerArray()
         self.vb_angle_deg = [self.virtual_border_angle_0_deg, self.virtual_border_angle_1_deg]
-        self.alpha_eval = AlphaEval()
-        self.alpha_list = []
 
         self.z_traj = []
         self.cnt = 0
@@ -77,9 +77,18 @@ class Landing(smach.State, state.Base):
         self.setpoint = copy.deepcopy(userdata.setpoint)
         self.setpoints = copy.deepcopy(userdata.setpoints)
         self.ego_pose = copy.deepcopy(userdata.ego_pose)
+        self.ego_geopose = copy.deepcopy(userdata.ego_geopose)
         self.ego_vel = copy.deepcopy(userdata.ego_vel)
-        self.setpoint.pose = self.setpoints.poses[-1]
-        self.setpoint.pose.position.z = self.landing_standby_alt_m
+
+        self.setpoint.pose = copy.deepcopy(self.ego_pose)
+        self.setpoint.vel.linear.x = 0.0
+        self.setpoint.vel.linear.y = 0.0
+        self.setpoint.vel.linear.z = -0.3
+
+        geopose = copy.deepcopy(self.setpoints.poses[-1].pose)
+        geopose.position.altitude = self.landing_standby_alt_m
+
+        self.landing_standby = geopose.position
 
     def Running(self):
         rate = rospy.Rate(self.freq)
@@ -157,79 +166,55 @@ class Landing(smach.State, state.Base):
         if self.landing_threshold_m is None:
             pass
         else:
-            h = self.ego_pose.position.z
+            h = self.ego_geopose.position.altitude
 
             if h < self.landing_threshold_m:
                 self.landing_state.is_land = True
 
     def UpdateSetpoint(self):
-        if self.landing_state.is_detected == True:
+        if self.is_pass_landing_standby == False:
+            if self.IsLandingStandby():
+                self.is_pass_landing_standby = True
+
+        if self.landing_state.is_detected and self.is_pass_landing_standby:
             if self.is_init_z == False:
                 self.is_init_z = True
-                # self.init_vel_z_ms = self.ego_vel.linear.z
 
-                init_z = self.ego_pose.position.z
                 dt = 1.0/self.freq
+                init_z = -self.target_pose.position.z
 
                 cnt = 1
-                while cnt*dt < 80:
-                    self.z_traj.append(self.Z(cnt*dt, init_z))
+                while cnt*dt < self.landing_duration_s:
+                    self.z_traj.append(self.Z(cnt*dt, init_z, self.landing_duration_s))
                     cnt += 1
 
             if self.is_init_z:
                 dt = 1.0/self.freq
+                init_x = self.target_pose.position.x
+                init_y = self.target_pose.position.y
+                duration = self.landing_duration_s - self.cnt*dt
+
+                x_traj = []
+                y_traj = []
+
+                cnt = 1
+                while cnt*dt < duration:
+                    x_traj.append(self.X(cnt*dt, init_x, duration))
+                    y_traj.append(self.Y(cnt*dt, init_y, duration))
+                    cnt += 1
+
+                if len(x_traj) > 1:
+                    self.setpoint.vel.linear.x = (x_traj[1] - x_traj[0])/dt
+                    self.setpoint.vel.linear.y = (y_traj[1] - y_traj[0])/dt
+                else:
+                    self.setpoint.vel.linear.x = 0.0                    
+                    self.setpoint.vel.linear.y = 0.0
+
                 if self.cnt + 1 < len(self.z_traj):
-                    self.setpoint.pose = self.target_pose
-                    self.setpoint.pose.position.z = self.z_traj[self.cnt]
                     self.setpoint.vel.linear.z = (self.z_traj[self.cnt + 1] - self.z_traj[self.cnt])/dt
                     self.cnt += 1
-                else:
-                    self.setpoint.pose = self.target_pose
+                    # rospy.logerr("x: %f, y: %f, z: %f" %(self.target_pose.position.x, self.target_pose.position.y, self.target_pose.position.z))
 
-
-            # # Vertical distance to marker
-            # h_m = self.ego_pose.position.z
-
-            # # Horizontal distance to marker
-            # ego_xy_pos = Point()
-            # ego_xy_pos.x = self.ego_pose.position.x
-            # ego_xy_pos.y = self.ego_pose.position.y
-
-            # target_xy_pos = Point()
-            # target_xy_pos.x = self.target_pose.position.x
-            # target_xy_pos.y = self.target_pose.position.y
-
-            # xy_m = Distance2D(ego_xy_pos, target_xy_pos)
-
-            # # Angle between edge of drone to marker and drone to marker horizontal 
-            # alpha_deg = Rad2Deg(atan2(h_m, xy_m))
-
-
-            # # Update setpoint
-            # if self.is_init_z:
-            #     self.alpha_list.append(alpha_deg)
-            #     z_vel = min(self.alpha_list)*0.001
-            #     if z_vel < 0.01:
-            #         z_vel = 0
-            #     rospy.logwarn(str(z_vel))
-
-            # else:
-            #     z_vel = 0.0
-            #     rospy.logerr(str(z_vel))
-
-
-
-            # self.setpoint.pose = self.target_pose
-            # self.setpoint.vel.linear.z = z_vel
-
-            # # Publish evaluate alpha
-            # self.alpha_eval.alpha_deg.data = alpha_deg
-            # self.alpha_eval.d_m.data = xy_m
-            # self.alpha_eval.h_m.data = h_m
-            # self.alpha_eval.target_pos = self.target_pose.position
-
-            
-            # self.setpoint.pose = self.target_pose
 
     '''
     Util functions
@@ -267,14 +252,29 @@ class Landing(smach.State, state.Base):
 
         return yaw_rad
 
-    def Z(self, t, init_z):
+    def X(self, t, init_x, duration):
+        a = -init_x/(duration**2)
+        x = a*(t - duration)**2 + init_x
+        return x
+
+    def Y(self, t, init_y, duration):
+        a = -init_y/(duration**2)
+        y = a*(t - duration)**2 + init_y
+        return y
+
+    def Z(self, t, init_z, duration):
         # z = a (x - last_time)**4  -> (0, init_z), (last_time, 0)
-        last_time = 100
-        a = init_z/last_time**4
-        z = a*(t-last_time)**4
+        a = init_z/duration**4
+        z = a*(t - duration)**4
         return z
 
 
+    def IsLandingStandby(self):
+        dist = DistanceFromLatLonInMeter3D(self.landing_standby, self.ego_geopose.position)
+        if dist < self.standby_dist_th_m:
+            return True
+        else:
+            return False
 
     '''
     Callback functions
@@ -286,10 +286,10 @@ class Landing(smach.State, state.Base):
             msg_pose_stamped = PoseStamped()
             msg_pose_stamped.header = msg.header
             msg_pose_stamped.pose = msg.pose
-            # transform from camera_link to map
+            # transform from camera_link to base_link
             is_transformed = False
             try:
-                transform = self.tfBuffer.lookup_transform('map', msg_pose_stamped.header.frame_id, rospy.Time())
+                transform = self.tfBuffer.lookup_transform('base_link', msg_pose_stamped.header.frame_id, rospy.Time())
                 is_transformed = True
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
                 pass
@@ -299,14 +299,6 @@ class Landing(smach.State, state.Base):
                 if self.IsValid(pose_transformed):
                     self.landing_state.is_detected = True
                     self.target_pose = pose_transformed.pose
-                    # target_pose_pub.publish(pose_transformed)
+
                 else:
                     self.landing_state.is_detected = False
-
-    # # Get virtual border side
-    # def GetVBside(self):
-    #     '''
-    #     ego orientation -> roll, pitch, yaw 
-    #     get VBS (virtual border side).
-    #     body -> global (trans, yaw)
-    #     '''
