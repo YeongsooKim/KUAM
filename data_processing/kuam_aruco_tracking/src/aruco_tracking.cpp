@@ -345,9 +345,11 @@ bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& 
                 m_target.id = id;
                 m_target.marker_size_m = m_id_to_markersize_map.find(id)->second;
 
-                std_msgs::Int16 msg;
-                msg.data = id;
-                m_target_marker_pub.publish(msg);
+                if (m_is_eval_param){
+                    std_msgs::Int16 msg;
+                    msg.data = id;
+                    m_target_marker_pub.publish(msg);
+                }
             } 
         }
     }
