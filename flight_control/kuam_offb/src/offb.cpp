@@ -150,7 +150,13 @@ bool Offboard::IsOffboard()
 {
     mavros_msgs::SetMode offb_set_mode;
     offb_set_mode.request.custom_mode = "OFFBOARD";
-    if( m_px4_mode != "OFFBOARD" &&
+
+    bool request = true;
+    if (m_cur_sm_state == "LANDING" && m_px4_mode == "AUTO.LAND"){
+        request = false;
+    }
+
+    if( m_px4_mode != "OFFBOARD" && request &&
         (ros::Time::now() - m_last_request_time > ros::Duration(5.0))){
         if(m_set_mode_serv_client.call(offb_set_mode) &&
             offb_set_mode.response.mode_sent){
@@ -203,11 +209,12 @@ void Offboard::LandingRequest()
                 landing_mode.response.mode_sent){
 
                 ROS_INFO("Land enabled");
+                m_offb_state = Enum2String(Trans::Landing);
             }
             m_last_request_time = ros::Time::now();
         }
         else if (!m_mavros_status.armed){
-            m_offb_state = Enum2String(Trans::Landing);
+            m_offb_state = Enum2String(Trans::Disarm);
         }
     }
 }

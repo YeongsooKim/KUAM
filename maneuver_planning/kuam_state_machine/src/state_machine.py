@@ -437,7 +437,8 @@ if __name__ == '__main__':
                                                 'emerg':'emerg',
                                                 'manual':'manual'})
             smach.StateMachine.add('LANDING', offb_states_[OffbState.LANDING], 
-                                    transitions={'emerg':'emerg',
+                                    transitions={'disarm':'STANDBY',
+                                                'emerg':'emerg',
                                                 'manual':'manual'})
 
         smach.StateMachine.add('OFFBOARD', sm_offb_,

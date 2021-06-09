@@ -239,6 +239,14 @@ bool Maneuver::InsertTask(string input)
 
     task = make_pair(trans, status);
     m_tasklist.push_back(task);
+
+    if (input == "landing"){
+        trans = Trans::Disarm;
+        status = Status::Todo;
+
+        task = make_pair(trans, status);
+        m_tasklist.push_back(task);
+    }
 }
 
 bool Maneuver::IsTaskRunning()
@@ -300,12 +308,11 @@ void Maneuver::CheckComplete()
 
     switch((int)task.first){
         case (int)Trans::Arm:
-        case (int)Trans::Landing:
+        case (int)Trans::Disarm:
             if (m_offb_state.offb_state == Enum2String(task.first)){
                 task.second = Status::Done;
             }
             break;
-
         case (int)Trans::Takeoff:
             if (m_offb_state.offb_state == "TakeoffHovering"){
                 task.second = Status::Done;
@@ -316,10 +323,11 @@ void Maneuver::CheckComplete()
                 task.second = Status::Done;
             }
             break;
-        case (int)Trans::Disarm:
-            
+        case (int)Trans::Landing:
+            if (m_offb_state.offb_state == Enum2String(Trans::Disarm)){
+                task.second = Status::Done;
+            }
             break;
-
         case (int)Trans::Docking:
             
             break;

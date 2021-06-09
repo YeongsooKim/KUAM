@@ -25,7 +25,7 @@ class Landing(smach.State, state.Base):
     def __init__(self):
         smach.State.__init__(self, input_keys=['setpoint', 'setpoints', 'ego_pose', 'ego_vel'], 
                                 output_keys=['setpoint', 'setpoints', 'ego_pose', 'ego_vel'], 
-                                outcomes=['emerg', 'manual'])
+                                outcomes=['disarm', 'emerg', 'manual'])
         state.Base.__init__(self)
 
         self.transition = 'none'
@@ -74,6 +74,7 @@ class Landing(smach.State, state.Base):
     '''
     def Start(self, userdata):
         # Initialize setpoint
+        self.setpoint = copy.deepcopy(userdata.setpoint)
         self.setpoints = copy.deepcopy(userdata.setpoints)
         self.ego_pose = copy.deepcopy(userdata.ego_pose)
         self.ego_vel = copy.deepcopy(userdata.ego_vel)
@@ -85,7 +86,7 @@ class Landing(smach.State, state.Base):
         while not rospy.is_shutdown():
             # Break condition
             if self.transition != 'none':
-                if (self.transition == 'emerg') or (self.transition == 'manual'):
+                if (self.transition == 'disarm') or (self.transition == 'emerg') or (self.transition == 'manual'):
                     break
                 else:
                     self.transition = 'none'    
@@ -102,9 +103,6 @@ class Landing(smach.State, state.Base):
             rate.sleep()
 
     def Terminate(self, userdata):
-        userdata.ego_pose = copy.deepcopy(self.ego_pose)
-        userdata.ego_vel = copy.deepcopy(self.ego_vel)
-
         trans = self.transition
 
         self.transition = 'none'
