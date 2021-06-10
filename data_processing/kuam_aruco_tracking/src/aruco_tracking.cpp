@@ -100,7 +100,7 @@ bool ArucoTracking::InitROS()
     string ns_name = ros::this_node::getNamespace();
     string image_topic_name;
     if (m_using_gazebo_data_param) image_topic_name = "/camera/rgb/image_raw";
-    else image_topic_name = ns_name + "/usb_cam/image_raw";
+    else image_topic_name = ns_name + "/usb_cam/image_rect_color";
 
     // Initialize subscriber
     m_image_sub = m_nh.subscribe<sensor_msgs::Image>(image_topic_name, 1, boost::bind(&ArucoTracking::ImageCallback, this, _1));
