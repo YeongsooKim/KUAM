@@ -62,12 +62,20 @@
     <!-- node_.param("auto_white_balance", auto_white_balance_, true); -->
     <!-- node_.param("white_balance", white_balance_, 4000); -->
 
+    <!-- // load the camera info
+    node_.param("camera_frame_id", img_.header.frame_id, std::string("head_camera"));
+    node_.param("camera_name", camera_name_, std::string("head_camera"));
+    node_.param("camera_info_url", camera_info_url_, std::string("")); -->
+  <group ns="usb_cam">
+    <node pkg="image_proc" type="image_proc" name="suibian" />
+  </group>
+
   <node pkg="kuam_usb_cam" type="kuam_usb_cam_node" name="usb_cam" output="screen" >
     <param name="video_device" value="/dev/video0" />
-    <param name="brightness" value="1"/>
+    <param name="brightness" value="0"/>
     <param name="contrast" value="50"/>
-    <param name="saturation" value="200"/>
-    <param name="sharpness" value="22"/>
+    <param name="saturation" value="255"/>
+    <param name="sharpness" value="0"/>
 
     <param name="pixel_format" value="yuyv" />
 
@@ -86,5 +94,9 @@
 
     <param name="auto_white_balance" value="false" />
     <param name="white_balance" value="4000" />
+
+    <param name="camera_frame_id" value="head_camera" />
+    <param name="camera_name" value="head_camera" />
+    <param name="camera_info_url" value="file://${ROS_HOME}/camera_info/head_camera.yaml" />
   </node>
 </launch>
