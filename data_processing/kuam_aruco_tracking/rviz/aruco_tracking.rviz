@@ -10,7 +10,6 @@ Panels:
         - /DataProcessing1/camera1
         - /DataProcessing1/aruco_marker_markers1
         - /MissionManager1
-        - /MissionManager1/Tf1
         - /MissionManager1/Tf1/Frames1
         - /MissionManager1/test_markers1
         - /MissionManager1/test_markers1/Namespaces1
@@ -152,9 +151,7 @@ Visualization Manager:
           Marker Topic: /kuam/maneuver/state_machine/test_marker
           Name: test_markers
           Namespaces:
-            ground_truth: true
-            virtual_boder_cube: false
-            vitual_border_edge: false
+            {}
           Queue Size: 100
           Value: true
       Enabled: true
@@ -202,10 +199,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.2547975778579712
+      Pitch: 0.45979738235473633
       Target Frame: map
       Value: XYOrbit (rviz)
-      Yaw: 4.063540935516357
+      Yaw: 4.398548603057861
     Saved: ~
 Window Geometry:
   Displays:

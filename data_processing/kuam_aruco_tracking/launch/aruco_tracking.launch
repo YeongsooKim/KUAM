@@ -20,7 +20,7 @@
     <!-- 0. Without filter -->
     <!-- 1. Moving average filter -->
     <!-- 2. Exponential moving average filter -->
-    <arg name="estimating_method" default="0" />
+    <arg name="estimating_method" default="1" />
 
     <arg name="noise_dist_th_m" default="1.0" />
     <arg name="noise_cnt_th" default="20" />

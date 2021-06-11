@@ -70,8 +70,8 @@
     <node pkg="image_proc" type="image_proc" name="suibian" />
   </group>
 
-  <node pkg="kuam_usb_cam" type="kuam_usb_cam_node" name="usb_cam" output="screen" >
-    <param name="video_device" value="/dev/video0" />
+	  <node pkg="kuam_usb_cam" type="kuam_usb_cam_node" name="usb_cam" output="screen">
+    <param name="video_device" value="/dev/video2" />
     <param name="brightness" value="0"/>
     <param name="contrast" value="50"/>
     <param name="saturation" value="255"/>
@@ -97,6 +97,6 @@
 
     <param name="camera_frame_id" value="head_camera" />
     <param name="camera_name" value="head_camera" />
-    <param name="camera_info_url" value="file://${ROS_HOME}/camera_info/head_camera.yaml" />
+    <param name="camera_info_url" value="file://$(find kuam_usb_cam)/config/head_camera.yaml" />
   </node>
 </launch>
