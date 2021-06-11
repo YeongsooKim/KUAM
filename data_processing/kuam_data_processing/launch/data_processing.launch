@@ -1,5 +1,5 @@
 <launch>
-	<arg name="filter_buf_size" default="30"/>
+	<arg name="filter_buf_size" default="10"/>
 	<arg name="noise_dist_th_m" default="3.0"/>
     <arg name="noise_cnt_th" default="20" />
 
