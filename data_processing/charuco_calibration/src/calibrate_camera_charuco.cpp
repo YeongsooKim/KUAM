@@ -36,78 +36,36 @@ or tort (including negligence or otherwise) arising in any way out of
 the use of this software, even if advised of the possibility of such damage.
 */
 
+#include "ros/ros.h"
+#include <ros/spinner.h>
+#include <charuco_calibration/parser.h>
+#include <cv_bridge/cv_bridge.h>
+#include <image_transport/image_transport.h>
+
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/image_encodings.h>
 
 #include <opencv2/highgui.hpp>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/aruco/charuco.hpp>
 #include <opencv2/imgproc.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/aruco.hpp>
+#include <opencv2/videoio/videoio_c.h>
 #include <vector>
 #include <iostream>
 #include <ctime>
+#include <string>
 
 using namespace std;
 using namespace cv;
 
-namespace {
-const char* about =
-        "Calibration using a ChArUco board\n"
-        "  To capture a frame for calibration, press 'c',\n"
-        "  If input comes from video, press any key for next frame\n"
-        "  To finish capturing, press 'ESC' key and calibration starts.\n";
-const char* keys  =
-        "{w        |       | Number of squares in X direction }"
-        "{h        |       | Number of squares in Y direction }"
-        "{sl       |       | Square side length (in meters) }"
-        "{ml       |       | Marker side length (in meters) }"
-        "{d        |       | dictionary: DICT_4X4_50=0, DICT_4X4_100=1, DICT_4X4_250=2,"
-        "DICT_4X4_1000=3, DICT_5X5_50=4, DICT_5X5_100=5, DICT_5X5_250=6, DICT_5X5_1000=7, "
-        "DICT_6X6_50=8, DICT_6X6_100=9, DICT_6X6_250=10, DICT_6X6_1000=11, DICT_7X7_50=12,"
-        "DICT_7X7_100=13, DICT_7X7_250=14, DICT_7X7_1000=15, DICT_ARUCO_ORIGINAL = 16}"
-        "{@outfile |<none> | Output file with calibrated camera parameters }"
-        "{v        |       | Input from video file, if ommited, input comes from camera }"
-        "{ci       | 0     | Camera id if input doesnt come from video (-v) }"
-        "{dp       |       | File of marker detector parameters }"
-        "{rs       | false | Apply refind strategy }"
-        "{zt       | false | Assume zero tangential distortion }"
-        "{a        |       | Fix aspect ratio (fx/fy) to this value }"
-        "{pc       | false | Fix the principal point at the center }"
-        "{sc       | false | Show detected chessboard corners after calibration }";
-}
+Mat image_;
+bool is_img_update_ = false;
 
 /**
  */
-static bool readDetectorParameters(string filename, Ptr<aruco::DetectorParameters> &params) {
-    FileStorage fs(filename, FileStorage::READ);
-    if(!fs.isOpened())
-        return false;
-    fs["adaptiveThreshWinSizeMin"] >> params->adaptiveThreshWinSizeMin;
-    fs["adaptiveThreshWinSizeMax"] >> params->adaptiveThreshWinSizeMax;
-    fs["adaptiveThreshWinSizeStep"] >> params->adaptiveThreshWinSizeStep;
-    fs["adaptiveThreshConstant"] >> params->adaptiveThreshConstant;
-    fs["minMarkerPerimeterRate"] >> params->minMarkerPerimeterRate;
-    fs["maxMarkerPerimeterRate"] >> params->maxMarkerPerimeterRate;
-    fs["polygonalApproxAccuracyRate"] >> params->polygonalApproxAccuracyRate;
-    fs["minCornerDistanceRate"] >> params->minCornerDistanceRate;
-    fs["minDistanceToBorder"] >> params->minDistanceToBorder;
-    fs["minMarkerDistanceRate"] >> params->minMarkerDistanceRate;
-    fs["doCornerRefinement"] >> params->doCornerRefinement;
-    fs["cornerRefinementWinSize"] >> params->cornerRefinementWinSize;
-    fs["cornerRefinementMaxIterations"] >> params->cornerRefinementMaxIterations;
-    fs["cornerRefinementMinAccuracy"] >> params->cornerRefinementMinAccuracy;
-    fs["markerBorderBits"] >> params->markerBorderBits;
-    fs["perspectiveRemovePixelPerCell"] >> params->perspectiveRemovePixelPerCell;
-    fs["perspectiveRemoveIgnoredMarginPerCell"] >> params->perspectiveRemoveIgnoredMarginPerCell;
-    fs["maxErroneousBitsInBorderRate"] >> params->maxErroneousBitsInBorderRate;
-    fs["minOtsuStdDev"] >> params->minOtsuStdDev;
-    fs["errorCorrectionRate"] >> params->errorCorrectionRate;
-    return true;
-}
-
-
-
-/**
- */
-static bool saveCameraParams(const string &filename, Size imageSize, float aspectRatio, int flags,
+bool saveCameraParams(const string &filename, Size imageSize, float aspectRatio, int flags,
                              const Mat &cameraMatrix, const Mat &distCoeffs, double totalAvgErr) {
     FileStorage fs(filename, FileStorage::WRITE);
     if(!fs.isOpened())
@@ -145,67 +103,50 @@ static bool saveCameraParams(const string &filename, Size imageSize, float aspec
 }
 
 
+void ImageCallback(const sensor_msgs::Image::ConstPtr &img_ptr)
+{
+	try {
+        cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(img_ptr, sensor_msgs::image_encodings::BGR8);
+    	image_ = cv_ptr->image;
+
+        is_img_update_ = true;
+    }
+    catch (cv_bridge::Exception& e) {
+        ROS_ERROR("[aruco_tracking] cv_bridge exception: %s", e.what());
+        is_img_update_ = false;
+    }
+}
+
 
 /**
  */
 int main(int argc, char *argv[]) {
-    CommandLineParser parser(argc, argv, keys);
-    parser.about(about);
+    ros::init(argc, argv, "charuco_calibration");
+    ros::NodeHandle nh;
 
-    if(argc < 7) {
-        parser.printMessage();
-        return 0;
-    }
+    // Initialize subscriber
+    ros::Subscriber sub = nh.subscribe("/usb_cam/image_rect_color", 1, ImageCallback);
 
-    int squaresX = parser.get<int>("w");
-    int squaresY = parser.get<int>("h");
-    float squareLength = parser.get<float>("sl");
-    float markerLength = parser.get<float>("ml");
-    int dictionaryId = parser.get<int>("d");
-    string outputFile = parser.get<string>(0);
+    string outputFile;
+	int squaresX;
+	int squaresY;
+	float squareLength;
+	float markerLength;
+	int dictionaryId;
+	bool showChessboardCorners;
+	bool refindStrategy;
+	int camId;
+	Ptr<aruco::DetectorParameters> detectorParams = aruco::DetectorParameters::create();
+	int calibrationFlags;
+	float aspectRatio;
 
-    bool showChessboardCorners = parser.get<bool>("sc");
-
-    int calibrationFlags = 0;
-    float aspectRatio = 1;
-    if(parser.has("a")) {
-        calibrationFlags |= CALIB_FIX_ASPECT_RATIO;
-        aspectRatio = parser.get<float>("a");
-    }
-    if(parser.get<bool>("zt")) calibrationFlags |= CALIB_ZERO_TANGENT_DIST;
-    if(parser.get<bool>("pc")) calibrationFlags |= CALIB_FIX_PRINCIPAL_POINT;
-
-    Ptr<aruco::DetectorParameters> detectorParams = aruco::DetectorParameters::create();
-    if(parser.has("dp")) {
-        bool readOk = readDetectorParameters(parser.get<string>("dp"), detectorParams);
-        if(!readOk) {
-            cerr << "Invalid detector parameters file" << endl;
-            return 0;
-        }
-    }
-
-    bool refindStrategy = parser.get<bool>("rs");
-    int camId = parser.get<int>("ci");
-    String video;
-
-    if(parser.has("v")) {
-        video = parser.get<String>("v");
-    }
-
-    if(!parser.check()) {
-        parser.printErrors();
-        return 0;
-    }
-
-    VideoCapture inputVideo;
+    kuam::Parser parser;
+    parser.ReadFile(argc, argv, outputFile, squaresX, squaresY, squareLength, 
+				markerLength, dictionaryId, showChessboardCorners, refindStrategy,
+				camId, detectorParams, calibrationFlags, aspectRatio);
+    
     int waitTime;
-    if(!video.empty()) {
-        inputVideo.open(video);
-        waitTime = 0;
-    } else {
-        inputVideo.open(camId);
-        waitTime = 10;
-    }
+    waitTime = 10;
 
     Ptr<aruco::Dictionary> dictionary =
         aruco::getPredefinedDictionary(aruco::PREDEFINED_DICTIONARY_NAME(dictionaryId));
@@ -221,45 +162,52 @@ int main(int argc, char *argv[]) {
     vector< Mat > allImgs;
     Size imgSize;
 
-    while(inputVideo.grab()) {
-        Mat image, imageCopy;
-        inputVideo.retrieve(image);
+    ros::Rate loop_rate(30);
 
-        vector< int > ids;
-        vector< vector< Point2f > > corners, rejected;
+    while(ros::ok()) {
+		if (is_img_update_){
+			Mat imageCopy;
 
-        // detect markers
-        aruco::detectMarkers(image, dictionary, corners, ids, detectorParams, rejected);
+			vector< int > ids;
+			vector< vector< Point2f > > corners, rejected;
 
-        // refind strategy to detect more markers
-        if(refindStrategy) aruco::refineDetectedMarkers(image, board, corners, ids, rejected);
+			// detect markers
+			aruco::detectMarkers(image_, dictionary, corners, ids, detectorParams, rejected);
 
-        // interpolate charuco corners
-        Mat currentCharucoCorners, currentCharucoIds;
-        if(ids.size() > 0)
-            aruco::interpolateCornersCharuco(corners, ids, image, charucoboard, currentCharucoCorners,
-                                             currentCharucoIds);
+			// refind strategy to detect more markers
+			if(refindStrategy) aruco::refineDetectedMarkers(image_, board, corners, ids, rejected);
 
-        // draw results
-        image.copyTo(imageCopy);
-        if(ids.size() > 0) aruco::drawDetectedMarkers(imageCopy, corners);
+			// interpolate charuco corners
+			Mat currentCharucoCorners, currentCharucoIds;
+			if(ids.size() > 0)
+				aruco::interpolateCornersCharuco(corners, ids, image_, charucoboard, currentCharucoCorners,
+												currentCharucoIds);
 
-        if(currentCharucoCorners.total() > 0)
-            aruco::drawDetectedCornersCharuco(imageCopy, currentCharucoCorners, currentCharucoIds);
+			// draw results
+			image_.copyTo(imageCopy);
+			if(ids.size() > 0) aruco::drawDetectedMarkers(imageCopy, corners);
 
-        putText(imageCopy, "Press 'c' to add current frame. 'ESC' to finish and calibrate",
-                Point(10, 20), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(255, 0, 0), 2);
+			if(currentCharucoCorners.total() > 0)
+				aruco::drawDetectedCornersCharuco(imageCopy, currentCharucoCorners, currentCharucoIds);
 
-        imshow("out", imageCopy);
-        char key = (char)waitKey(waitTime);
-        if(key == 27) break;
-        if(key == 'c' && ids.size() > 0) {
-            cout << "Frame captured" << endl;
-            allCorners.push_back(corners);
-            allIds.push_back(ids);
-            allImgs.push_back(image);
-            imgSize = image.size();
-        }
+			putText(imageCopy, "Press 'c' to add current frame. 'ESC' to finish and calibrate",
+					Point(10, 20), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(255, 0, 0), 2);
+
+			imshow("out", imageCopy);
+			char key = (char)waitKey(waitTime);
+			if(key == 27) break;
+			if(key == 'c' && ids.size() > 0) {
+				cout << "Frame captured" << endl;
+				allCorners.push_back(corners);
+				allIds.push_back(ids);
+				allImgs.push_back(image_);
+				imgSize = image_.size();
+			}
+
+			is_img_update_ = false;
+		}
+		ros::spinOnce();
+		loop_rate.sleep();
     }
 
     if(allIds.size() < 1) {
@@ -288,7 +236,6 @@ int main(int argc, char *argv[]) {
             allIdsConcatenated.push_back(allIds[i][j]);
         }
     }
-
     // calibrate camera using aruco markers
     double arucoRepErr;
     arucoRepErr = aruco::calibrateCameraAruco(allCornersConcatenated, allIdsConcatenated,
