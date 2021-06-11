@@ -19,8 +19,7 @@ Maneuver::Maneuver() :
     m_kuam_mode("none"),
     m_px4_mode("none"),
     m_data_ns_param("missing"),
-    m_control_ns_param("missing"),
-    m_target_height_m_param(NAN)
+    m_control_ns_param("missing")
 {
     GetParam();
     InitFlag();
@@ -50,11 +49,9 @@ bool Maneuver::GetParam()
     m_nh.getParam(nd_name + "/data_ns", m_data_ns_param);
     m_nh.getParam(nd_name + "/control_ns", m_control_ns_param);
     m_nh.getParam(nd_name + "/home_poses", m_control_ns_param);
-    m_nh.getParam(nd_name + "/target_height_m", m_target_height_m_param);
 
     if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("[mission_manager] m_data_ns_param is missing"); return false; }
     else if (m_control_ns_param == "missing") { ROS_ERROR_STREAM("[mission_manager] m_control_ns_param is missing"); return false; }
-    else if (__isnan(m_target_height_m_param)) { ROS_ERROR_STREAM("[mission_manager] m_target_height_m_param is NAN"); return false; }
     else if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[mission_manager] m_process_freq_param is NAN"); return false; }
     return true;
 }
@@ -138,12 +135,11 @@ void Maneuver::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr)
         vector<geometry_msgs::Pose> poses;
         vector<geographic_msgs::GeoPose> geoposes;
         for (auto wp : wps_ptr->waypoints){
-            wp.geopose.position.altitude = m_target_height_m_param;
             geoposes.push_back(wp.geopose);
 
             auto lat = wp.geopose.position.latitude;
             auto lon = wp.geopose.position.longitude;
-            auto alt = m_target_height_m_param;
+            auto alt = wp.geopose.position.altitude;
             auto pose = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
             poses.push_back(pose);
         }

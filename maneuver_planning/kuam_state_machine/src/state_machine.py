@@ -19,7 +19,7 @@ from kuam_msgs.msg import TransReq
 from kuam_msgs.msg import Mode
 from kuam_msgs.msg import Task
 from kuam_msgs.msg import Setpoint
-from kuam_msgs.msg import MarkerState
+from kuam_msgs.msg import ArucoState
 from kuam_msgs.msg import LandingState
 from geographic_msgs.msg import GeoPose
 from geographic_msgs.msg import GeoPath
@@ -96,6 +96,7 @@ prev_kuam_mode_ = "none"
 cur_px4_mode_ = "none"
 prev_px4_mode_ = "none"
 gps_home_alt_m_ = None
+standby_geopose_ = GeoPose()
 
 # Flag
 is_init_gps_alt_ = False
@@ -149,6 +150,11 @@ def EgoGlobalPoseCB(msg):
         is_init_gps_alt_ = True
 
         gps_home_alt_m_ = msg.altitude
+
+    global standby_geopose_
+    standby_geopose_.position.longitude = msg.longitude
+    standby_geopose_.position.latitude = msg.latitude
+    standby_geopose_.position.altitude = 0.0
 
     for state in offb_states_.values():
         try:
@@ -215,19 +221,25 @@ def SetpointPub():
             landing_state.is_detected = False
             landing_state.is_land = False
     else:
-        geopose.position.longitude = 0.0; geopose.position.latitude = 0.0; geopose.position.altitude = 0.0
+        global standby_geopose_
+        geopose.position = copy.deepcopy(standby_geopose_.position)
         landing_state.is_detected = False
         landing_state.is_land = False
 
     if is_init_gps_alt_ == True:
         msg = Setpoint()
         if cur_state == "LANDING":
+            msg.header.frame_id = "base_link"
+            msg.header.stamp = rospy.Time.now()
             msg.vel = vel
             msg.landing_state = landing_state
             msg.is_global = False
         else:
             global gps_home_alt_m_
+            msg.header.frame_id = "map"
+            msg.header.stamp = rospy.Time.now()
             msg.geopose = geopose
+            msg.height = msg.geopose.position.altitude
             msg.geopose.position.altitude += (gps_home_alt_m_ - alt_offset_m_)
             msg.is_global = True
 
@@ -403,7 +415,7 @@ if __name__ == '__main__':
     rospy.Subscriber("/mavros/local_position/pose", PoseStamped, EgoLocalPoseCB)
     rospy.Subscriber("/mavros/global_position/global", NavSatFix, EgoGlobalPoseCB)
     rospy.Subscriber("/mavros/local_position/velocity_body", TwistStamped, EgoVelCB)
-    rospy.Subscriber(data_ns + "/aruco_tracking/target_state", MarkerState, offb_states_[OffbState.LANDING].MarkerCB)
+    rospy.Subscriber(data_ns + "/aruco_tracking/target_state", ArucoState, offb_states_[OffbState.LANDING].MarkerCB)
     rospy.Subscriber(data_ns + "/chat/command", Chat, CommandCB)
     rospy.Subscriber("/mavros/battery", BatteryState, BatteryCB)
 

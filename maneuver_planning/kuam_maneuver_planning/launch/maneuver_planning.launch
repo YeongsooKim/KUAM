@@ -5,7 +5,6 @@
 
     <!-- common -->
 	<arg name="mode" default="false" />
-	<arg name="target_height_m" default="10.0" />
 
     <!-- state machine -->
 	<arg name="takeoff_alt_m" default="3.0" />
@@ -21,18 +20,16 @@
 	<arg name="alt_offset_m" default="23.156" />
 	<arg name="standby_dist_th_m" default="1.5" />
 	<arg name="landing_duration_s" default="80" />
-	<arg name="using_aruco" default="False" />
+	<arg name="using_aruco" default="True" />
 
     <group ns="/kuam/maneuver">
         <include file="$(find kuam_mission_manager)/launch/mission_manager.launch">
             <arg name="mode" value="$(arg mode)" />
             <arg name="data_ns" value="$(arg data_ns)" />
             <arg name="control_ns" value="$(arg control_ns)" />
-            <arg name="target_height_m" value="$(arg target_height_m)" />
         </include>
 
         <include file="$(find kuam_mission_manager)/launch/tf_broadcaster.launch">
-            <arg name="target_height_m" value="$(arg target_height_m)" />
             <arg name="data_ns" value="$(arg data_ns)" />
         </include>
 

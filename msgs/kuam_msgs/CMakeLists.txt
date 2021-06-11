@@ -22,8 +22,8 @@ find_package(Boost REQUIRED COMPONENTS system)
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  MarkerState.msg
-  MarkerStateArray.msg
+  ArucoState.msg
+  ArucoVisual.msg
   Waypoint.msg
   Waypoints.msg
   Task.msg

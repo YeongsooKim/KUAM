@@ -9,7 +9,7 @@ from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from math import sqrt
 import sys
 
-from kuam_msgs.msg import MarkerState
+from kuam_msgs.msg import ArucoState
 from geometry_msgs.msg import PoseStamped
 from uav_msgs.msg import Chat
 
@@ -156,7 +156,7 @@ plotting = Plotting()
 tfBuffer_ = tf2_ros.Buffer()
 listener_ = tf2_ros.TransformListener(tfBuffer_)
 
-target_pose_sub = rospy.Subscriber('/kuam/data/aruco_tracking/target_state', MarkerState, plotting.TargetPoseCB)
+target_pose_sub = rospy.Subscriber('/kuam/data/aruco_tracking/target_state', ArucoState, plotting.TargetPoseCB)
 cmd_sub = rospy.Subscriber("/kuam/data/chat/command", Chat, plotting.ChatCB)
 
 ani = FuncAnimation(plotting.fig, plotting.UdatePlot, init_func=plotting.PlotInit)

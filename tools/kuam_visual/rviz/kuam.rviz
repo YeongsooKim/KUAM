@@ -6,12 +6,12 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /Grid1
         - /DataProcessing1
         - /DataProcessing1/camera1
         - /MissionManager1
         - /MissionManager1/Tf1/Frames1
         - /MissionManager1/landing_marker1/Namespaces1
+        - /Visual1
       Splitter Ratio: 0.6004056930541992
     Tree Height: 454
   - Class: rviz/Selection
@@ -74,10 +74,27 @@ Visualization Manager:
           Value: true
         - Class: rviz/MarkerArray
           Enabled: true
-          Marker Topic: /kuam/data/aruco_tracking/aruco_markers
+          Marker Topic: /kuam/visual/kuam_visual/aruco_markerarray
           Name: aruco_marker_markers
           Namespaces:
             {}
+          Queue Size: 100
+          Value: true
+        - Class: rviz/MarkerArray
+          Enabled: true
+          Marker Topic: /kuam/visual/kuam_visual/global_path_markerarray
+          Name: global_path
+          Namespaces:
+            global/path: true
+            global/yaw: true
+          Queue Size: 100
+          Value: true
+        - Class: rviz/Marker
+          Enabled: true
+          Marker Topic: /kuam/visual/kuam_visual/setpoint_marker
+          Name: setpoints
+          Namespaces:
+            setpoints: true
           Queue Size: 100
           Value: true
       Enabled: true
@@ -170,21 +187,26 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: -1.5707999467849731
-      Class: rviz/TopDownOrtho
+      Class: rviz/ThirdPersonFollower
+      Distance: 23.258024215698242
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
+      Focal Point:
+        X: 0.683265209197998
+        Y: -1.1921087503433228
+        Z: -1.430511474609375e-5
+      Focal Shape Fixed Size: false
+      Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 167.04881286621094
-      Target Frame: base_link
-      Value: TopDownOrtho (rviz)
-      X: 0.024081066250801086
-      Y: -0.10853849351406097
+      Pitch: 0.39039862155914307
+      Target Frame: map
+      Value: ThirdPersonFollower (rviz)
+      Yaw: 2.9504168033599854
     Saved: ~
 Window Geometry:
   Displays:

@@ -1,2 +1,0 @@
-%time,field.current_seq,field.waypoints0.frame,field.waypoints0.command,field.waypoints0.is_current,field.waypoints0.autocontinue,field.waypoints0.param1,field.waypoints0.param2,field.waypoints0.param3,field.waypoints0.param4,field.waypoints0.x_lat,field.waypoints0.y_long,field.waypoints0.z_alt
-275240000000,0,6,22,1,1,0.0,0.0,0.0,0.0,37.5448186,127.0789185,50.0

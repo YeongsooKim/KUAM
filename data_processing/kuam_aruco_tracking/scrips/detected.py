@@ -7,7 +7,7 @@ import rospy
 import math
 import copy
 
-from kuam_msgs.msg import MarkerState
+from kuam_msgs.msg import ArucoState
 from geometry_msgs.msg import Point
 
 Y_AXIS_MARGIN = 0.3
@@ -94,7 +94,7 @@ class Plotting:
 
 rospy.init_node('eval')
 plotting = Plotting()
-sub = rospy.Subscriber('/aruco_tracking/target_state', MarkerState, plotting.ErrorCB)
+sub = rospy.Subscriber('/aruco_tracking/target_state', ArucoState, plotting.ErrorCB)
 
 ani = FuncAnimation(plotting.fig, plotting.UdatePlot, init_func=plotting.PlotInit)
 plt.show(block=True) 

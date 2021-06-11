@@ -28,10 +28,7 @@
 #include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/Twist.h>
 
-#include <visualization_msgs/MarkerArray.h>
-
-#include <kuam_msgs/MarkerState.h>
-#include <kuam_msgs/MarkerStateArray.h>
+#include <kuam_msgs/ArucoState.h>
 
 using namespace std;
 using namespace cv;
@@ -58,17 +55,6 @@ struct Target{
     vector<State> state;
 };
 
-struct MetaMarkers{
-    visualization_msgs::MarkerArray self;
-    visualization_msgs::Marker trajectory;
-    visualization_msgs::Marker current_point;
-    visualization_msgs::Marker txt;
-
-    bool is_trajectory_add;
-    bool is_current_point_add;
-    bool is_txt_add;
-};
-
 enum class EstimatingMethod : int
 {
     WOF,    // Without filter
@@ -89,8 +75,6 @@ private:
     Target m_target;
     cv_bridge::CvImagePtr m_cv_ptr;
 
-    vector<MetaMarkers> m_target_markers; // target markers
-
 public:
     ArucoTracking();
     virtual ~ArucoTracking();
@@ -102,9 +86,8 @@ private:
     // Publisher
     ros::Publisher m_image_pub;
     ros::Publisher m_tf_list_pub;
-    ros::Publisher m_markers_pub;
+    ros::Publisher m_visual_pub;
     ros::Publisher m_target_state_pub;
-    ros::Publisher m_target_states_pub;
     ros::Publisher m_target_list_pub;
     ros::Publisher m_cnt_pub;
     ros::Publisher m_target_marker_pub;
@@ -115,11 +98,11 @@ private:
     // Param
     bool m_is_eval_param;
     string m_aruco_parser_param; // Dictionary
-    int m_big_marker_id_param; // 
-    int m_small_marker_id_param; // 
-    float m_big_marker_size_m_param; // 
-    float m_small_marker_size_m_param; //     
-    int m_filter_buf_size_param; // 
+    int m_big_marker_id_param;
+    int m_small_marker_id_param;
+    float m_big_marker_size_m_param;
+    float m_small_marker_size_m_param;
+    int m_filter_buf_size_param;
     int m_estimating_method_param;
     bool m_compare_mode_param;
     bool m_using_gazebo_data_param;
@@ -158,7 +141,6 @@ private: // Function
     bool GetParam();
     bool InitFlag();
     bool InitROS();
-    bool InitMarkers();
     
     void ImageCallback(const sensor_msgs::Image::ConstPtr &img_ptr);
     void ProcessTimerCallback(const ros::TimerEvent& event);
@@ -166,7 +148,6 @@ private: // Function
     bool Convert2CVImg(const sensor_msgs::Image::ConstPtr &img_ptr);
     bool MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& target_pose, bool& is_detected);
     bool TargetStateEstimating(const vector<int> ids, const geometry_msgs::Pose pose, const bool is_detected);
-    void VisualizeTarget();
 
     bool WithoutFilter(const Eigen::Vector3d pos, State& state);
     bool MovingAvgFilter(const Eigen::Vector3d pos, State& state);

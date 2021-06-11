@@ -7,6 +7,8 @@
 
 #include <std_msgs/Int16.h>
 
+#include <kuam_msgs/ArucoVisual.h>
+
 using namespace std;
 using namespace cv;
 
@@ -32,7 +34,6 @@ ArucoTracking::ArucoTracking() :
     InitFlag();
     if (!GetParam()) ROS_ERROR_STREAM("[aruco_tracking] Fail GetParam");
     InitROS();
-    InitMarkers();
 
     //namedWindow(OPENCV_WINDOW);
     m_parser.ReadFile(m_aruco_parser_param, m_do_estimate_pose, m_show_rejected, 
@@ -108,9 +109,8 @@ bool ArucoTracking::InitROS()
     // Initialize publisher
     m_image_pub = m_nh.advertise<sensor_msgs::Image>(nd_name + "/output_video", 10);
     m_tf_list_pub = m_nh.advertise<tf2_msgs::TFMessage>(nd_name + "/tf_list", 10);
-    m_markers_pub = m_nh.advertise<visualization_msgs::MarkerArray> (nd_name + "/aruco_markers", 1);
-    m_target_state_pub = m_nh.advertise<kuam_msgs::MarkerState> (nd_name + "/target_state", 1);
-    m_target_states_pub = m_nh.advertise<kuam_msgs::MarkerStateArray> (nd_name + "/target_states", 1);
+    m_visual_pub = m_nh.advertise<kuam_msgs::ArucoVisual> (nd_name + "/aruco_visual", 1);
+    m_target_state_pub = m_nh.advertise<kuam_msgs::ArucoState> (nd_name + "/target_state", 1);
     m_target_list_pub = m_nh.advertise<geometry_msgs::PoseArray> (nd_name + "/target_list", 1);
     if (m_is_eval_param){
         m_cnt_pub = m_nh.advertise<std_msgs::Int16> (nd_name + "/cnt", 1);
@@ -123,103 +123,6 @@ bool ArucoTracking::InitROS()
     return true;
 }
 
-bool ArucoTracking::InitMarkers()
-{
-    //// target markers
-    std_msgs::ColorRGBA red;        red.r = 1.0f;       red.g = 0.0f;       red.b = 0.0f;
-    std_msgs::ColorRGBA green;      green.r = 0.0f;     green.g = 1.0f;     green.b = 0.0f;
-    std_msgs::ColorRGBA blue;       blue.r = 0.0f;      blue.g = 0.0f;      blue.b = 1.0f;
-    std_msgs::ColorRGBA yellow;     yellow.r = 1.0f;    yellow.g = 1.0f;    yellow.b = 0.0f;
-    std_msgs::ColorRGBA white;      white.r = 1.0f;     white.g = 1.0f;     white.b = 1.0f;
-
-    for (int method = (int)EstimatingMethod::WOF; method < (int)EstimatingMethod::ItemNum; method++){
-        MetaMarkers target_marker;
-        // Without filter. green
-        target_marker.trajectory.ns = "target/trajectory";
-        target_marker.trajectory.type = visualization_msgs::Marker::LINE_STRIP;
-        target_marker.trajectory.action = visualization_msgs::Marker::ADD;
-        target_marker.trajectory.scale.x = 0.05;
-        target_marker.trajectory.pose.orientation.w = 1.0;
-        target_marker.trajectory.pose.orientation.x = 0.0;
-        target_marker.trajectory.pose.orientation.y = 0.0;
-        target_marker.trajectory.pose.orientation.z = 0.0;
-        target_marker.trajectory.lifetime = ros::Duration(0.3);
-        target_marker.is_trajectory_add = false;
-
-        target_marker.current_point.ns = "target/current_point";
-        target_marker.current_point.type = visualization_msgs::Marker::SPHERE;
-        target_marker.current_point.action = visualization_msgs::Marker::ADD;
-        target_marker.current_point.scale.x = 0.15;
-        target_marker.current_point.scale.y = 0.15;
-        target_marker.current_point.scale.z = 0.15;
-        target_marker.current_point.pose.orientation.w = 1.0;
-        target_marker.current_point.pose.orientation.x = 0.0;
-        target_marker.current_point.pose.orientation.y = 0.0;
-        target_marker.current_point.pose.orientation.z = 0.0;
-        target_marker.current_point.lifetime = ros::Duration(0.3);
-        target_marker.is_current_point_add = false;
-        
-        target_marker.txt.ns = "target/txt";
-        target_marker.txt.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
-        target_marker.txt.action = visualization_msgs::Marker::ADD;
-        target_marker.txt.scale.z = 0.1;
-        target_marker.txt.pose.orientation.w = 1.0;
-        target_marker.txt.pose.orientation.x = 0.0;
-        target_marker.txt.pose.orientation.y = 0.0;
-        target_marker.txt.pose.orientation.z = 0.0;
-        target_marker.txt.lifetime = ros::Duration(0.3);
-        target_marker.is_txt_add = false;
-
-        switch (method){
-            case (int)EstimatingMethod::WOF:
-                green.a = 0.4f;
-                target_marker.trajectory.id = (int)EstimatingMethod::WOF;
-                target_marker.trajectory.color = green;
-
-                green.a = 1.0f;
-                target_marker.current_point.id = (int)EstimatingMethod::WOF;
-                target_marker.current_point.color = green;
-                
-                white.a = 1.0f;
-                target_marker.txt.id = (int)EstimatingMethod::WOF;
-                target_marker.txt.color = white;
-
-                break;
-            case (int)EstimatingMethod::MAF:
-                red.a = 0.4f;
-                target_marker.trajectory.id = (int)EstimatingMethod::MAF;
-                target_marker.trajectory.color = red;
-
-                red.a = 1.0f;
-                target_marker.current_point.id = (int)EstimatingMethod::MAF;
-                target_marker.current_point.color = red;
-                
-                white.a = 1.0f;
-                target_marker.txt.id = (int)EstimatingMethod::MAF;
-                target_marker.txt.color = white;
-
-                break;
-            case (int)EstimatingMethod::EMAF:
-                yellow.a = 0.4f;
-                target_marker.trajectory.id = (int)EstimatingMethod::EMAF;
-                target_marker.trajectory.color = yellow;
-
-                yellow.a = 1.0f;
-                target_marker.current_point.id = (int)EstimatingMethod::EMAF;
-                target_marker.current_point.color = yellow;
-                
-                white.a = 1.0f;
-                target_marker.txt.id = (int)EstimatingMethod::EMAF;
-                target_marker.txt.color = white;
-
-                break;
-            default:
-                break;
-        }
-        m_target_markers.push_back(target_marker);
-    }
-}
-
 void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
 {
     if (m_cv_ptr != nullptr){
@@ -229,7 +132,6 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
         MarkerPoseEstimating(ids, target_pose, is_detected);
 
         TargetStateEstimating(ids, target_pose, is_detected);
-        VisualizeTarget();
     }
 }
 
@@ -506,7 +408,7 @@ bool ArucoTracking::TargetStateEstimating(const vector<int> ids, const geometry_
     }
 
     static unsigned int cnt = 0;
-    kuam_msgs::MarkerState target_msg;
+    kuam_msgs::ArucoState target_msg;
     target_msg.header.frame_id = CAMERA_FRAME;
     target_msg.header.seq = cnt++;
     target_msg.header.stamp = ros::Time::now();
@@ -537,61 +439,26 @@ bool ArucoTracking::TargetStateEstimating(const vector<int> ids, const geometry_
     }
     m_target_state_pub.publish(target_msg);
 
-    // kuam_msgs::MarkerStateArray target_states_msg;
-    // target_states_msg.states.push_back(target_wof_msg);
-    // target_states_msg.states.push_back(target_maf_msg);
-    // // target_states_msg.states.push_back(target_emaf_msg);
-    // m_target_states_pub.publish(target_states_msg);
+
+    static unsigned int cnt2 = 0;
+    kuam_msgs::ArucoVisual aruco_visual_msg;
+    aruco_visual_msg.header.frame_id = CAMERA_FRAME;
+    aruco_visual_msg.header.seq = cnt2++;
+    aruco_visual_msg.header.stamp = ros::Time::now();
+
+    aruco_visual_msg.is_detected = m_target.is_detected;
+    aruco_visual_msg.is_compare_mode = m_compare_mode_param;
+    aruco_visual_msg.id = m_target.id;
+    aruco_visual_msg.esti_method =  m_estimating_method_param;
+    for (auto state : m_target.state){
+        geometry_msgs::Pose pose;
+        pose.position.x = state.position.x();
+        pose.position.y = state.position.y();
+        pose.position.z = state.position.z();
+        aruco_visual_msg.poses.push_back(pose);
+    }
+    m_visual_pub.publish(aruco_visual_msg);
 }
-
-void ArucoTracking::VisualizeTarget()
-{
-    geometry_msgs::Point pos;
-    geometry_msgs::Point origin;
-
-    if (m_target.is_detected){
-        for (int method = (int)EstimatingMethod::WOF; method < (int)EstimatingMethod::ItemNum; method++){
-            if (m_compare_mode_param || (method == m_estimating_method_param)){
-                // current_point
-                pos.x = m_target.state[method].position.x();
-                pos.y = m_target.state[method].position.y();
-                pos.z = m_target.state[method].position.z();
-
-                m_target_markers[method].current_point.header.frame_id = CAMERA_FRAME;
-                m_target_markers[method].current_point.header.stamp = ros::Time(0);
-
-                m_target_markers[method].current_point.pose.position = pos;
-                m_target_markers[method].is_current_point_add = true;
-
-                // txt
-                m_target_markers[method].txt.header.frame_id = CAMERA_FRAME;;
-                m_target_markers[method].txt.header.stamp = ros::Time(0);
-
-                m_target_markers[method].txt.pose.position = pos;
-                m_target_markers[method].txt.pose.position.z += 0.2;
-                m_target_markers[method].txt.text = "dist: " + m_utils.ToString(m_utils.Distance3D(origin, pos)) + " [m]";
-                m_target_markers[method].is_txt_add = true;
-            }
-        }
-    }
-
-    for (int method = (int)EstimatingMethod::WOF; method < (int)EstimatingMethod::ItemNum; method++){
-        m_target_markers[method].self.markers.clear();
-        if (m_target_markers[method].is_trajectory_add) m_target_markers[method].self.markers.push_back(m_target_markers[method].trajectory);
-        if (m_target_markers[method].is_current_point_add) m_target_markers[method].self.markers.push_back(m_target_markers[method].current_point);
-        if (m_target_markers[method].is_txt_add) m_target_markers[method].self.markers.push_back(m_target_markers[method].txt);
-        m_target_markers[method].is_trajectory_add = m_target_markers[method].is_current_point_add = m_target_markers[method].is_txt_add = false;
-    }
-    
-    visualization_msgs::MarkerArray visualization_markers;
-    for (int method = (int)EstimatingMethod::WOF; method < (int)EstimatingMethod::ItemNum; method++){
-        visualization_markers.markers.insert(visualization_markers.markers.end(), 
-                                            m_target_markers[method].self.markers.begin(), m_target_markers[method].self.markers.end());
-    }
-
-    m_markers_pub.publish(visualization_markers);
-}
-
 
 bool ArucoTracking::Convert2CVImg(const sensor_msgs::Image::ConstPtr &img_ptr)
 {

@@ -33,7 +33,6 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES aruco_tracking
   CATKIN_DEPENDS 
   geometry_msgs
   roscpp
@@ -55,8 +54,8 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
-  ${OpenCV_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 ## aruco_tracking_node
@@ -64,6 +63,12 @@ add_executable(aruco_tracking_node src/aruco_tracking_node.cpp src/aruco_trackin
 add_dependencies(aruco_tracking_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(aruco_tracking_node
  ${catkin_LIBRARIES}
- ${OpenCV_LIBRARIES}
  ${EIGEN3_INCLUDE_DIRS}
+ ${OpenCV_LIBRARIES}
 )
+
+## Install project namespaced headers
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  FILES_MATCHING PATTERN "*.h"
+  PATTERN ".svn" EXCLUDE)

@@ -60,7 +60,6 @@ private:
     bool m_is_auto_param; // Dictionary
     string m_data_ns_param;
     string m_control_ns_param;
-    float m_target_height_m_param;
 
     // Flag
     bool m_is_init_auto_mission;

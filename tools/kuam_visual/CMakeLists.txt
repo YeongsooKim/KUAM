@@ -7,11 +7,15 @@ project(kuam_visual)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+find_package(Eigen3 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
+  geographic_msgs
   roscpp
   sensor_msgs
   kuam_msgs
+  mavros_msgs
+  kuam_aruco_tracking
 )
 
 ###################################
@@ -27,9 +31,12 @@ catkin_package(
   LIBRARIES kuam_visual
   CATKIN_DEPENDS 
   geometry_msgs 
+  geographic_msgs
   roscpp 
   sensor_msgs 
   kuam_msgs
+  mavros_msgs
+  kuam_aruco_tracking
 )
 
 ###########
@@ -39,11 +46,11 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
+  include
   ${catkin_INCLUDE_DIRS}
-  ${kuam_msgs_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
 )
 
-## Declare a C++ library
-# add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/kuam_visual.cpp
-# )
+## kuam_visual_node
+add_executable(kuam_visual_node src/kuam_visual.cpp src/utils.cpp)
+target_link_libraries(kuam_visual_node ${catkin_LIBRARIES})
