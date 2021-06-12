@@ -3,7 +3,7 @@
 
 	<!-- Do Not Input 0.0 -->
 	<arg name="data_ns" default="/kuam/data" />
-	<arg name="freq" default="40.0" />
+	<arg name="freq" default="20.0" />
 	<arg name="takeoff_alt_m" default="3.0" />
 	<arg name="reached_dist_th_m" default="0.4" />
 	<arg name="guidance_dist_th_m" default="0.7" />

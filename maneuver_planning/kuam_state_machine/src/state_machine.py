@@ -234,16 +234,23 @@ def SetpointPub():
             msg.vel = vel
             msg.landing_state = landing_state
             msg.is_global = False
+            is_valid = True
         else:
-            global gps_home_alt_m_
-            msg.header.frame_id = "map"
-            msg.header.stamp = rospy.Time.now()
-            msg.geopose = geopose
-            msg.height = msg.geopose.position.altitude
-            msg.geopose.position.altitude += (gps_home_alt_m_ - alt_offset_m_)
-            msg.is_global = True
+            if geopose.position.latitude == 0 or geopose.position.longitude == 0:
+                is_valid = False
+            else:
+                is_valid = True
 
-        setpoint_pub.publish(msg)
+                global gps_home_alt_m_
+                msg.header.frame_id = "map"
+                msg.header.stamp = rospy.Time.now()
+                msg.geopose = geopose
+                msg.height = msg.geopose.position.altitude
+                msg.geopose.position.altitude += (gps_home_alt_m_ - alt_offset_m_)
+                msg.is_global = True
+
+        if is_valid:
+            setpoint_pub.publish(msg)
 
 def TransRequest():
     global prev_kuam_mode_
