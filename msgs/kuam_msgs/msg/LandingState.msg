@@ -1,2 +1,3 @@
 bool is_detected
 bool is_land
+bool is_pass_landing_standby

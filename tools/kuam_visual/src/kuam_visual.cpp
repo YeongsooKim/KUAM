@@ -1,26 +1,27 @@
 #include <ros/ros.h>
 #include <string>
+#include <vector>
 
 #include <tf/LinearMath/Quaternion.h> // tf::quaternion
 #include "tf2_ros/transform_listener.h" // tf::quaternion
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
 #include <kuam_visual/utils.h>
-
 #include <kuam_aruco_tracking/aruco_tracking.h>
 #include <kuam_msgs/ArucoVisual.h>
 #include <kuam_msgs/Waypoints.h>
 #include <kuam_msgs/Setpoint.h>
+#include <kuam_msgs/TaskList.h>
+#include <kuam_msgs/TransReq.h>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geographic_msgs/GeoPoint.h>
 #include <geographic_msgs/GeoPose.h>
 #include <std_msgs/ColorRGBA.h>
-
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
-
 #include <mavros_msgs/HomePosition.h>
+#include <jsk_rviz_plugins/OverlayText.h>
 
 using namespace std;
 using namespace cv;
@@ -54,46 +55,61 @@ struct MetaMarkers{
     bool is_txt_add;
 };
 
+struct TextDatum{
+    string coverage;
+    string cur_state;
+    string landing_state;
+    string tasklist;
+    string height;
+};
+
 class KuamVisualizer
 {
 private:
     // Node Handler
 	ros::NodeHandle m_nh;
     Utils m_utils;
+    TextDatum m_text_datum;
 
 public:
     KuamVisualizer();
     ~KuamVisualizer();
 
 private:
-    // // Subscriber
+    // Subscriber
     ros::Subscriber m_aruco_visual_sub;
     ros::Subscriber m_home_position_sub;
     ros::Subscriber m_global_waypoints_sub;
     ros::Subscriber m_setpoint_sub;
     ros::Subscriber m_ego_sub;
+    ros::Subscriber m_state_sub;
+    ros::Subscriber m_tasklist_sub;
 
-    // // Publisher
+    // Publisher
     ros::Publisher m_aruco_pub;
     ros::Publisher m_global_path_pub;
     ros::Publisher m_setpoints_pub;
     ros::Publisher m_ego_pub;
+    ros::Publisher m_text_pub;
 
-    // // Timer
-    // ros::Timer m_image_timer;
+    // Timer
+    ros::Timer m_text_pub_cb_timer;
 
-    // // Param
+    // Param
     string m_data_ns_param;
     string m_maneuver_ns_param;
     bool m_is_home_set;
     bool m_is_init_global_path;
 
+    // Marker
     vector<MetaMarkers> m_target_markers; // target markers
     visualization_msgs::MarkerArray m_global_markers;
-    visualization_msgs::MarkerArray m_setpoints_markers;
+    vector<visualization_msgs::MarkerArray> m_setpoints_markers;
     visualization_msgs::Marker m_ego_marker;
+
     geographic_msgs::GeoPoint m_home_position;
     vector < vector < geometry_msgs::Point > > m_setpoints;
+    geometry_msgs::PoseStamped m_ego_pose;
 
 	tf2_ros::Buffer m_tfBuffer;
 	tf2_ros::TransformListener m_tfListener;
@@ -110,8 +126,9 @@ private: // Function
     void WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr);
     void SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_ptr);
     void EgoCallback(const geometry_msgs::PoseStamped::ConstPtr &ego_ptr);
-
-    void GenerateMarker(string ns, int id, std_msgs::ColorRGBA color);
+    void StateCallback(const kuam_msgs::TransReq::ConstPtr &state_ptr);
+    void TaskListCallback(const kuam_msgs::TaskList::ConstPtr &ego_ptr);
+    void TextPubCallback(const ros::TimerEvent& event);
 };
 
 
@@ -179,15 +196,21 @@ bool KuamVisualizer::InitROS()
         m_nh.subscribe<kuam_msgs::Setpoint>(m_maneuver_ns_param + "/state_machine/setpoint", 10, boost::bind(&KuamVisualizer::SetpointCallback, this, _1));
     m_ego_sub = 
         m_nh.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, boost::bind(&KuamVisualizer::EgoCallback, this, _1));
+    m_state_sub =
+        m_nh.subscribe<kuam_msgs::TransReq>(m_maneuver_ns_param + "/state_machine/trans_request", 10, boost::bind(&KuamVisualizer::StateCallback, this, _1));
+    m_tasklist_sub = 
+        m_nh.subscribe<kuam_msgs::TaskList>(m_maneuver_ns_param + "/mission_manager/tasklist", 10, boost::bind(&KuamVisualizer::TaskListCallback, this, _1));
 
     // Initialize publisher
     m_aruco_pub = m_nh.advertise<visualization_msgs::MarkerArray>(nd_name + "/aruco_markerarray", 10);
     m_global_path_pub = m_nh.advertise<visualization_msgs::MarkerArray>(nd_name + "/global_path_markerarray", 10);
     m_setpoints_pub = m_nh.advertise<visualization_msgs::MarkerArray>(nd_name + "/setpoint_markerarray", 10);
     m_ego_pub = m_nh.advertise<visualization_msgs::Marker>(nd_name + "/ego_marker", 10);
+    m_text_pub = m_nh.advertise<jsk_rviz_plugins::OverlayText>(nd_name + "/text", 10);
     
     // Initialize timer
-    // m_image_timer = m_nh.createTimer(ros::Duration(1.0/m_process_freq_param), &KuamVisualizer::ProcessTimerCallback, this);
+    float freq = 5.0;
+    m_text_pub_cb_timer = m_nh.createTimer(ros::Duration(1.0/freq), &KuamVisualizer::TextPubCallback, this);
 
     return true;
 }
@@ -234,6 +257,10 @@ bool KuamVisualizer::InitMarkers()
     m_ego_marker.color = CYAN;
     m_ego_marker.color.a = 0.4f;
     m_ego_marker.lifetime = ros::Duration();
+
+    //// setpoint
+    m_setpoints_markers.resize((int)SETPOINT::ItemNum);
+
 
     for (int method = (int)EstimatingMethod::WOF; method < (int)EstimatingMethod::ItemNum; method++){
         MetaMarkers target_marker;
@@ -453,21 +480,60 @@ void KuamVisualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpo
 {
     kuam_msgs::Setpoint setpoint = *setpoint_ptr; 
 
+    // Set text marker
+    if (setpoint.is_global){
+        m_text_datum.coverage = "GPS coverage\n";
+    }
+    else{
+        m_text_datum.coverage = "Camera coverage\n";
+    }
+
+    if (m_text_datum.cur_state == "LANDING\n"){
+        if (!setpoint.landing_state.is_pass_landing_standby){
+            m_text_datum.landing_state = "Standby\n";
+        }
+        else {
+            if (!setpoint.landing_state.is_land){
+                m_text_datum.landing_state = "KUAM ctrl\n";
+            }
+            else {
+                m_text_datum.landing_state = "FC ctrl\n";
+            }
+        }
+    }
+    else {
+        m_text_datum.landing_state = "Not in landing\n";
+    }
+
+    // Set setpoint marker
     static bool prev_coord = !setpoint.is_global;
-    static int cnt = 0;
     if (setpoint.is_global){
         static geometry_msgs::Point prev_global_point;
+        static unsigned int g_cnt = 0;
         bool is_init = false;
         if (prev_coord != setpoint.is_global){
             prev_coord = setpoint.is_global;
             is_init = true;
-            cnt++;
+            g_cnt++;
 
-            string ns = "setpoint/global";
-            int id = cnt;
+            //// Setpoints
+            visualization_msgs::Marker sp_marker;
             std_msgs::ColorRGBA color = GREEN; color.a = 0.4f;
-            
-            GenerateMarker(ns, id, color);
+
+            sp_marker.header.frame_id = "map";
+            sp_marker.ns = "setpoint/global";
+            sp_marker.id = g_cnt;
+            sp_marker.type = visualization_msgs::Marker::LINE_STRIP;
+            sp_marker.action = visualization_msgs::Marker::ADD;
+            sp_marker.scale.x = 0.05;
+            sp_marker.pose.orientation.w = 1.0;
+            sp_marker.pose.orientation.x = 0.0;
+            sp_marker.pose.orientation.y = 0.0;
+            sp_marker.pose.orientation.z = 0.0;
+            sp_marker.color = color;
+            sp_marker.lifetime = ros::Duration();
+
+            m_setpoints_markers[(int)SETPOINT::GLOBAL].markers.push_back(sp_marker);
         }
 
         auto geopos = setpoint.geopose.position;
@@ -478,56 +544,73 @@ void KuamVisualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpo
         
         float dist = m_utils.Distance3D(p, prev_global_point);
         if ((dist > 0.02) || is_init){
-            m_setpoints[cnt-1].push_back(p);
+            m_setpoints_markers[(int)SETPOINT::GLOBAL].markers[g_cnt-1].points.push_back(p);
             prev_global_point = p;
         }
     }
     else {
         static geometry_msgs::Point prev_relative_point;
+        static unsigned int r_cnt = 0;
         bool is_init = false;
         if (prev_coord != setpoint.is_global){
             prev_coord = setpoint.is_global;
             is_init = true;
-            cnt++;
-
-            string ns = "setpoint/relative";
-            int id = cnt;
-            std_msgs::ColorRGBA color = PURPLE; color.a = 0.4f;
-            
-            GenerateMarker(ns, id, color);
         }
 
-        geometry_msgs::Point p;
-        if (m_setpoints_markers.markers[cnt-1].header.frame_id != setpoint.header.frame_id){
-
+        geometry_msgs::Pose p;
+        if ("map" != m_ego_pose.header.frame_id){
+            ROS_ERROR("tf");
             geometry_msgs::TransformStamped transformStamped;
             geometry_msgs::Pose transformed_pose;
             try{
                 transformStamped = 
-                    m_tfBuffer.lookupTransform(m_setpoints_markers.markers[cnt-1].header.frame_id, setpoint.header.frame_id, ros::Time(0));
-                tf2::doTransform(setpoint.pose, transformed_pose, transformStamped);
+                    m_tfBuffer.lookupTransform("map", m_ego_pose.header.frame_id, ros::Time(0));
+                tf2::doTransform(m_ego_pose.pose, transformed_pose, transformStamped);
             }
             catch (tf2::TransformException &ex) {
                 ROS_WARN("%s", ex.what());
                 ros::Duration(1.0).sleep();
             }
-            p = transformed_pose.position;
+            p = transformed_pose;
         }
         else{
-            p = setpoint.pose.position;
+            p = m_ego_pose.pose;
         }
 
-        float dist = m_utils.Distance3D(p, prev_relative_point);
+        float dist = m_utils.Distance3D(p.position, prev_relative_point);
         if ((dist > 0.02) || is_init){
-            m_setpoints[cnt-1].push_back(p);
-            prev_relative_point = p;
+            r_cnt++;
+
+            auto x = setpoint.vel.linear.x;
+            auto y = setpoint.vel.linear.y;
+            auto z = setpoint.vel.linear.z;
+            auto size = sqrt(pow(x, 2.0) + pow(y, 2.0) + pow(z, 2.0));
+
+            visualization_msgs::Marker sp_marker;
+            std_msgs::ColorRGBA color = PURPLE; color.a = 0.4f;
+            sp_marker.header.frame_id = "map";
+            sp_marker.header.stamp = ros::Time::now();
+            sp_marker.ns = "setpoint/relative";
+            sp_marker.id = r_cnt;
+            sp_marker.type = visualization_msgs::Marker::ARROW;
+            sp_marker.action = visualization_msgs::Marker::ADD;
+            sp_marker.scale.x = size;
+            sp_marker.scale.y = 0.05;
+            sp_marker.scale.z = 0.05;
+            sp_marker.pose = p;
+            sp_marker.color = color;
+            sp_marker.lifetime = ros::Duration();
+            m_setpoints_markers[(int)SETPOINT::RELATIVE].markers.push_back(sp_marker);
+            prev_relative_point = p.position;
         }
     }
-
-    for (int coord = 0; coord < cnt; coord++){
-        m_setpoints_markers.markers[coord].points = m_setpoints[coord];
+    
+    visualization_msgs::MarkerArray visualization_markers;
+    for (int coord = (int)SETPOINT::GLOBAL; coord < (int)SETPOINT::ItemNum; coord++){
+        visualization_markers.markers.insert(visualization_markers.markers.end(), 
+                                            m_setpoints_markers[coord].markers.begin(), m_setpoints_markers[coord].markers.end());
     }
-    m_setpoints_pub.publish(m_setpoints_markers);
+    m_setpoints_pub.publish(visualization_markers);
 }
 
 void KuamVisualizer::EgoCallback(const geometry_msgs::PoseStamped::ConstPtr &ego_ptr)
@@ -535,38 +618,63 @@ void KuamVisualizer::EgoCallback(const geometry_msgs::PoseStamped::ConstPtr &ego
     static geometry_msgs::Point prev_pos;
 
     auto p = ego_ptr->pose.position;
-
     float dist = m_utils.Distance3D(p, prev_pos);
     if (dist > 0.04){
         m_ego_marker.points.push_back(p);
         prev_pos = p;
     }
 
+    m_text_datum.height = to_string(p.z) + "[m]\n";
+    m_ego_pose = *ego_ptr;
+
     m_ego_pub.publish(m_ego_marker);
 }
 
-void KuamVisualizer::GenerateMarker(string ns, int id, std_msgs::ColorRGBA color)
+void KuamVisualizer::StateCallback(const kuam_msgs::TransReq::ConstPtr &state_ptr)
 {
-    //// Setpoints
-    visualization_msgs::Marker sp_marker;
+    m_text_datum.cur_state = state_ptr->state + "\n";
+}
 
-    sp_marker.header.frame_id = "map";
-    sp_marker.type = visualization_msgs::Marker::LINE_STRIP;
-    sp_marker.action = visualization_msgs::Marker::ADD;
-    sp_marker.scale.x = 0.05;
-    sp_marker.pose.orientation.w = 1.0;
-    sp_marker.pose.orientation.x = 0.0;
-    sp_marker.pose.orientation.y = 0.0;
-    sp_marker.pose.orientation.z = 0.0;
-    sp_marker.lifetime = ros::Duration();
+void KuamVisualizer::TaskListCallback(const kuam_msgs::TaskList::ConstPtr &tasklist_ptr)
+{
+    string lb = "\n";
+    string tab = "\t";
+    stringstream ss;
 
-    sp_marker.ns = ns;
-    sp_marker.id = id;
-    sp_marker.color = color;
+    auto task_list = tasklist_ptr->task;
+    auto status_list = tasklist_ptr->status;
 
-    std::vector<geometry_msgs::Point> p;
-    m_setpoints.push_back(p);
-    m_setpoints_markers.markers.push_back(sp_marker);
+    for (int i = 0; i < task_list.size(); i++){
+        ss << task_list[i] << ":\t" << status_list[i] << lb;
+    }
+    m_text_datum.tasklist = ss.str();
+}
+
+void KuamVisualizer::TextPubCallback(const ros::TimerEvent& event)
+{
+    jsk_rviz_plugins::OverlayText text;
+    std_msgs::ColorRGBA fg_color;   fg_color.r = 25.0/255.0;    fg_color.g = 1.0;           fg_color.b = 240.0/255.0;   fg_color.a = 1.0;
+    std_msgs::ColorRGBA bg_color;   bg_color.r = 136.0/255.0;   bg_color.g = 138.0/255.0;   bg_color.b = 133.0/255.0;   bg_color.a = 1.0;
+
+    text.width = 400;
+    text.height = 600;
+    text.left = 10;
+    text.top = 10;
+    text.text_size = 12;
+    text.line_width = 2;
+    text.font = "DejaVu Sans Mono";
+    auto coverage = m_text_datum.coverage;
+    auto height = m_text_datum.height;
+    auto cur_state = m_text_datum.cur_state;
+    auto landing_state = m_text_datum.landing_state;
+    auto tasklist = m_text_datum.tasklist;
+    
+    text.text = "Coverage: " + coverage + "\nAltitude: " + height + "\nCurrent state: " + 
+                cur_state + "\nLanding state: " + landing_state + "\nTask list: \n" + tasklist;
+    text.fg_color = fg_color;
+    text.bg_color = bg_color;
+
+    m_text_pub.publish(text);
 }
 }
 

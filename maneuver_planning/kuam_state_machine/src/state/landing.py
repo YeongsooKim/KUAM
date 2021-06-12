@@ -33,8 +33,8 @@ class Landing(smach.State, state.Base):
         self.landing_state = LandingState()
         self.landing_state.is_detected = False
         self.landing_state.is_land = False
+        self.landing_state.is_pass_landing_standby = False
         self.is_init_z = False
-        self.is_pass_landing_standby = False
         
         # Target state
         self.target_id = 0 # Change to param
@@ -173,19 +173,18 @@ class Landing(smach.State, state.Base):
                 self.landing_state.is_land = True
 
     def UpdateSetpoint(self):
-        if self.is_pass_landing_standby == False:
+        if self.landing_state.is_pass_landing_standby == False:
             if self.IsLandingStandby():
-                self.is_pass_landing_standby = True
-
+                self.landing_state.is_pass_landing_standby = True
+        
         if self.using_aruco:
 
-            if self.landing_state.is_detected and self.is_pass_landing_standby:
-
+            if self.landing_state.is_detected and self.landing_state.is_pass_landing_standby:
                 if self.is_init_z == False:
                     self.is_init_z = True
 
                     dt = 1.0/self.freq
-                    init_z = -self.target_pose.position.z
+                    init_z = -(self.target_pose.position.z - 2.0)
 
                     cnt = 1
                     while cnt*dt < self.landing_duration_s:
@@ -217,14 +216,17 @@ class Landing(smach.State, state.Base):
                     if self.cnt + 1 < len(self.z_traj):
                         self.setpoint.vel.linear.z = (self.z_traj[self.cnt + 1] - self.z_traj[self.cnt])/dt
                         self.cnt += 1
-                        # rospy.logerr("x: %f, y: %f, z: %f" %(self.target_pose.position.x, self.target_pose.position.y, self.target_pose.position.z))
+            # else:
+            #     self.setpoint.vel.linear.x = 0.0                    
+            #     self.setpoint.vel.linear.y = 0.0
+            #     self.setpoint.vel.linear.z = 0.0
+
         # only gps
         else :
-            if self.is_pass_landing_standby:
+            if self.landing_state.is_pass_landing_standby:
                 self.setpoint.vel.linear.x = 0.0
                 self.setpoint.vel.linear.y = 0.0
                 self.setpoint.vel.linear.z = -0.3
-
 
     '''
     Util functions

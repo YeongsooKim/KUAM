@@ -428,18 +428,9 @@ void Maneuver::TaskListPub()
 {
     // Publish whole tasks
     kuam_msgs::TaskList tasklist_msg;
-    vector<std_msgs::String> task_statuses;
     for (auto task : m_tasklist){
-        stringstream msg;
-        string trans = Enum2String(task.first);
-        string status = Enum2String(task.second);
-        
-        msg << trans << "  |  " << status;
-        
-        std_msgs::String task_status;
-        task_status.data = msg.str();
-
-        tasklist_msg.task.push_back(task_status);
+        tasklist_msg.task.push_back(Enum2String(task.first));
+        tasklist_msg.status.push_back(Enum2String(task.second));
     }
     m_tasklist_pub.publish(tasklist_msg);
 }

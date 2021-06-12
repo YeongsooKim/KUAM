@@ -252,6 +252,13 @@ def SetpointPub():
         if is_valid:
             setpoint_pub.publish(msg)
 
+            for state in offb_states_.values():
+                try:
+                    msg.geopose.position.altitude = msg.height
+                    state.setpoint = copy.deepcopy(msg)
+                except:
+                    pass
+
 def TransRequest():
     global prev_kuam_mode_
     global cur_px4_mode_
