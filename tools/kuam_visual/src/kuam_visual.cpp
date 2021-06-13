@@ -654,10 +654,10 @@ void KuamVisualizer::TextPubCallback(const ros::TimerEvent& event)
 {
     jsk_rviz_plugins::OverlayText text;
     std_msgs::ColorRGBA fg_color;   fg_color.r = 25.0/255.0;    fg_color.g = 1.0;           fg_color.b = 240.0/255.0;   fg_color.a = 1.0;
-    std_msgs::ColorRGBA bg_color;   bg_color.r = 136.0/255.0;   bg_color.g = 138.0/255.0;   bg_color.b = 133.0/255.0;   bg_color.a = 1.0;
+    std_msgs::ColorRGBA bg_color;   bg_color.r = 136.0/255.0;   bg_color.g = 138.0/255.0;   bg_color.b = 133.0/255.0;   bg_color.a = 0.35;
 
-    text.width = 400;
-    text.height = 600;
+    text.width = 350;
+    text.height = 350;
     text.left = 10;
     text.top = 10;
     text.text_size = 12;
