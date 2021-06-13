@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
 <launch>
+    <!-- aruco_tracking -->
 	<arg name="process_freq" default="30.0" />
 	<arg name="is_eval" default="false" />
     
@@ -12,22 +13,23 @@
     <arg name="compare_mode" default="false" />
     <arg name="marker_cnt_th" default="10" />
 
-    <!-- Select only one data type -->
+        <!-- Select only one data type -->
     <arg name="using_gazebo_data" default="true" />
     <arg name="using_logging_data" default="false" />
     <arg name="using_device_data" default="false" />
 
-    <!-- Aruco lib param -->
+        <!-- Aruco lib param -->
     <arg name="detector_params_path" default="$(find kuam_aruco_tracking)/config/detector_params.yml" />
     <arg name="calib_path" value="$(find kuam_aruco_tracking)/config/calib_sim.txt" unless="$(arg using_device_data)"/>
     <arg name="calib_path" value="$(find kuam_aruco_tracking)/config/calib.txt" if="$(arg using_device_data)"/>
 
     <arg name="usb_cam_logging_topic" default="/usb_cam/image_rect_color" if="$(arg using_logging_data)"/>
+    <arg name="usb_cam_logging_topic" default="/usb_cam/image_rect_color" unless="$(arg using_logging_data)"/>
 
-    <!-- Estimating method -->
-    <!-- 0. Without filter -->
-    <!-- 1. Moving average filter -->
-    <!-- 2. Exponential moving average filter -->
+        <!-- Estimating method -->
+        <!-- 0. Without filter -->
+        <!-- 1. Moving average filter -->
+        <!-- 2. Exponential moving average filter -->
     <arg name="estimating_method" default="1" />
 
     <arg name="noise_dist_th_m" default="1.0" />

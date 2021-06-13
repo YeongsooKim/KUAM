@@ -97,6 +97,7 @@ private:
 
     // Param
     bool m_is_eval_param;
+    string m_usb_cam_logging_topic_param;
     string m_calib_path_param;
     string m_detector_params_path_param;
     int m_dictionaryID_param;
