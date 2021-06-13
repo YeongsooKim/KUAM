@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>kuam_offb</name>
+  <name>kuam_payload_cmd</name>
   <version>0.0.1</version>
   <description>The control package</description>
 
@@ -17,7 +17,6 @@
   <!-- Url tags are optional, but multiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/offb</url> -->
 
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>geometry_msgs</build_depend>

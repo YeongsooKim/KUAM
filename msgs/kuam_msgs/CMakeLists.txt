@@ -28,7 +28,6 @@ add_message_files(
   Waypoints.msg
   Task.msg
   TaskList.msg
-  OffbCmd.msg
   Setpoint.msg
   LandingState.msg
   Mode.msg

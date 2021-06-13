@@ -8,7 +8,7 @@
 
 // message
 #include <std_msgs/String.h>
-#include <uav_msgs/OffboardState.h>
+#include <uav_msgs/PayloadCmd.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PoseArray.h>
 #include <geographic_msgs/GeoPose.h>
@@ -59,7 +59,6 @@ private:
     float m_process_freq_param;
     bool m_is_auto_param; // Dictionary
     string m_data_ns_param;
-    string m_control_ns_param;
 
     // Flag
     bool m_is_init_auto_mission;
@@ -71,7 +70,7 @@ private:
     string m_px4_mode;
     string m_cmd_mode;
     mssn_geoposes_map m_mssn_wps_map;
-    uav_msgs::OffboardState m_offb_state;
+    uav_msgs::PayloadCmd m_payload_cmd;
     geographic_msgs::GeoPoint m_home_position;
 
 private: // Function
@@ -83,7 +82,7 @@ private: // Function
 
     void ChatterCallback(const uav_msgs::Chat::ConstPtr &chat_ptr);
     void WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wp_ptr);
-    inline void OffbStateCallback(const uav_msgs::OffboardState::ConstPtr &offb_state_ptr) { m_offb_state = *offb_state_ptr; }
+    inline void PlayloadCmdCallback(const uav_msgs::PayloadCmd::ConstPtr &cmd_ptr) { m_payload_cmd = *cmd_ptr; }
     void HomePositionCallback(const mavros_msgs::HomePosition::ConstPtr &home_ptr);
 
     bool IsTransition(string input);    // Check whether the transition is included in enum class

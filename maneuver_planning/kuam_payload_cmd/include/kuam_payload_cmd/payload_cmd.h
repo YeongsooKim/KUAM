@@ -21,16 +21,16 @@
 #include <std_msgs/String.h>
 
 #include "uav_msgs/Chat.h"
-#include "uav_msgs/OffboardState.h"
+#include "uav_msgs/PayloadCmd.h"
 
 #include "kuam_msgs/TransReq.h"
 #include "kuam_msgs/Setpoint.h"
 #include "kuam_msgs/LandingState.h"
 #include "kuam_mission_manager/state_machine.h"
-#include "kuam_offb/utils.h"
+#include "kuam_payload_cmd/utils.h"
 
 namespace kuam{
-class Offboard
+class Playload
 {
 private:
     // Node Handler
@@ -38,8 +38,8 @@ private:
     Utils m_utils;
 
 public:
-    Offboard();
-    virtual ~Offboard();
+    Playload();
+    virtual ~Playload();
 
 private:
     // Subscriber
@@ -50,7 +50,7 @@ private:
     // Publisher
     ros::Publisher m_local_pos_tar_pub;
     ros::Publisher m_global_pose_pub;
-    ros::Publisher m_offboard_state_pub;
+    ros::Publisher m_payload_cmd_pub;
     
     // ServiceClient
     ros::ServiceClient m_arming_serv_client;
@@ -73,7 +73,7 @@ private:
     std::string m_prev_sm_state;
     std::string m_sm_kuam_mode;
     std::string m_px4_mode;
-    std::string m_offb_state;
+    std::string m_payload_cmd_state;
 
     kuam_msgs::Setpoint m_setpoint;
     
@@ -113,7 +113,7 @@ private: // function
     bool IsOffboard();
     void StateUpdate();
     void SetpointPub();
-    void OffbStatusPub();
+    void PayloadCmdPub();
 
 };
 }

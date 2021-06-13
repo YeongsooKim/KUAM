@@ -156,7 +156,7 @@ class Plotting:
 rospy.init_node('eval')
 plotting = Plotting()
 
-error_sub = rospy.Subscriber('/kuam/control/offb/error', Point, plotting.ErrorCB)
+error_sub = rospy.Subscriber('/kuam/control/payload_cmd/error', Point, plotting.ErrorCB)
 ego_local_sub = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, plotting.EgoLocalPoseCB)
 cmd_sub = rospy.Subscriber("/kuam/data/chat/command", Chat, plotting.ChatCB)
 

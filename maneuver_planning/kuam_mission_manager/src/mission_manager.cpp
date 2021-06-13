@@ -18,14 +18,13 @@ Maneuver::Maneuver() :
     m_cur_task(NO_TASK),
     m_kuam_mode("none"),
     m_px4_mode("none"),
-    m_data_ns_param("missing"),
-    m_control_ns_param("missing")
+    m_data_ns_param("missing")
 {
     GetParam();
     InitFlag();
     InitROS();   
 
-    m_offb_state.offb_mode = "none";
+    m_payload_cmd.mode = "none";
 }
 
 Maneuver::~Maneuver()
@@ -47,11 +46,8 @@ bool Maneuver::GetParam()
     m_nh.getParam(nd_name + "/process_freq", m_process_freq_param);
     m_nh.getParam(nd_name + "/mode", m_is_auto_param);
     m_nh.getParam(nd_name + "/data_ns", m_data_ns_param);
-    m_nh.getParam(nd_name + "/control_ns", m_control_ns_param);
-    m_nh.getParam(nd_name + "/home_poses", m_control_ns_param);
 
     if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("[mission_manager] m_data_ns_param is missing"); return false; }
-    else if (m_control_ns_param == "missing") { ROS_ERROR_STREAM("[mission_manager] m_control_ns_param is missing"); return false; }
     else if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[mission_manager] m_process_freq_param is NAN"); return false; }
     return true;
 }
@@ -60,6 +56,7 @@ bool Maneuver::InitROS()
 {
     // package, node, topic name
     string nd_name = ros::this_node::getName();
+    string ns_name = ros::this_node::getNamespace();
 
     // Initialize subscriber
     m_home_position_sub = 
@@ -76,7 +73,7 @@ bool Maneuver::InitROS()
     m_kuam_waypoints_sub = 
         m_nh.subscribe<kuam_msgs::Waypoints>(m_data_ns_param + "/csv_parser/waypoints", 10, boost::bind(&Maneuver::WaypointsCallback, this, _1));
     m_complete_sub = 
-        m_nh.subscribe<uav_msgs::OffboardState>(m_control_ns_param + "/offb/offboard_state", 10, boost::bind(&Maneuver::OffbStateCallback, this, _1));
+        m_nh.subscribe<uav_msgs::PayloadCmd>(ns_name + "/payload_cmd/payload_cmd", 10, boost::bind(&Maneuver::PlayloadCmdCallback, this, _1));
 
     // // Initialize publisher
     m_tasklist_pub = m_nh.advertise<kuam_msgs::TaskList>(nd_name + "/tasklist", 10);
@@ -349,22 +346,22 @@ void Maneuver::CheckComplete()
     switch((int)task.first){
         case (int)Trans::Arm:
         case (int)Trans::Disarm:
-            if (m_offb_state.offb_state == Enum2String(task.first)){
+            if (m_payload_cmd.state == Enum2String(task.first)){
                 task.second = Status::Done;
             }
             break;
         case (int)Trans::Takeoff:
-            if (m_offb_state.offb_state == "TakeoffHovering"){
+            if (m_payload_cmd.state == "TakeoffHovering"){
                 task.second = Status::Done;
             }
             break;
         case (int)Trans::Flight:
-            if (m_offb_state.offb_state == "FlightHovering"){
+            if (m_payload_cmd.state == "FlightHovering"){
                 task.second = Status::Done;
             }
             break;
         case (int)Trans::Landing:
-            if (m_offb_state.offb_state == Enum2String(Trans::Disarm)){
+            if (m_payload_cmd.state == Enum2String(Trans::Disarm)){
                 task.second = Status::Done;
             }
             break;
@@ -387,34 +384,34 @@ void Maneuver::CheckComplete()
 
 void Maneuver::CheckModeChange()
 {
-    string offb_mode = Ascii2Lower(m_offb_state.offb_mode);
+    string payload_cmd_mode = Ascii2Lower(m_payload_cmd.mode);
     kuam_msgs::Mode mode;
     bool is_mode_changed = false;
     if (m_has_cmd){
-        mode.px4 = m_offb_state.offb_mode;
+        mode.px4 = m_payload_cmd.mode;
         mode.kuam = m_cmd_mode;
-        m_kuam_mode = offb_mode;
+        m_kuam_mode = payload_cmd_mode;
         m_has_cmd = false;
 
         is_mode_changed = true;
     }
-    else if (m_kuam_mode != offb_mode){
-        mode.px4 = m_offb_state.offb_mode;
-        m_px4_mode = m_offb_state.offb_mode;
+    else if (m_kuam_mode != payload_cmd_mode){
+        mode.px4 = m_payload_cmd.mode;
+        m_px4_mode = m_payload_cmd.mode;
 
-        if (IsMode(offb_mode)){
-            mode.kuam = offb_mode;
-            m_kuam_mode = offb_mode;
+        if (IsMode(payload_cmd_mode)){
+            mode.kuam = payload_cmd_mode;
+            m_kuam_mode = payload_cmd_mode;
         }
         else {
             mode.kuam = m_kuam_mode;
         }
         is_mode_changed = true;
     }
-    else if (m_px4_mode != m_offb_state.offb_mode){
+    else if (m_px4_mode != m_payload_cmd.mode){
         mode.kuam = m_kuam_mode;
-        mode.px4 = m_offb_state.offb_mode;
-        m_px4_mode = m_offb_state.offb_mode;
+        mode.px4 = m_payload_cmd.mode;
+        m_px4_mode = m_payload_cmd.mode;
 
         is_mode_changed = true;
     }

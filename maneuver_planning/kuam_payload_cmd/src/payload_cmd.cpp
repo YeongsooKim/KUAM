@@ -1,4 +1,4 @@
-#include "kuam_offb/offb.h"
+#include "kuam_payload_cmd/payload_cmd.h"
 #include <string>
 
 #include <geometry_msgs/Point.h>
@@ -9,69 +9,66 @@ using namespace kuam;
 using namespace mission;
     
 
-Offboard::Offboard() : 
+Playload::Playload() : 
     m_tfListener(m_tfBuffer),
     m_last_request_time(ros::Time::now()),
     m_process_freq_param(NAN),
-    m_maneuver_ns_param("missing"),
     m_prev_sm_state("none")
 {
     InitFlag();
-    if (!GetParam()) ROS_ERROR_STREAM("[offb] Fail GetParam");
+    if (!GetParam()) ROS_ERROR_STREAM("[payload_cmd] Fail GetParam");
     InitROS();
-    if (!InitClient()) ROS_ERROR_STREAM("[offb] Fail InitClient");
+    if (!InitClient()) ROS_ERROR_STREAM("[payload_cmd] Fail InitClient");
 }
 
-Offboard::~Offboard()
+Playload::~Playload()
 {}
 
-bool Offboard::InitFlag()
+bool Playload::InitFlag()
 {
     m_setpoint.is_global = false;
 
     return true;
 }
 
-bool Offboard::GetParam()
+bool Playload::GetParam()
 {
     string nd_name = ros::this_node::getName();
 
     m_nh.getParam(nd_name + "/process_freq", m_process_freq_param);
-    m_nh.getParam(nd_name + "/maneuver_ns", m_maneuver_ns_param);
-    m_nh.getParam(nd_name + "/maneuver_ns", m_maneuver_ns_param);
 
     if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("m_process_freq_param is NAN"); return false; }
-    else if (m_maneuver_ns_param == "missing") { ROS_ERROR_STREAM("m_maneuver_ns_param is missing"); return false; }
 
     return true;
 }
 
-bool Offboard::InitROS()
+bool Playload::InitROS()
 {
     // package, node, topic name
     string nd_name = ros::this_node::getName();
+    string ns_name = ros::this_node::getNamespace();
 
     // Initialize subscriber
-    m_mavros_state_sub = m_nh.subscribe<mavros_msgs::State>("/mavros/state", 10, boost::bind(&Offboard::MavrosStateCallback, this, _1));
-    m_setpoint_sub = m_nh.subscribe<kuam_msgs::Setpoint>(m_maneuver_ns_param + "/state_machine/setpoint", 10, boost::bind(&Offboard::SetpointCallback, this, _1));
-    m_trans_req_sub = m_nh.subscribe<kuam_msgs::TransReq>(m_maneuver_ns_param + "/state_machine/trans_request", 10, boost::bind(&Offboard::TransReqCallback, this, _1));
+    m_mavros_state_sub = m_nh.subscribe<mavros_msgs::State>("/mavros/state", 10, boost::bind(&Playload::MavrosStateCallback, this, _1));
+    m_setpoint_sub = m_nh.subscribe<kuam_msgs::Setpoint>(ns_name + "/state_machine/setpoint", 10, boost::bind(&Playload::SetpointCallback, this, _1));
+    m_trans_req_sub = m_nh.subscribe<kuam_msgs::TransReq>(ns_name + "/state_machine/trans_request", 10, boost::bind(&Playload::TransReqCallback, this, _1));
 
     // Initialize publisher
     m_global_pose_pub = m_nh.advertise<geographic_msgs::GeoPoseStamped>("/mavros/setpoint_position/global", 10);
     m_local_pos_tar_pub = m_nh.advertise<mavros_msgs::PositionTarget>("/mavros/setpoint_raw/local", 10);
-    m_offboard_state_pub = m_nh.advertise<uav_msgs::OffboardState>(nd_name + "/offboard_state", 1000);
+    m_payload_cmd_pub = m_nh.advertise<uav_msgs::PayloadCmd>(nd_name + "/payload_cmd", 1000);
 
     // Initialize service client
     m_arming_serv_client = m_nh.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
     m_set_mode_serv_client = m_nh.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
     
     // Time callback
-    m_timer = m_nh.createTimer(ros::Duration(1.0/m_process_freq_param), &Offboard::ProcessTimerCallback, this);
+    m_timer = m_nh.createTimer(ros::Duration(1.0/m_process_freq_param), &Playload::ProcessTimerCallback, this);
 
     return true;
 }
 
-bool Offboard::InitClient()
+bool Playload::InitClient()
 {
     if (m_process_freq_param == 0.0) return false;
     ros::Rate rate(m_process_freq_param);
@@ -85,7 +82,7 @@ bool Offboard::InitClient()
     return true;
 }
 
-void Offboard::ProcessTimerCallback(const ros::TimerEvent& event)
+void Playload::ProcessTimerCallback(const ros::TimerEvent& event)
 {
     if (m_sm_kuam_mode == "MANUAL"){
         ManualRequest();
@@ -93,7 +90,7 @@ void Offboard::ProcessTimerCallback(const ros::TimerEvent& event)
     else if (m_sm_kuam_mode == "OFFBOARD"){
         if (IsOffboard()){
             switch ((int)String2State(m_cur_sm_state)){
-                case (int)State::Standby: m_offb_state = Enum2String(State::Standby); break;
+                case (int)State::Standby: m_payload_cmd_state = Enum2String(State::Standby); break;
                 case (int)State::Takeoff: TakeoffRequest(); break;
                 case (int)State::Arm: ArmRequest(); break;
                 case (int)State::Hovering: HoveringRequest(); break;
@@ -112,10 +109,10 @@ void Offboard::ProcessTimerCallback(const ros::TimerEvent& event)
     }
     
     SetpointPub();
-    OffbStatusPub();
+    PayloadCmdPub();
 }
 
-void Offboard::ManualRequest()
+void Playload::ManualRequest()
 {
     mavros_msgs::SetMode manual_set_mode;
     manual_set_mode.request.custom_mode = "MANUAL";
@@ -124,14 +121,14 @@ void Offboard::ManualRequest()
         (ros::Time::now() - m_last_request_time > ros::Duration(5.0))){
         if(m_set_mode_serv_client.call(manual_set_mode) &&
             manual_set_mode.response.mode_sent){
-            // m_offb_state = Enum2String(Mode::Manual);
+            // m_payload_cmd_state = Enum2String(Mode::Manual);
             ROS_INFO("Manual enabled");
         }
         m_last_request_time = ros::Time::now();
     }
 }
 
-void Offboard::EmergRequest()
+void Playload::EmergRequest()
 {
     mavros_msgs::SetMode emerg_mode;
     emerg_mode.request.custom_mode = "AUTO.RTL";
@@ -147,7 +144,7 @@ void Offboard::EmergRequest()
     }
 }
 
-bool Offboard::IsOffboard()
+bool Playload::IsOffboard()
 {
     mavros_msgs::SetMode offb_set_mode;
     offb_set_mode.request.custom_mode = "OFFBOARD";
@@ -169,7 +166,7 @@ bool Offboard::IsOffboard()
     return true;
 }
 
-void Offboard::ArmRequest()
+void Playload::ArmRequest()
 {
     mavros_msgs::CommandBool arm_cmd;
     arm_cmd.request.value = true;
@@ -179,26 +176,26 @@ void Offboard::ArmRequest()
         if( m_arming_serv_client.call(arm_cmd) &&
             arm_cmd.response.success){
 
-            m_offb_state = Enum2String(Trans::Arm);
+            m_payload_cmd_state = Enum2String(Trans::Arm);
             ROS_INFO("Vehicle armed");
         }
         m_last_request_time = ros::Time::now();
     }
 }
 
-void Offboard::HoveringRequest()
+void Playload::HoveringRequest()
 {
-    if (m_prev_sm_state == Enum2String(State::Takeoff)) m_offb_state = "TakeoffHovering";
-    else if (m_prev_sm_state == Enum2String(State::Flight)) m_offb_state = "FlightHovering";
+    if (m_prev_sm_state == Enum2String(State::Takeoff)) m_payload_cmd_state = "TakeoffHovering";
+    else if (m_prev_sm_state == Enum2String(State::Flight)) m_payload_cmd_state = "FlightHovering";
 }
 
 
-void Offboard::TakeoffRequest()
+void Playload::TakeoffRequest()
 {
-    m_offb_state = Enum2String(State::Takeoff);
+    m_payload_cmd_state = Enum2String(State::Takeoff);
 }
 
-void Offboard::LandingRequest()
+void Playload::LandingRequest()
 {
     if (m_setpoint.landing_state.is_land){
         mavros_msgs::SetMode landing_mode;
@@ -210,30 +207,30 @@ void Offboard::LandingRequest()
                 landing_mode.response.mode_sent){
 
                 ROS_INFO("Land enabled");
-                m_offb_state = Enum2String(Trans::Landing);
+                m_payload_cmd_state = Enum2String(Trans::Landing);
             }
             m_last_request_time = ros::Time::now();
         }
         else if (!m_mavros_status.armed){
-            m_offb_state = Enum2String(Trans::Disarm);
+            m_payload_cmd_state = Enum2String(Trans::Disarm);
         }
     }
 }
 
-void Offboard::StateUpdate()
+void Playload::StateUpdate()
 { 
     if (m_prev_sm_state != m_cur_sm_state){
         m_prev_sm_state = Ascii2Lower(m_cur_sm_state);
     }
 }
 
-void Offboard::FlightRequest()
+void Playload::FlightRequest()
 {
-    m_offb_state = Enum2String(State::Flight);
+    m_payload_cmd_state = Enum2String(State::Flight);
 }
 
 
-void Offboard::SetpointPub()
+void Playload::SetpointPub()
 {
     if (m_setpoint.is_global){
         geographic_msgs::GeoPoseStamped msg;
@@ -276,10 +273,10 @@ void Offboard::SetpointPub()
     
 }
 
-void Offboard::OffbStatusPub()
+void Playload::PayloadCmdPub()
 {
-    uav_msgs::OffboardState offboard_status_msg;
-    offboard_status_msg.offb_mode = m_mavros_status.mode;
-    offboard_status_msg.offb_state = m_offb_state;
-    m_offboard_state_pub.publish(offboard_status_msg);
+    uav_msgs::PayloadCmd payload_cmd_msg;
+    payload_cmd_msg.mode = m_mavros_status.mode;
+    payload_cmd_msg.state = m_payload_cmd_state;
+    m_payload_cmd_pub.publish(payload_cmd_msg);
 }

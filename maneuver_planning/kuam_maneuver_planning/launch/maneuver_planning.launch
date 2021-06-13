@@ -1,7 +1,6 @@
 <launch>
     <!-- namespace -->
 	<arg name="data_ns" default="/kuam/data" />
-	<arg name="control_ns" default="/kuam/control" />
 
     <!-- common -->
 	<arg name="mode" default="false" />
@@ -26,7 +25,6 @@
         <include file="$(find kuam_mission_manager)/launch/mission_manager.launch">
             <arg name="mode" value="$(arg mode)" />
             <arg name="data_ns" value="$(arg data_ns)" />
-            <arg name="control_ns" value="$(arg control_ns)" />
         </include>
 
         <include file="$(find kuam_mission_manager)/launch/tf_broadcaster.launch">

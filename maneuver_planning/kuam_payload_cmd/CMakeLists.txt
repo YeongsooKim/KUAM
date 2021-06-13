@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(kuam_offb)
+project(kuam_payload_cmd)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
@@ -37,7 +37,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES kuam_offb
+  LIBRARIES kuam_payload_cmd
   CATKIN_DEPENDS geometry_msgs mavros_msgs roscpp std_msgs kuam_msgs uav_msgs nav_msgs kuam_mission_manager
 )
 
@@ -54,6 +54,6 @@ include_directories(
   ${EIGEN3_INCLUDE_DIRS}
 )
 
-## offb_node
-add_executable(offb_node src/offb_node.cpp src/offb.cpp src/utils.cpp)
-target_link_libraries(offb_node ${catkin_LIBRARIES})
+## payload_cmd_node
+add_executable(payload_cmd_node src/payload_cmd_node.cpp src/payload_cmd.cpp src/utils.cpp)
+target_link_libraries(payload_cmd_node ${catkin_LIBRARIES})
