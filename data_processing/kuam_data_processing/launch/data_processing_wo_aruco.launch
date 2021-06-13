@@ -1,0 +1,13 @@
+<launch>
+	<arg name="filter_buf_size" default="10"/>
+	<arg name="noise_dist_th_m" default="3.0"/>
+    <arg name="noise_cnt_th" default="20" />
+
+    <!-- - kuam_aruco_tracking - -->
+    <arg name="marker_cnt_th" default="25" />
+
+    <group ns="/kuam/data">
+        <include file="$(find kuam_csv_parser)/launch/csv_parser.launch">
+        </include>
+    </group>
+</launch>

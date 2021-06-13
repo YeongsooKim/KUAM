@@ -2,9 +2,6 @@
     <!-- namespace -->
 	<arg name="data_ns" default="/kuam/data" />
 
-    <!-- common -->
-	<arg name="mode" default="false" />
-
     <!-- state machine -->
 	<arg name="takeoff_alt_m" default="3.0" />
 	<arg name="reached_dist_th_m" default="0.4" />
@@ -23,7 +20,6 @@
 
     <group ns="/kuam/maneuver">
         <include file="$(find kuam_mission_manager)/launch/mission_manager.launch">
-            <arg name="mode" value="$(arg mode)" />
             <arg name="data_ns" value="$(arg data_ns)" />
         </include>
 

@@ -57,7 +57,6 @@ private:
 
     // Param
     float m_process_freq_param;
-    bool m_is_auto_param; // Dictionary
     string m_data_ns_param;
 
     // Flag

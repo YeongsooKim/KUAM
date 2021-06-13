@@ -44,7 +44,6 @@ bool Maneuver::GetParam()
     string nd_name = ros::this_node::getName();
 
     m_nh.getParam(nd_name + "/process_freq", m_process_freq_param);
-    m_nh.getParam(nd_name + "/mode", m_is_auto_param);
     m_nh.getParam(nd_name + "/data_ns", m_data_ns_param);
 
     if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("[mission_manager] m_data_ns_param is missing"); return false; }

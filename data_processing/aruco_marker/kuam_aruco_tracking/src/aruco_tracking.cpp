@@ -18,6 +18,7 @@ const string CAMERA_FRAME = "camera_link";
 ArucoTracking::ArucoTracking() :
     m_process_freq_param(NAN),
     OPENCV_WINDOW("Image window"),
+    m_usb_cam_logging_topic_param("missing"),
     m_calib_path_param("missing"),
     m_detector_params_path_param("missing"),
     m_dictionaryID_param(NAN),
@@ -78,10 +79,12 @@ bool ArucoTracking::GetParam()
     m_nh.getParam(nd_name + "/estimating_method", m_estimating_method_param);
     m_nh.getParam(nd_name + "/compare_mode", m_compare_mode_param);
     m_nh.getParam(nd_name + "/using_gazebo_data", m_using_gazebo_data_param);
+    m_nh.getParam(nd_name + "/using_logging_data", m_using_logging_data_param);
     m_nh.getParam(nd_name + "/noise_dist_th_m", m_noise_dist_th_m_param);
     m_nh.getParam(nd_name + "/noise_cnt_th", m_noise_cnt_th_param);
     m_nh.getParam(nd_name + "/process_freq", m_process_freq_param);
     m_nh.getParam(nd_name + "/marker_cnt_th", m_marker_cnt_th_param);
+    m_nh.getParam(nd_name + "/usb_cam_logging_topic", m_usb_cam_logging_topic_param);
 
     if (m_calib_path_param == "missing") { ROS_ERROR_STREAM("[aruco_tracking] m_calib_path_param is missing"); return false; }
     else if (m_detector_params_path_param == "missing") { ROS_ERROR_STREAM("[aruco_tracking] m_detector_params_path_param is missing"); return false; }
@@ -96,6 +99,7 @@ bool ArucoTracking::GetParam()
     else if (__isnan(m_noise_cnt_th_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_noise_cnt_th_param is NAN"); return false; }
     else if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_process_freq_param is NAN"); return false; }
     else if (__isnan(m_marker_cnt_th_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_marker_cnt_th_param is NAN"); return false; }
+    else if (m_usb_cam_logging_topic_param == "missing") { ROS_ERROR_STREAM("[aruco_tracking] m_usb_cam_logging_topic_param is missing"); return false; }
 
     return true;
 }
@@ -107,7 +111,10 @@ bool ArucoTracking::InitROS()
     string ns_name = ros::this_node::getNamespace();
     string image_topic_name;
     if (m_using_gazebo_data_param) image_topic_name = "/camera/rgb/image_raw";
-    else image_topic_name = ns_name + "/usb_cam/image_rect_color";
+    else {
+        if (m_using_logging_data_param) image_topic_name = m_usb_cam_logging_topic_param;
+        else image_topic_name = ns_name + "/usb_cam/image_rect_color";
+    } 
 
     // Initialize subscriber
     m_image_sub = m_nh.subscribe<sensor_msgs::Image>(image_topic_name, 1, boost::bind(&ArucoTracking::ImageCallback, this, _1));

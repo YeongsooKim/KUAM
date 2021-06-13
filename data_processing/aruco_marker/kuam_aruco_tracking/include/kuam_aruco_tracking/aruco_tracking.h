@@ -108,6 +108,7 @@ private:
     int m_estimating_method_param;
     bool m_compare_mode_param;
     bool m_using_gazebo_data_param;
+    bool m_using_logging_data_param;
     float m_noise_dist_th_m_param;
     float m_noise_cnt_th_param;
     float m_process_freq_param;

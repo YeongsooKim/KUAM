@@ -1,9 +1,5 @@
 #!/bin/bash
 
-roslaunch kuam_data_processing data_processing.launch
-
-#!/bin/bash
-
 if [ "$#" -ne 1 ] && [ "$#" -ne 2 ]; then
     echo "Try 'launch-maneuver_planning.sh -h' for more information."
     exit 0

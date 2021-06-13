@@ -11,8 +11,6 @@
     <arg name="using_logging_data" default="false" />
     <arg name="using_device_data" default="false" />
 
-    <arg name="usb_cam_logging_topic" default="/usb_cam/image_rect_color" if="$(arg using_logging_data)"/>
-
     <group ns="/kuam/data">
         <include file="$(find kuam_csv_parser)/launch/csv_parser.launch">
         </include>
@@ -25,7 +23,6 @@
             <arg name="using_device_data" value="$(arg using_device_data)" />
             <arg name="noise_cnt_th" value="$(arg noise_cnt_th)" />
             <arg name="marker_cnt_th" value="$(arg marker_cnt_th)" />
-            <arg name="usb_cam_logging_topic" value="$(arg usb_cam_logging_topic)" />
         </include>        
     </group>
 </launch>

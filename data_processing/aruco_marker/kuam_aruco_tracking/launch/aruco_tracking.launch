@@ -22,6 +22,8 @@
     <arg name="calib_path" value="$(find kuam_aruco_tracking)/config/calib_sim.txt" unless="$(arg using_device_data)"/>
     <arg name="calib_path" value="$(find kuam_aruco_tracking)/config/calib.txt" if="$(arg using_device_data)"/>
 
+    <arg name="usb_cam_logging_topic" default="/usb_cam/image_rect_color" if="$(arg using_logging_data)"/>
+
     <!-- Estimating method -->
     <!-- 0. Without filter -->
     <!-- 1. Moving average filter -->
@@ -45,9 +47,11 @@
         <param name="compare_mode" value="$(arg compare_mode)" />
         <param name="estimating_method" value="$(arg estimating_method)" />
         <param name="using_gazebo_data" value="$(arg using_gazebo_data)" />
+        <param name="using_logging_data" value="$(arg using_logging_data)" />
         <param name="noise_dist_th_m" value="$(arg noise_dist_th_m)" />
         <param name="noise_cnt_th" value="$(arg noise_cnt_th)" />
         <param name="marker_cnt_th" value="$(arg marker_cnt_th)" />
+        <param name="usb_cam_logging_topic" value="$(arg usb_cam_logging_topic)" />
     </node>
 
     <group if="$(arg using_device_data)">
