@@ -2,7 +2,7 @@
 #include <ros/spinner.h>
 
 #include "uav_msgs/GenerateWaypointState.h"
-#include "uav_msgs/OffboardState.h"
+#include "uav_msgs/PayloadCmd.h"
 #include "uav_msgs/ControlStatus.h"
 
 using namespace std;
@@ -17,7 +17,7 @@ private:
 
     // Initialize subscriber
     ros::Subscriber m_gen_wp_state_sub;
-    ros::Subscriber m_offb_state_sub;
+    ros::Subscriber m_payload_cmd_sub;
 
     // Initialize publisher
     ros::Publisher m_control_status_pub;
@@ -33,7 +33,7 @@ private:
     void CheckerTimerCallback(const ros::TimerEvent& event);
     
     void GenWpStateCallback(const uav_msgs::GenerateWaypointState::ConstPtr &gen_wp_state_ptr);
-    void OffbStateCallback(const uav_msgs::OffboardState::ConstPtr &offb_state_ptr);
+    void PlayloadCmdCallback(const uav_msgs::PayloadCmd::ConstPtr &cmd_ptr);
 };
 
 Checker::Checker()
@@ -52,8 +52,8 @@ void Checker::InitROS()
     // Initialize subscriber
     m_gen_wp_state_sub = 
         m_nh.subscribe<uav_msgs::GenerateWaypointState>("/control/generate_waypoints/gen_wp_state", 10, boost::bind(&Checker::GenWpStateCallback, this, _1));
-    m_offb_state_sub = 
-        m_nh.subscribe<uav_msgs::OffboardState>("/control/offb/offboard_state", 10, boost::bind(&Checker::OffbStateCallback, this, _1));
+    m_payload_cmd_sub = 
+        m_nh.subscribe<uav_msgs::PayloadCmd>("/control/payload_cmd/payload_cmd", 10, boost::bind(&Checker::PlayloadCmdCallback, this, _1));
 
     // Initialize publisher
     m_control_status_pub = m_nh.advertise<uav_msgs::ControlStatus>(nd_name + "/uav_status", 10);
@@ -77,9 +77,9 @@ void Checker::GenWpStateCallback(const uav_msgs::GenerateWaypointState::ConstPtr
     m_control_status.generate_waypoint_state.global_waypoint_position = gen_wp_state_ptr->global_waypoint_position;
 }
 
-void Checker::OffbStateCallback(const uav_msgs::OffboardState::ConstPtr &offb_state_ptr)
+void Checker::PlayloadCmdCallback(const uav_msgs::PayloadCmd::ConstPtr &cmd_ptr)
 {
-    m_control_status.offboard_state.offb_mode = offb_state_ptr->offb_mode;
+    m_control_status.payload_cmd.mode = cmd_ptr->mode;
 }
 
 void Checker::CheckerTimerCallback(const ros::TimerEvent& event)

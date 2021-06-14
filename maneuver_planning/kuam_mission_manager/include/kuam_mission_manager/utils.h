@@ -48,6 +48,7 @@ public:
     bool IsNan(geometry_msgs::Point point);
     bool IsNan(geographic_msgs::GeoPoint point);
     bool IsNan(tf2::Quaternion q);
+    geometry_msgs::Quaternion GetOrientation(geometry_msgs::Point src_pos, geometry_msgs::Point trg_pos);
     geometry_msgs::Pose ConvertToMapFrame(double lat, double lon, double hgt, geographic_msgs::GeoPoint home_position);
     double FnKappaLat(double dRef_Latitude, double dHeight);
     double FnKappaLon(double dRef_Latitude, double dHeight);

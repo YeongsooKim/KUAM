@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- shell script -->
+    <arg name="simulation" default="false" />
+    <arg name="airsim" default="false" />
+    <arg name="gazebo" default="false" />
+    <group if="$(arg simulation)">
+		<param name="use_sim_time" value="true" />
+	</group>
+
+    <!-- mavros px4 -->
+    <arg name="fcu_url" default="/dev/ttyACM0:57600"/>
+    <!-- <arg name="fcu_url" default="/dev/ttyPixhawk"/> -->
+
+    <!-- payload_cmd_node  -->
+	<arg name="process_freq" default="30.0" />
+	<arg name="maneuver_ns" default="/kuam/maneuver" />
+
+    <group unless="$(arg simulation)">
+        <include file="$(find mavros)/launch/px4.launch">
+            <arg name="fcu_url" value="$(arg fcu_url)"/>
+        </include>
+    </group>
+    
+    <group if="$(arg gazebo)">
+        <include file="$(find px4)/launch/mavros_posix_sitl.launch"/>
+    </group>
+
+    <group ns="/kuam/maneuver">
+        <node pkg="kuam_payload_cmd" type="payload_cmd_node" name="payload_cmd" output="screen">
+            <param name="process_freq" value="$(arg process_freq)" />
+            <param name="maneuver_ns" value="$(arg maneuver_ns)" />
+        </node>
+    </group>
+</launch>

@@ -1,0 +1,102 @@
+<launch>
+
+<!-- oCam-5CCRO-U-M info -->
+<!-- ioctl: VIDIOC_ENUM_FMT -->
+	<!-- Index       : 0 -->
+	<!-- Type        : Video Capture -->
+	<!-- Pixel Format: 'YUYV' -->
+	<!-- Name        : YUYV 4:2:2 -->
+		<!-- Size: Discrete 1920x1080 -->
+			<!-- Interval: Discrete 0.033s (30.000 fps) -->
+			<!-- Interval: Discrete 0.067s (15.000 fps) -->
+			<!-- Interval: Discrete 0.133s (7.500 fps) -->
+		<!-- Size: Discrete 2592x1944 -->
+			<!-- Interval: Discrete 0.067s (15.000 fps) -->
+			<!-- Interval: Discrete 0.133s (7.500 fps) -->
+			<!-- Interval: Discrete 0.267s (3.750 fps) -->
+		<!-- Size: Discrete 1280x720 -->
+			<!-- Interval: Discrete 0.017s (60.000 fps) -->
+			<!-- Interval: Discrete 0.033s (30.000 fps) -->
+			<!-- Interval: Discrete 0.067s (15.000 fps) -->
+		<!-- Size: Discrete 640x480 -->
+			<!-- Interval: Discrete 0.011s (90.000 fps) -->
+			<!-- Interval: Discrete 0.017s (60.000 fps) -->
+			<!-- Interval: Discrete 0.033s (30.000 fps) -->
+		<!-- Size: Discrete 1280x960 -->
+			<!-- Interval: Discrete 0.022s (45.000 fps) -->
+			<!-- Interval: Discrete 0.033s (30.000 fps) -->
+			<!-- Interval: Discrete 0.067s (15.000 fps) -->
+		<!-- Size: Discrete 320x240 -->
+			<!-- Interval: Discrete 0.008s (120.000 fps) -->
+			<!-- Interval: Discrete 0.010s (100.000 fps) -->
+			<!-- Interval: Discrete 0.011s (90.000 fps) -->
+			<!-- Interval: Discrete 0.017s (60.000 fps) -->
+			<!-- Interval: Discrete 0.033s (30.000 fps) -->
+
+    <!-- // grab the parameters -->
+    <!-- node_.param("video_device", video_device_name_, std::string("/dev/video0")); -->
+    <!-- node_.param("brightness", brightness_, -1); //0-255, -1 "leave alone" -->
+    <!-- node_.param("contrast", contrast_, -1); //0-255, -1 "leave alone" -->
+    <!-- node_.param("saturation", saturation_, -1); //0-255, -1 "leave alone" -->
+    <!-- node_.param("sharpness", sharpness_, -1); //0-255, -1 "leave alone" -->
+
+    <!-- // possible values: mmap, read, userptr -->
+    <!-- node_.param("io_method", io_method_name_, std::string("mmap")); -->
+    <!-- node_.param("image_width", image_width_, 640); -->
+    <!-- node_.param("image_height", image_height_, 480); -->
+    <!-- node_.param("framerate", framerate_, 30); -->
+
+    <!-- // possible values: yuyv, uyvy, mjpeg, yuvmono10, rgb24 -->
+    <!-- node_.param("pixel_format", pixel_format_name_, std::string("yuyv")); -->
+
+    <!-- // enable/disable autofocus -->
+    <!-- node_.param("autofocus", autofocus_, false); -->
+    <!-- node_.param("focus", focus_, -1); //0-255, -1 "leave alone" -->
+
+    <!-- // enable/disable autoexposure -->
+    <!-- node_.param("autoexposure", autoexposure_, true); -->
+    <!-- node_.param("exposure", exposure_, 100); -->
+    <!-- node_.param("gain", gain_, -1); //0-100?, -1 "leave alone" -->
+
+    <!-- // enable/disable auto white balance temperature -->
+    <!-- node_.param("auto_white_balance", auto_white_balance_, true); -->
+    <!-- node_.param("white_balance", white_balance_, 4000); -->
+
+    <!-- // load the camera info
+    node_.param("camera_frame_id", img_.header.frame_id, std::string("head_camera"));
+    node_.param("camera_name", camera_name_, std::string("head_camera"));
+    node_.param("camera_info_url", camera_info_url_, std::string("")); -->
+  <group ns="usb_cam">
+    <node pkg="image_proc" type="image_proc" name="image_proc" />
+  </group>
+
+	<node pkg="kuam_usb_cam" type="kuam_usb_cam_node" name="usb_cam" output="screen">
+    <param name="video_device" value="/dev/video2" />
+    <param name="brightness" value="0"/>
+    <param name="contrast" value="50"/>
+    <param name="saturation" value="255"/>
+    <param name="sharpness" value="0"/>
+
+    <param name="pixel_format" value="yuyv" />
+
+    <param name="autofocus" value="false" />
+    <param name="focus" value="51" />
+
+    <param name="camera_frame_id" value="usb_cam" />
+    <param name="io_method" value="mmap"/>
+    <param name="image_width" value="640" />
+    <param name="image_height" value="480" />
+    <param name="framerate" value="30" />
+
+    <param name="autoexposure" value="false" />
+    <param name="exposure" value="100" />
+    <param name="gain" value="-1" />
+
+    <param name="auto_white_balance" value="false" />
+    <param name="white_balance" value="4000" />
+
+    <param name="camera_frame_id" value="head_camera" />
+    <param name="camera_name" value="head_camera" />
+    <param name="camera_info_url" value="file://$(find kuam_usb_cam)/config/head_camera.yaml" />
+  </node>
+</launch>

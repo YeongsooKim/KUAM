@@ -3,10 +3,8 @@
 import rospy
 import tf2_ros
 import tf2_geometry_msgs
+import copy
 from enum import Enum
-from tf.transformations import euler_from_quaternion, quaternion_from_euler
-from math import pi
-from math import tan
 
 # Smach
 import smach
@@ -14,19 +12,20 @@ from smach_ros import IntrospectionServer
 from smach import CBState
 
 # Message
-from std_msgs.msg import String
-from std_msgs.msg import ColorRGBA
 from sensor_msgs.msg import BatteryState
+from sensor_msgs.msg import NavSatFix
 from uav_msgs.msg import Chat
+from kuam_msgs.msg import TransReq
+from kuam_msgs.msg import Mode
 from kuam_msgs.msg import Task
 from kuam_msgs.msg import Setpoint
-from kuam_msgs.msg import MarkerState
+from kuam_msgs.msg import ArucoState
 from kuam_msgs.msg import LandingState
+from geographic_msgs.msg import GeoPose
+from geographic_msgs.msg import GeoPath
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PoseArray
-from geometry_msgs.msg import Point
-from geographic_msgs.msg import GeoPose
-from mavros_msgs.msg import State
+from geometry_msgs.msg import TwistStamped
 from visualization_msgs.msg import Marker,MarkerArray
 
 # State
@@ -67,9 +66,8 @@ class SMMode(Enum):
 Parameters. Defined by ros param
 '''
 freq_ = 1.0 
-virtual_border_angle_ = [10, 20]
 battery_th_ = 5.0
-
+alt_offset_m_ = 0.0
 
 '''
 State Machines
@@ -92,216 +90,26 @@ state_transitions_ = []
 mode_transitions_ = 'manual'
 prev_mode_transitions_ = 'manual'
 
-#
+# Etc
 setpoints_ = None
-tfBuffer_ = None
-listener_ = None
+prev_kuam_mode_ = "none"
+cur_px4_mode_ = "none"
+prev_px4_mode_ = "none"
+gps_home_alt_m_ = None
+standby_geopose_ = GeoPose()
 
+# Flag
+is_init_gps_alt_ = False
 
 '''
 Util functions
 '''
-def DoTransition():
-    cur_state = sm_offb_.get_active_states()[0]
-
-    if (len(state_transitions_) > 0) and (cur_state != 'None'):
-        trans = state_transitions_.pop(0)
-        offb_states_[OffbState[cur_state]].setpoints = setpoints_
-        offb_states_[OffbState[cur_state]].transition = trans
-
 def GetSMStatus():
-    cur_mode = sm_mode_.get_active_states()[0]
+    cur_kuam_mode = sm_mode_.get_active_states()[0]
     cur_state = sm_offb_.get_active_states()[0]
 
-    return [cur_mode, cur_state]
+    return [cur_kuam_mode, cur_state]
 
-def IsValid(pose_stamped):
-    x = pose_stamped.pose.position.x
-    y = pose_stamped.pose.position.y
-    z = pose_stamped.pose.position.z
-
-    if (x>1e+100) or (x<-1e+100):
-        return False
-    if (y>1e+100) or (y<-1e+100):
-        return False
-    if (z>1e+100) or (z<-1e+100):
-        return False
-    return True
-
-def VirtualBoderPub(pose):
-    marker_array = MarkerArray()
-    red = ColorRGBA(1.0, 0.0, 0.0, 1.0)
-    green = ColorRGBA(0.0, 1.0, 0.0, 1.0)
-    blue = ColorRGBA(0.0, 0.0, 1.0, 1.0)
-
-    # Cube
-    MARGIN = 1.0 # meter
-    cube_centroid = Point()
-    cube_centroid.x = pose.position.x
-    cube_centroid.y = pose.position.y
-    cube_centroid.z = pose.position.z/2
-    
-    z_scale = pose.position.z + MARGIN
-    
-    yaw_rad = GetYawRad(pose)
-
-    qaut = quaternion_from_euler(0.0, 0.0, yaw_rad)
-    cube_marker = Marker()
-    cube_marker.ns = "virtual_boder_cube"
-    cube_marker.header.frame_id = "map"
-    cube_marker.type = cube_marker.CUBE
-    cube_marker.action = cube_marker.ADD
-
-    cube_marker.scale.x = BorderEdgeSize(pose)
-    cube_marker.scale.y = BorderEdgeSize(pose)
-    cube_marker.scale.z = z_scale
-    a = ColorRGBA()
-    cube_marker.color = red
-    cube_marker.color.a = 0.4
-    cube_marker.pose.orientation.x = qaut[0]
-    cube_marker.pose.orientation.y = qaut[1]
-    cube_marker.pose.orientation.z = qaut[2]
-    cube_marker.pose.orientation.w = qaut[3]
-    cube_marker.pose.position = cube_centroid
-    marker_array.markers.append(cube_marker)
-
-    # Cube
-    gt_marker = Marker()
-    gt_marker.ns = "ground_truth"
-    gt_marker.id = 0
-    gt_marker.header.frame_id = "map"
-    gt_marker.type = gt_marker.CUBE
-    gt_marker.action = gt_marker.ADD
-
-    gt_marker.scale.x = 0.2
-    gt_marker.scale.y = 0.2
-    gt_marker.scale.z = 0.01
-    a = ColorRGBA()
-    gt_marker.color = blue
-    gt_marker.color.a = 1.0
-    gt_marker.pose.orientation.x = 0.0
-    gt_marker.pose.orientation.y = 0.0
-    gt_marker.pose.orientation.z = 0.0
-    gt_marker.pose.orientation.w = 1.0
-    gt_marker.pose.position.x = 2.6600
-    gt_marker.pose.position.y = -2.2974
-    gt_marker.pose.position.z = 0.0
-    marker_array.markers.append(gt_marker)
-
-
-    # Cube
-    gt_marker = Marker()
-    gt_marker.ns = "ground_truth"
-    gt_marker.id = 1
-    gt_marker.header.frame_id = "map"
-    gt_marker.type = gt_marker.CUBE
-    gt_marker.action = gt_marker.ADD
-
-    gt_marker.scale.x = 0.06
-    gt_marker.scale.y = 0.06
-    gt_marker.scale.z = 0.01
-    a = ColorRGBA()
-    gt_marker.color = blue
-    gt_marker.color.a = 1.0
-    gt_marker.pose.orientation.x = 0.0
-    gt_marker.pose.orientation.y = 0.0
-    gt_marker.pose.orientation.z = 0.0
-    gt_marker.pose.orientation.w = 1.0
-    gt_marker.pose.position.x = 2.8
-    gt_marker.pose.position.y = -2.5
-    gt_marker.pose.position.z = 0.0
-    marker_array.markers.append(gt_marker)
-
-    # Line strip
-    line_centroid = Point()
-    line_centroid.x = pose.position.x
-    line_centroid.y = pose.position.y
-    line_centroid.z = 0.0
-
-    line_marker = Marker()
-    line_marker.ns = "vitual_border_edge"
-    line_marker.header.frame_id = "map"
-    line_marker.type = line_marker.LINE_STRIP
-    line_marker.action = line_marker.ADD
-
-    line_marker.scale.x = 0.1
-
-    line_marker.color = green
-    a = Point()
-    b = Point()
-    c = Point()
-    d = Point()
-    e = Point()
-    a.x = 0.0
-    a.y = 0.0
-    b.x = 1.0
-    b.y = 0.0
-    c.x = 1.0
-    c.y = 1.0
-    d.x = 0.0
-    d.y = 1.0
-    e.x = 0.0
-    e.y = 0.0
-    line_marker.points.append(a)
-    line_marker.points.append(b)
-    line_marker.points.append(c)
-    line_marker.points.append(d)
-    line_marker.points.append(e)
-    
-    line_marker.pose.orientation.x = qaut[0]
-    line_marker.pose.orientation.y = qaut[1]
-    line_marker.pose.orientation.z = qaut[2]
-    line_marker.pose.orientation.w = qaut[3]
-    line_marker.pose.position = line_centroid
-    marker_array.markers.append(line_marker)
-    marker_pub.publish(marker_array)
-
-def BorderEdgeSize(pose):
-    h = pose.position.z
-    
-    edge = 2*h*tan(virtual_border_angle_[0])
-    if edge > 10.0:
-        edge = 10.0
-
-    return edge
-
-# def BoderVertex(pose):
-#     size = BorderEdgeSize(pose)
-#     half_size = size/2.0
-
-#     transform_stamped = TransformStamped()
-#     transform_stamped.header.frame_id = 'map'
-#     transform_stamped.header.stamp = rospy.Time.now()
-#     transform_stamped.child_frame_id = 'base_link'
-#     transform_stamped.transform.rotation = pose.orientation
-
-#     l_top = pose.position
-#     r_top = 
-#     l_bot = 
-#     r_bot = 
-
-    # is_transformed = False
-    # try:
-    #     transform_stamped = tfBuffer_.lookup_transform('map', 'base_link', rospy.Time())
-    #     is_transformed = True
-    # except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-    #     pass
-
-    
-
-    # pose_transformed = tf2_geometry_msgs.do_transform_pose(msg_pose_stamped, transform)
-    # offb_states_[OffbState.LANDING].target_pose = pose_transformed.pose
-
-
-
-
-def GetYawRad(pose):
-    orientation = pose.orientation
-    euler = euler_from_quaternion([orientation.x, orientation.y, orientation.z, orientation.w])
-    yaw_rad = euler[2]
-    # yaw_deg = yaw_rad*180.0/pi
-
-    return yaw_rad
 
 '''
 Callback functions
@@ -309,54 +117,67 @@ Callback functions
 def TaskCB(msg):
     state_transitions_.append(msg.task)
     global setpoints_
-    setpoints_ = msg.pose_array
+    setpoints_ = msg.geopath
 
 def ModeCB(msg):
     global mode_transitions_
     global prev_mode_transitions_
-    mode_transitions_ = msg.data
-
-    cur_mode = sm_mode_.get_active_states()[0]
-    if cur_mode == 'OFFBOARD':
-        cur_state = sm_offb_.get_active_states()[0]
-        offb_states_[OffbState[cur_state]].transition = mode_transitions_
-        prev_mode_transitions_ = mode_transitions_
+    global cur_px4_mode_
+    # mode update
+    mode_transitions_ = msg.kuam
+    cur_px4_mode_ = msg.px4
+    
+    # Check state machine mode change
+    cur_kuam_mode, cur_state = GetSMStatus()
+    if (cur_kuam_mode == 'OFFBOARD') and (cur_state != 'None'):
+        if (mode_transitions_ == 'manual') or (mode_transitions_ == 'emerg'):
+            offb_states_[OffbState[cur_state]].transition = mode_transitions_
+            prev_mode_transitions_ = mode_transitions_
+        else:
+            mode_transitions_ = prev_mode_transitions_
 
 def EgoLocalPoseCB(msg):
     for state in offb_states_.values():
-        state.ego_pose = msg.pose
-
-def MarkerCB(msg):
-    offb_states_[OffbState.LANDING].target_id = msg.id
-
-    if msg.is_detected == True:
-        msg_pose_stamped = PoseStamped()
-        msg_pose_stamped.header = msg.header
-        msg_pose_stamped.pose = msg.pose
-        # transform from camera_link to map
-        is_transformed = False
         try:
-            transform = tfBuffer_.lookup_transform('map', msg_pose_stamped.header.frame_id, rospy.Time())
-            is_transformed = True
-        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+            state.ego_pose = msg.pose
+        except:
             pass
 
-        if is_transformed == True:
-            pose_transformed = tf2_geometry_msgs.do_transform_pose(msg_pose_stamped, transform)
-            if IsValid(pose_transformed):
-                offb_states_[OffbState.LANDING].is_detected = True
-                offb_states_[OffbState.LANDING].target_pose = pose_transformed.pose
-                target_pose_pub.publish(pose_transformed)
-            else:
-                offb_states_[OffbState.LANDING].is_detected = False
+def EgoGlobalPoseCB(msg):
+    global gps_home_alt_m_
+    global is_init_gps_alt_
+    if is_init_gps_alt_ == False:
+        is_init_gps_alt_ = True
+
+        gps_home_alt_m_ = msg.altitude
+
+    global standby_geopose_
+    standby_geopose_.position.longitude = msg.longitude
+    standby_geopose_.position.latitude = msg.latitude
+    standby_geopose_.position.altitude = 0.0
+
+    for state in offb_states_.values():
+        try:
+            state.ego_geopose.position.longitude = msg.longitude
+            state.ego_geopose.position.latitude = msg.latitude
+            state.ego_geopose.position.altitude = state.ego_pose.position.z
+        except:
+            pass
+
+def EgoVelCB(msg):
+    for state in offb_states_.values():
+        try:
+            state.ego_vel = msg.twist
+        except:
+            pass
 
 def CommandCB(msg):
     if msg.msg == "local_z":
         alt = msg.point.z
-        cur_mode, cur_state = GetSMStatus()
+        cur_kuam_mode, cur_state = GetSMStatus()
 
-        if (cur_mode == "OFFBOARD") and (cur_state == "HOVERING"):
-            offb_states_[OffbState[cur_state]].setpoint.pose.position.z = alt
+        if (cur_kuam_mode == "OFFBOARD") and (cur_state == "HOVERING"):
+            offb_states_[OffbState[cur_state]].setpoint.geopose.position.z = alt
 
 def BatteryCB(msg):
     global mode_transitions_
@@ -367,26 +188,126 @@ def BatteryCB(msg):
     if percentage < battery_th_:
         mode_transitions_ = 'emerg'
 
-        cur_mode = sm_mode_.get_active_states()[0]
-        if cur_mode == 'OFFBOARD':
-            cur_state = sm_offb_.get_active_states()[0]
+        cur_kuam_mode, cur_state = GetSMStatus()
+        if (cur_kuam_mode == 'OFFBOARD') and (cur_state != 'None'):
             offb_states_[OffbState[cur_state]].transition = mode_transitions_
             prev_mode_transitions_ = mode_transitions_
 
+
+'''
+Process functions
+'''
+def DoTransition():
+    cur_kuam_mode, cur_state = GetSMStatus()
+
+    if (len(state_transitions_) > 0) and (cur_kuam_mode == 'OFFBOARD') and (cur_state != 'None'):
+        trans = state_transitions_.pop(0)
+        offb_states_[OffbState[cur_state]].setpoints = setpoints_
+        offb_states_[OffbState[cur_state]].transition = trans
+
+def SetpointPub():
+    # Publish setpoint
+    cur_kuam_mode, cur_state = GetSMStatus()
+    geopose = GeoPose()
+    vel = Twist()
+
+    landing_state = LandingState()
+    if cur_kuam_mode == "OFFBOARD" and cur_state != "None":
+        geopose = copy.deepcopy(offb_states_[OffbState[cur_state]].setpoint.geopose)
+        vel = copy.deepcopy(offb_states_[OffbState[cur_state]].setpoint.vel)
+        if cur_state == "LANDING":
+            landing_state = offb_states_[OffbState[cur_state]].landing_state
+        else:
+            landing_state.is_detected = False
+            landing_state.is_land = False
+    else:
+        global standby_geopose_
+        geopose.position = copy.deepcopy(standby_geopose_.position)
+        landing_state.is_detected = False
+        landing_state.is_land = False
+
+    if is_init_gps_alt_ == True:
+        msg = Setpoint()
+        if cur_state == "LANDING":
+            msg.header.frame_id = "base_link"
+            msg.header.stamp = rospy.Time.now()
+            msg.vel = vel
+            msg.landing_state = landing_state
+            msg.is_global = False
+            is_valid = True
+        else:
+            if geopose.position.latitude == 0 or geopose.position.longitude == 0:
+                is_valid = False
+            else:
+                is_valid = True
+
+                global gps_home_alt_m_
+                msg.header.frame_id = "map"
+                msg.header.stamp = rospy.Time.now()
+                msg.geopose = geopose
+                msg.height = msg.geopose.position.altitude
+                msg.geopose.position.altitude += (gps_home_alt_m_ - alt_offset_m_)
+                msg.is_global = True
+
+        if is_valid:
+            setpoint_pub.publish(msg)
+
+            for state in offb_states_.values():
+                try:
+                    msg.geopose.position.altitude = msg.height
+                    state.setpoint = copy.deepcopy(msg)
+                except:
+                    pass
+
+def TransRequest():
+    global prev_kuam_mode_
+    global cur_px4_mode_
+    global prev_px4_mode_
+    cur_kuam_mode, cur_state = GetSMStatus()
+
+    is_kuam_mode_changed = False
+    if cur_kuam_mode != prev_kuam_mode_:
+        is_kuam_mode_changed = True
+
+    is_px4_mode_changed = False
+    if cur_px4_mode_ != prev_px4_mode_:
+        is_px4_mode_changed = True
+
+    is_request = False
+    if is_kuam_mode_changed:
+        is_request = True
+    else:
+        if cur_kuam_mode == "MANUAL":
+            if cur_px4_mode_ != "OFFBOARD" and cur_px4_mode_ != "EMERG":
+                is_request = True
+        elif cur_kuam_mode == "OFFBOARD" and cur_state != "None":
+            if cur_px4_mode_ != "MANUAL" and cur_px4_mode_ != "EMERG":
+                is_request = True
+        elif cur_kuam_mode == "EMERG":
+            if cur_px4_mode_ != "MANUAL" and cur_px4_mode_ != "OFFBOARD":
+                is_request = True
+
+    if is_request:
+        prev_kuam_mode_ = cur_kuam_mode
+        prev_px4_mode_ = cur_px4_mode_
+
+        trans_req_msg = TransReq()
+        trans_req_msg.mode.kuam = cur_kuam_mode
+        trans_req_msg.mode.px4 = cur_px4_mode_
+        trans_req_msg.state = cur_state
+        trans_req_pub.publish(trans_req_msg)
+
+def MarkerPub():
+    cur_kuam_mode, cur_state = GetSMStatus()
+
+    if (cur_kuam_mode == "OFFBOARD") and (cur_state == "LANDING"):
+        landing_marker_pub.publish(offb_states_[OffbState[cur_state]].marker_array)
+
 def ProcessCB(timer):
-    # Do transition
     DoTransition()
-
-    # Publish
-    cur_mode, cur_state = GetSMStatus()
-    mode_pub.publish(cur_mode)
-    state_pub.publish(cur_state)
-
-    if (cur_state != 'None'):
-        VirtualBoderPub(offb_states_[OffbState[cur_state]].ego_pose)
-
-        setpoint_pub.publish(offb_states_[OffbState[cur_state]].setpoint)
-        setpoints_pub.publish(offb_states_[OffbState[cur_state]].setpoints)
+    TransRequest()
+    SetpointPub()
+    MarkerPub()
 
 
 '''
@@ -395,8 +316,15 @@ Smach callback function
 # define state MANUAL
 @smach.cb_interface(input_keys=[], output_keys=[], outcomes=['offboard', 'finished'])
 def ManualCB(userdata):
+    ''' 
+    Start
+    '''
     global prev_mode_transitions_
     global mode_transitions_
+
+    '''
+    Running
+    '''
     rate = rospy.Rate(freq_)
     while not rospy.is_shutdown():
         # Break condition
@@ -405,106 +333,137 @@ def ManualCB(userdata):
         else:
             mode_transitions_ = prev_mode_transitions_
 
+        # Update request px4 mode
         rate.sleep()
 
+    '''
+    Terminate
+    '''
     prev_mode_transitions_ = mode_transitions_        
     return mode_transitions_
 
 # define state EMERG
-@smach.cb_interface(input_keys=[], output_keys=[], outcomes=['emerg'])
+@smach.cb_interface(input_keys=[], output_keys=[], outcomes=['manual'])
 def EmergCB(userdata):
+    '''
+    Start
+    '''
     global prev_mode_transitions_
     global mode_transitions_
+
+    '''
+    Running
+    '''
     rate = rospy.Rate(freq_)
     while not rospy.is_shutdown():
         # Break condition
-        if mode_transitions_ == 'emerg':
+        if mode_transitions_ == 'manual':
             break
         else:
             mode_transitions_ = prev_mode_transitions_
 
         rate.sleep()
 
+    '''
+    Terminate
+    '''
     prev_mode_transitions_ = mode_transitions_
     return mode_transitions_
                     
 if __name__ == '__main__':
-    rospy.init_node('state_machine')
+    rospy.init_node('state_machine', disable_signals=False)
+    	
     nd_name = rospy.get_name()
     ns_name = rospy.get_namespace()
+
+    offb_states_[OffbState.LANDING].tfBuffer = tf2_ros.Buffer()
+    offb_states_[OffbState.LANDING].listener = tf2_ros.TransformListener(offb_states_[OffbState.LANDING].tfBuffer)
 
     '''
     Initialize Parameters
     '''
     freq_ = rospy.get_param(nd_name + "/freq")
     takeoff_alt_m = rospy.get_param(nd_name + "/takeoff_alt_m")
-    dist_thresh_m = rospy.get_param(nd_name + "/reached_dist_th_m")
+    reachied_dist_th_m = rospy.get_param(nd_name + "/reached_dist_th_m")
     guidance_dist_th_m = rospy.get_param(nd_name + "/guidance_dist_th_m")
     data_ns = rospy.get_param(nd_name + "/data_ns")
-    target_marker_id = rospy.get_param(nd_name + "/target_marker_id")
     landing_threshold_m = rospy.get_param(nd_name + "/landing_threshold_m")
     landing_standby_alt_m = rospy.get_param(nd_name + "/landing_standby_alt_m")
+    standby_dist_th_m = rospy.get_param(nd_name + "/standby_dist_th_m")
     battery_th_ = rospy.get_param(nd_name + "/battery_th_per")
+    virtual_border_max_side_m = rospy.get_param(nd_name + "/virtual_border_max_side_m")
+    virtual_border_angle_0_deg = rospy.get_param(nd_name + "/virtual_border_angle_0_deg")
+    virtual_border_angle_1_deg = rospy.get_param(nd_name + "/virtual_border_angle_1_deg")
+    alt_division_m = rospy.get_param(nd_name + "/alt_division_m")
+    alt_offset_m_ = rospy.get_param(nd_name + "/alt_offset_m")
+    landing_duration_s = rospy.get_param(nd_name + "/landing_duration_s")
+    using_aruco = rospy.get_param(nd_name + "/using_aruco")
 
     for state in offb_states_.values():
-        state.freq = freq_
+        try:
+            state.freq = freq_
+        except:
+            cur_kuam_mode, cur_state = GetSMStatus()
+            rospy.logerr("Fail init %s freq" %(cur_state))
 
     offb_states_[OffbState.TAKEOFF].takeoff_alt_m = takeoff_alt_m
-    offb_states_[OffbState.TAKEOFF].dist_thresh_m = dist_thresh_m
-    offb_states_[OffbState.FLIGHT].dist_thresh_m = dist_thresh_m
+    offb_states_[OffbState.TAKEOFF].reachied_dist_th_m = reachied_dist_th_m
+    offb_states_[OffbState.FLIGHT].reachied_dist_th_m = reachied_dist_th_m
     offb_states_[OffbState.FLIGHT].guidance_dist_th_m = guidance_dist_th_m
     offb_states_[OffbState.LANDING].landing_threshold_m = landing_threshold_m
     offb_states_[OffbState.LANDING].landing_standby_alt_m = landing_standby_alt_m
+    offb_states_[OffbState.LANDING].virtual_border_max_side_m = virtual_border_max_side_m
+    offb_states_[OffbState.LANDING].virtual_border_angle_0_deg = virtual_border_angle_0_deg
+    offb_states_[OffbState.LANDING].virtual_border_angle_1_deg = virtual_border_angle_1_deg
+    offb_states_[OffbState.LANDING].alt_division_m = alt_division_m
+    offb_states_[OffbState.LANDING].standby_dist_th_m = standby_dist_th_m
+    offb_states_[OffbState.LANDING].landing_duration_s = landing_duration_s
+    offb_states_[OffbState.LANDING].using_aruco = using_aruco
 
     '''
     Initialize ROS
     '''
     # Init subcriber
     rospy.Subscriber(ns_name + "mission_manager/task", Task, TaskCB)
-    rospy.Subscriber(ns_name + "mission_manager/mode", String, ModeCB)
+    rospy.Subscriber(ns_name + "mission_manager/mode", Mode, ModeCB)
     rospy.Subscriber("/mavros/local_position/pose", PoseStamped, EgoLocalPoseCB)
-    rospy.Subscriber(data_ns + "/aruco_tracking/target_state", MarkerState, MarkerCB)
+    rospy.Subscriber("/mavros/global_position/global", NavSatFix, EgoGlobalPoseCB)
+    rospy.Subscriber("/mavros/local_position/velocity_body", TwistStamped, EgoVelCB)
+    rospy.Subscriber(data_ns + "/aruco_tracking/target_state", ArucoState, offb_states_[OffbState.LANDING].MarkerCB)
     rospy.Subscriber(data_ns + "/chat/command", Chat, CommandCB)
     rospy.Subscriber("/mavros/battery", BatteryState, BatteryCB)
 
     # Init publisher
-    mode_pub = rospy.Publisher(nd_name + '/mode', String, queue_size=10)
-    state_pub = rospy.Publisher(nd_name + '/state', String, queue_size=10)
     setpoint_pub = rospy.Publisher(nd_name + '/setpoint', Setpoint, queue_size=10)
-    setpoints_pub = rospy.Publisher(nd_name + '/setpoints', PoseArray, queue_size=10)
-    marker_pub = rospy.Publisher(nd_name + '/test_marker', MarkerArray, queue_size=10)
-    landing_state_pub = rospy.Publisher(nd_name + '/landing_state', LandingState, queue_size=10)
-    target_pose_pub = rospy.Publisher(nd_name + '/target_pose', PoseStamped, queue_size=10)
-
-    offb_states_[OffbState.LANDING].landing_state_pub = landing_state_pub
+    trans_req_pub = rospy.Publisher(nd_name + '/trans_request', TransReq, queue_size=10)
+    landing_marker_pub = rospy.Publisher(nd_name + '/landing_marker', MarkerArray, queue_size=10)
 
     # Init timer
     state_machine_timer = rospy.Timer(rospy.Duration(1/freq_), ProcessCB)
-
-    tfBuffer_ = tf2_ros.Buffer()
-    listener_ = tf2_ros.TransformListener(tfBuffer_)
-
+    
     '''
     Initialize and execute State machine
     '''
     # Open the container
     with sm_mode_:
         sm_mode_.userdata.setpoint = Setpoint()
-        sm_mode_.userdata.setpoints = PoseArray()
-        sm_mode_.userdata.geo_setpoint = GeoPose()
+        sm_mode_.userdata.setpoints = GeoPath()
+        sm_mode_.userdata.ego_pose = Pose()
+        sm_mode_.userdata.ego_geopose = GeoPose()
+        sm_mode_.userdata.ego_vel = Twist()
 
         # Add states to the container
         smach.StateMachine.add('MANUAL', CBState(ManualCB),
                                 transitions={'offboard':'OFFBOARD',
                                              'finished':'finished'})
         smach.StateMachine.add('EMERG', CBState(EmergCB),
-                                transitions={'emerg':'EMERG'})
+                                transitions={'manual':'MANUAL'})
 
         # Open the container
         with sm_offb_:
+
             # Add states to the container
             smach.StateMachine.add('STANDBY', offb_states_[OffbState.STANDBY], 
-                                    # transitions={'arm':'ARM'})
                                     transitions={'arm':'ARM',
                                                 'emerg':'emerg',
                                                 'manual':'manual'})
@@ -527,7 +486,8 @@ if __name__ == '__main__':
                                                 'emerg':'emerg',
                                                 'manual':'manual'})
             smach.StateMachine.add('LANDING', offb_states_[OffbState.LANDING], 
-                                    transitions={'emerg':'emerg',
+                                    transitions={'disarm':'STANDBY',
+                                                'emerg':'emerg',
                                                 'manual':'manual'})
 
         smach.StateMachine.add('OFFBOARD', sm_offb_,

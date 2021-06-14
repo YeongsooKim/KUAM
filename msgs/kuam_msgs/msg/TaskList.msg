@@ -1,1 +1,2 @@
-std_msgs/String[] task
+string[] task
+string[] status
