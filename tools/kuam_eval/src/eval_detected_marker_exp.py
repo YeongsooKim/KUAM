@@ -23,6 +23,9 @@ RIGHT_BT = [0.48, -0.48, 0.0]
 LEFT_BT = [-0.48, -0.48, 0.0]
 CENTER = [0.0, 0.0, 0.0]
 
+GT = [LEFT_TOP, RIGHT_TOP, RIGHT_BT, LEFT_BT, CENTER]
+select_ = 0
+
 class Plotting:
     def __init__(self):
         self.err_squar_sums = [0.0, 0.0, 0.0]
@@ -79,9 +82,11 @@ class Plotting:
             time_s = rospy.Time.now()
             elapse = time_s - self.init_time
 
-            err_x = LEFT_TOP[0] - pose_transformed.pose.position.x
-            err_y = LEFT_TOP[1] - pose_transformed.pose.position.y
-            err_z = LEFT_TOP[2] - pose_transformed.pose.position.z
+            global select_
+            gt = GT[select_]
+            err_x = gt[0] - pose_transformed.pose.position.x
+            err_y = gt[1] - pose_transformed.pose.position.y
+            err_z = gt[2] - pose_transformed.pose.position.z
 
             self.time_s.append(elapse.to_sec())
             self.RMSE([err_x, err_y, err_z])
@@ -149,15 +154,21 @@ class Plotting:
 
         return ylim
 
+if __name__ == "__main__":
+    if not len(sys.argv) > 1:
+        raise Exception ("Please input target pos 0:left top, 1: right top, 2: right bottom, 3: left bottom, 4: center")
 
-rospy.init_node('target_pose_eval')
-plotting = Plotting()
+    
+    select_ = int(sys.argv[1])
 
-tfBuffer_ = tf2_ros.Buffer()
-listener_ = tf2_ros.TransformListener(tfBuffer_)
+    rospy.init_node('target_pose_eval')
+    plotting = Plotting()
 
-target_pose_sub = rospy.Subscriber('/kuam/data/aruco_tracking/target_state', ArucoState, plotting.TargetPoseCB)
-cmd_sub = rospy.Subscriber("/kuam/data/chat/command", Chat, plotting.ChatCB)
+    tfBuffer_ = tf2_ros.Buffer()
+    listener_ = tf2_ros.TransformListener(tfBuffer_)
 
-ani = FuncAnimation(plotting.fig, plotting.UdatePlot, init_func=plotting.PlotInit)
-plt.show(block=True) 
+    target_pose_sub = rospy.Subscriber('/kuam/data/aruco_tracking/target_state', ArucoState, plotting.TargetPoseCB)
+    cmd_sub = rospy.Subscriber("/kuam/data/chat/command", Chat, plotting.ChatCB)
+
+    ani = FuncAnimation(plotting.fig, plotting.UdatePlot, init_func=plotting.PlotInit)
+    plt.show(block=True) 
