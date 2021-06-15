@@ -1,11 +1,11 @@
 <launch>
-	<arg name="filter_buf_size" default="10"/>
-	<arg name="noise_dist_th_m" default="3.0"/>
-    <arg name="noise_cnt_th" default="20" />
-
     <!-- - kuam_aruco_tracking - -->
     <arg name="using_aruco" default="true" />
     <arg name="marker_cnt_th" default="25" />
+	<arg name="filter_buf_size" default="10"/>
+	<arg name="noise_dist_th_m" default="3.0"/>
+        <!-- (3/5)*process_frequency -->
+    <arg name="noise_cnt_th" default="6" />
 
         <!-- Select only one data type -->
     <arg name="using_gazebo_data" default="true" />

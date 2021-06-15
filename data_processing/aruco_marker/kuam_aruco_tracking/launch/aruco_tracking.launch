@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
     <!-- aruco_tracking -->
-	<arg name="process_freq" default="30.0" />
+	<arg name="process_freq" default="10.0" />
 	<arg name="is_eval" default="false" />
     
     <arg name="dictionaryID" default="0" />
@@ -33,7 +33,8 @@
     <arg name="estimating_method" default="1" />
 
     <arg name="noise_dist_th_m" default="1.0" />
-    <arg name="noise_cnt_th" default="20" />
+        <!-- (3/5)*process_frequency -->
+    <arg name="noise_cnt_th" default="6" />
 
     <node pkg="kuam_aruco_tracking" type="aruco_tracking_node" name="aruco_tracking" cwd="node" output="screen">
         <param name="process_freq" value="$(arg process_freq)" />

@@ -19,6 +19,7 @@ from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Twist
 from kuam_msgs.msg import LandingState
+from geographic_msgs.msg import GeoPoseStamped
 
 class Landing(smach.State, state.Base):
     def __init__(self):
@@ -59,7 +60,8 @@ class Landing(smach.State, state.Base):
         self.vb_angle_deg = [self.virtual_border_angle_0_deg, self.virtual_border_angle_1_deg]
 
         self.z_traj = []
-        self.cnt = 0
+        self.z_cnt = 0
+        self.standby_cnt = 0
 
         '''
         Change target pose and target id to dictionary when the id is more than two
@@ -75,21 +77,17 @@ class Landing(smach.State, state.Base):
     '''
     def Start(self, userdata):
         # Initialize setpoint
-        self.setpoint = copy.deepcopy(userdata.setpoint)
         self.setpoints = copy.deepcopy(userdata.setpoints)
         self.ego_pose = copy.deepcopy(userdata.ego_pose)
         self.ego_geopose = copy.deepcopy(userdata.ego_geopose)
         self.ego_vel = copy.deepcopy(userdata.ego_vel)
-
-        self.setpoint.pose = copy.deepcopy(self.ego_pose)
-        self.setpoint.vel.linear.x = 0.0
-        self.setpoint.vel.linear.y = 0.0
-        self.setpoint.vel.linear.z = -0.3
+        self.setpoint.geopose = copy.deepcopy(self.setpoints.poses[-1].pose)
 
         geopose = copy.deepcopy(self.setpoints.poses[-1].pose)
         geopose.position.altitude = self.landing_standby_alt_m
-
         self.landing_standby = geopose.position
+        self.GenInitTrajectory(self.ego_pose, self.landing_standby)
+
 
     def Running(self):
         rate = rospy.Rate(self.freq)
@@ -122,6 +120,34 @@ class Landing(smach.State, state.Base):
     '''
     Process functions
     '''
+    def GenInitTrajectory(self, ego_pose, landing_standby):
+        self.standby_cnt = 0
+        init_z = ego_pose.position.z
+        target_alt = landing_standby.altitude
+        target_lon = landing_standby.longitude
+        target_lat = landing_standby.latitude
+        target_vel_ms = 0.3
+
+        interval = init_z - target_alt
+        dt = 1.0/self.freq
+        ds = target_vel_ms*dt
+        n = int(interval/ds)
+
+        del self.setpoints.poses[:]
+        cnt = 0
+        while cnt < n:
+            geopose_stamped = GeoPoseStamped()
+
+            geopose_stamped.header.frame_id = "map"
+            geopose_stamped.header.stamp = rospy.Time.now()
+
+            geopose_stamped.pose.position.latitude = target_lat
+            geopose_stamped.pose.position.longitude = target_lon
+            geopose_stamped.pose.position.altitude = init_z - ds*cnt
+
+            self.setpoints.poses.append(geopose_stamped)
+            cnt += 1
+
     def UpdateVirtualBorder(self):
         # clear marker_array
         del self.marker_array.markers[:]
@@ -182,25 +208,26 @@ class Landing(smach.State, state.Base):
             if self.landing_state.is_detected and self.landing_state.is_pass_landing_standby:
                 if self.is_init_z == False:
                     self.is_init_z = True
+                    self.z_cnt = 0
 
                     dt = 1.0/self.freq
-                    init_z = -(self.target_pose.position.z - 2.0)
+                    init_z = -self.target_pose.position.z
 
-                    cnt = 1
+                    cnt = 0
                     while cnt*dt < self.landing_duration_s:
                         self.z_traj.append(self.Z(cnt*dt, init_z, self.landing_duration_s))
                         cnt += 1
 
                 if self.is_init_z:
                     dt = 1.0/self.freq
-                    init_x = self.target_pose.position.x
-                    init_y = self.target_pose.position.y
-                    duration = self.landing_duration_s - self.cnt*dt
+                    init_x = -self.target_pose.position.x*3.0
+                    init_y = -self.target_pose.position.y*3.0
+                    duration = self.landing_duration_s - self.z_cnt*dt - (self.landing_duration_s/3.0)
 
                     x_traj = []
                     y_traj = []
 
-                    cnt = 1
+                    cnt = 0
                     while cnt*dt < duration:
                         x_traj.append(self.X(cnt*dt, init_x, duration))
                         y_traj.append(self.Y(cnt*dt, init_y, duration))
@@ -213,13 +240,15 @@ class Landing(smach.State, state.Base):
                         self.setpoint.vel.linear.x = 0.0                    
                         self.setpoint.vel.linear.y = 0.0
 
-                    if self.cnt + 1 < len(self.z_traj):
-                        self.setpoint.vel.linear.z = (self.z_traj[self.cnt + 1] - self.z_traj[self.cnt])/dt
-                        self.cnt += 1
-            # else:
-            #     self.setpoint.vel.linear.x = 0.0                    
-            #     self.setpoint.vel.linear.y = 0.0
-            #     self.setpoint.vel.linear.z = 0.0
+                    if self.z_cnt + 1 < len(self.z_traj):
+                        self.setpoint.vel.linear.z = (self.z_traj[self.z_cnt + 1] - self.z_traj[self.z_cnt])/dt
+                        self.z_cnt += 1
+            else:
+                if self.standby_cnt < len(self.setpoints.poses):
+                    self.setpoint.geopose = copy.deepcopy(self.setpoints.poses[self.standby_cnt].pose)
+                    self.standby_cnt += 1
+                else:
+                    self.setpoint.geopose.position = self.landing_standby
 
         # only gps
         else :
@@ -227,7 +256,12 @@ class Landing(smach.State, state.Base):
                 self.setpoint.vel.linear.x = 0.0
                 self.setpoint.vel.linear.y = 0.0
                 self.setpoint.vel.linear.z = -0.3
-
+            else:
+                if self.standby_cnt < len(self.setpoints.poses):
+                    self.setpoint.geopose = copy.deepcopy(self.setpoints.poses[self.standby_cnt].pose)
+                    self.standby_cnt += 1
+                else:
+                    self.setpoint.geopose.position = self.landing_standby
     '''
     Util functions
     '''
@@ -265,13 +299,17 @@ class Landing(smach.State, state.Base):
         return yaw_rad
 
     def X(self, t, init_x, duration):
-        a = -init_x/(duration**2)
-        x = a*(t - duration)**2 + init_x
+        # a = init_x/(duration**2)
+        # x = a*(t - duration)**2
+        a = -1*init_x/duration
+        x = a*(t-duration)
         return x
 
     def Y(self, t, init_y, duration):
-        a = -init_y/(duration**2)
-        y = a*(t - duration)**2 + init_y
+        # a = init_y/(duration**2)
+        # y = a*(t - duration)**2
+        a = -1*init_y/duration
+        y = a*(t-duration)
         return y
 
     def Z(self, t, init_z, duration):

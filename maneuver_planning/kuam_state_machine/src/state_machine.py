@@ -229,12 +229,23 @@ def SetpointPub():
     if is_init_gps_alt_ == True:
         msg = Setpoint()
         if cur_state == "LANDING":
-            msg.header.frame_id = "base_link"
-            msg.header.stamp = rospy.Time.now()
-            msg.vel = vel
-            msg.landing_state = landing_state
-            msg.is_global = False
             is_valid = True
+
+            if offb_states_[OffbState[cur_state]].landing_state.is_pass_landing_standby:
+                msg.header.frame_id = "base_link"
+                msg.header.stamp = rospy.Time.now()
+                msg.vel = vel
+                msg.landing_state = landing_state
+                msg.is_global = False
+            else:
+                global gps_home_alt_m_
+                msg.header.frame_id = "map"
+                msg.header.stamp = rospy.Time.now()
+                msg.geopose = geopose
+                msg.local_height_m = msg.geopose.position.altitude
+                msg.home_altitude_m = gps_home_alt_m_
+                msg.geopose.position.altitude += (gps_home_alt_m_ - alt_offset_m_)
+                msg.is_global = True
         else:
             if geopose.position.latitude == 0 or geopose.position.longitude == 0:
                 is_valid = False

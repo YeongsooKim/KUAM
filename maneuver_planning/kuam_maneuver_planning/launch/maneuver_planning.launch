@@ -2,6 +2,12 @@
     <!-- namespace -->
 	<arg name="data_ns" default="/kuam/data" />
 
+    <!-- tf_broadcaster -->
+    	<!-- Must select only one -->
+	<arg name="is_exp" default="false" />
+	<arg name="is_real" default="false" />
+	<arg name="is_gazebo" default="true" />
+
     <!-- state machine -->
 	<arg name="takeoff_alt_m" default="3.0" />
 	<arg name="reached_dist_th_m" default="0.4" />
@@ -16,7 +22,7 @@
 	<arg name="alt_offset_m" default="23.156" />
 	<!-- <arg name="alt_offset_m" default="0.0" /> -->
 	<arg name="standby_dist_th_m" default="1.5" />
-	<arg name="landing_duration_s" default="80" />
+	<arg name="landing_duration_s" default="100" />
 	<arg name="using_aruco" default="True" />
 
     <group ns="/kuam/maneuver">
@@ -26,6 +32,9 @@
 
         <include file="$(find kuam_mission_manager)/launch/tf_broadcaster.launch">
             <arg name="data_ns" value="$(arg data_ns)" />
+            <arg name="is_exp" value="$(arg is_exp)" />
+            <arg name="is_real" value="$(arg is_real)" />
+            <arg name="is_gazebo" value="$(arg is_gazebo)" />
         </include>
 
         <include file="$(find kuam_state_machine)/launch/state_machine.launch">
