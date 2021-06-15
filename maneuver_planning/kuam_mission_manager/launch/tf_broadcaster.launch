@@ -7,7 +7,7 @@
 	<arg name="data_ns" default="/kuam/data" />
 	<arg name="drone_offset_m" default="0.188" />
 	<arg name="is_experiment_validation" default="false" />
-	<arg name="exp_camera_height_m" default="1.50" />
+	<arg name="exp_camera_height_m" default="1.5" />
 
 	<node pkg="kuam_mission_manager" type="kuam_tf_broadcaster_node" name="tf_broadcaster" output="$(arg output)">
         <param name="process_freq" value="$(arg process_freq)" />

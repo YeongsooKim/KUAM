@@ -303,11 +303,20 @@ bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& 
         }
     }
 
-    sensor_msgs::Image img_msg; // >> message to be sent
-    m_cv_ptr->image = copy_image;
-    m_cv_ptr->header.frame_id = CAMERA_FRAME;
-    img_msg = *m_cv_ptr->toImageMsg();
-    m_image_pub.publish(img_msg); // ros::Publisher pub_img = node.advertise<sensor_msgs::Image>("topic", queuesize);    
+    static unsigned cnt = 0;
+
+    if (is_detected){
+        cnt++;
+
+        if (cnt > 2){
+            cnt = 0;
+            sensor_msgs::Image img_msg; // >> message to be sent
+            m_cv_ptr->image = copy_image;
+            m_cv_ptr->header.frame_id = CAMERA_FRAME;
+            img_msg = *m_cv_ptr->toImageMsg();
+            m_image_pub.publish(img_msg); // ros::Publisher pub_img = node.advertise<sensor_msgs::Image>("topic", queuesize);    
+        }
+    }
 
     return true;
 }

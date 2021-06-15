@@ -7,8 +7,9 @@ from geometry_msgs.msg import Point
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker,MarkerArray
 
-BIG_ARC_POS = Point(6.2933, -6.5594, 0.0)
-SMALL_ARC_POS = Point(6.4333, -6.7594, 0.0)
+BIG_ARC_POS = Point(12.6443, -7.6162, 0.0)
+SMALL_ARC_POS = Point(12.7843, -7.8162, 0.0)
+
 
 # left_top = Point(-0.48, 0.48, 0.0)
 # right_top = Point(0.48, 0.48, 0.0)
