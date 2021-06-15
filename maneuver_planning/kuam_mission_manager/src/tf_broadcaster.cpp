@@ -12,7 +12,7 @@ TfBroadcaster::TfBroadcaster() :
     m_process_freq_param(NAN),
     m_target_height_m_param(NAN),
     m_drone_offset_m_param(NAN),
-    m_camera_alt_m_param(NAN),
+    m_exp_camera_height_m_param(NAN),
     m_data_ns_param("missing")
 {
     InitFlag();
@@ -41,14 +41,14 @@ bool TfBroadcaster::GetParam()
     m_nh.getParam(nd_name + "/target_height_m", m_target_height_m_param);
     m_nh.getParam(nd_name + "/data_ns", m_data_ns_param);
     m_nh.getParam(nd_name + "/drone_offset_m", m_drone_offset_m_param);
-    m_nh.getParam(nd_name + "/camera_alt_m", m_camera_alt_m_param);
     m_nh.getParam(nd_name + "/is_experiment_validation", m_is_experiment_validation_param);
+    m_nh.getParam(nd_name + "/exp_camera_height_m", m_exp_camera_height_m_param);
 
     if (__isnan(m_target_height_m_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_target_height_m_param is NAN"); return false; }
     else if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("[tf_broadcaster] m_data_ns_param is missing"); return false; }
     else if (__isnan(m_drone_offset_m_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_drone_offset_m_param is NAN"); return false; }
     else if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_process_freq_param is NAN"); return false; }
-    else if (__isnan(m_camera_alt_m_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_camera_alt_m_param is NAN"); return false; }
+    else if (__isnan(m_exp_camera_height_m_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_exp_camera_height_m_param is NAN"); return false; }
 
     return true;
 }
@@ -130,10 +130,11 @@ void TfBroadcaster::InitStaticTf(void)
 
         tf_stamped.transform.translation.x = 0.0;
         tf_stamped.transform.translation.y = 0.0;
-        tf_stamped.transform.translation.z = m_camera_alt_m_param;
+        tf_stamped.transform.translation.z = m_exp_camera_height_m_param;
         
         tf2::Quaternion q;
-        q.setRPY(0.0, M_PI, M_PI);
+		q.setRPY(0.0, M_PI, M_PI);
+        //q.setRPY(0.0, M_PI, 0.0);
         tf_stamped.transform.rotation.x = q.x();
         tf_stamped.transform.rotation.y = q.y();
         tf_stamped.transform.rotation.z = q.z();
@@ -203,40 +204,13 @@ void TfBroadcaster::MarkerCallback(const tf2_msgs::TFMessage::ConstPtr &marker_p
 {
     if (marker_ptr->transforms.size() > 0){
         m_marker_cb = true;
-        m_marker_tf_stamped = marker_ptr->transforms[0]; // After get multiple aruco marker, change to select mode
-
-        tf::Quaternion ego_q(
-        m_base_tf_stamped.transform.rotation.x,
-        m_base_tf_stamped.transform.rotation.y,
-        m_base_tf_stamped.transform.rotation.z,
-        m_base_tf_stamped.transform.rotation.w);
-        
-        tf::Matrix3x3 ego_m(ego_q);
-        double ego_roll, ego_pitch, ego_yaw;
-        ego_m.getRPY(ego_roll, ego_pitch, ego_yaw);
+        m_marker_tf_stamped = marker_ptr->transforms[0];
 
         tf::Quaternion marker_q(
         m_marker_tf_stamped.transform.rotation.x,
         m_marker_tf_stamped.transform.rotation.y,
         m_marker_tf_stamped.transform.rotation.z,
         m_marker_tf_stamped.transform.rotation.w);
-        
-        tf::Matrix3x3 marker_m(marker_q);
-        double marker_roll, marker_pitch, marker_yaw;
-        marker_m.getRPY(marker_roll, marker_pitch, marker_yaw);
-        double tmp_r = marker_roll;
-        double tmp_p = marker_pitch;
-        double tmp_w = marker_yaw;
-        marker_roll -= ego_roll;
-        marker_pitch -= ego_pitch;
-        marker_yaw -= ego_yaw;
-
-        tf2::Quaternion q;
-        q.setRPY(marker_roll, marker_pitch, marker_yaw);
-        m_marker_tf_stamped.transform.rotation.x = q.x();
-        m_marker_tf_stamped.transform.rotation.y = q.y();
-        m_marker_tf_stamped.transform.rotation.z = q.z();
-        m_marker_tf_stamped.transform.rotation.w = q.w();
     }
 }
 
