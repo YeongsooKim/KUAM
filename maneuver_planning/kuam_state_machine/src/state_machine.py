@@ -177,7 +177,7 @@ def CommandCB(msg):
         cur_kuam_mode, cur_state = GetSMStatus()
 
         if (cur_kuam_mode == "OFFBOARD") and (cur_state == "HOVERING"):
-            offb_states_[OffbState[cur_state]].setpoint.geopose.position.z = alt
+            offb_states_[OffbState[cur_state]].setpoint.geopose.position.altitude = alt
 
 def BatteryCB(msg):
     global mode_transitions_
@@ -245,7 +245,8 @@ def SetpointPub():
                 msg.header.frame_id = "map"
                 msg.header.stamp = rospy.Time.now()
                 msg.geopose = geopose
-                msg.height = msg.geopose.position.altitude
+                msg.local_height_m = msg.geopose.position.altitude
+                msg.home_altitude_m = gps_home_alt_m_
                 msg.geopose.position.altitude += (gps_home_alt_m_ - alt_offset_m_)
                 msg.is_global = True
 

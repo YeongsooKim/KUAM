@@ -6,6 +6,7 @@
 #include "tf2_ros/transform_listener.h" // tf::quaternion
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
+#include <sensor_msgs/NavSatFix.h>
 #include <kuam_visual/utils.h>
 #include <kuam_aruco_tracking/aruco_tracking.h>
 #include <kuam_msgs/ArucoVisual.h>
@@ -60,7 +61,11 @@ struct TextDatum{
     string cur_state;
     string landing_state;
     string tasklist;
-    string height;
+    string ego_height_m;
+    string home_altitude_m;
+    string setpoint_local_h_m;
+    string ego_global_alt_m;
+    string offset_alt_m;
 };
 
 class KuamVisualizer
@@ -81,7 +86,8 @@ private:
     ros::Subscriber m_home_position_sub;
     ros::Subscriber m_global_waypoints_sub;
     ros::Subscriber m_setpoint_sub;
-    ros::Subscriber m_ego_sub;
+    ros::Subscriber m_local_ego_pose_sub;
+    ros::Subscriber m_global_ego_pos_sub;
     ros::Subscriber m_state_sub;
     ros::Subscriber m_tasklist_sub;
 
@@ -125,7 +131,8 @@ private: // Function
     void HomePositionCallback(const mavros_msgs::HomePosition::ConstPtr &home_ptr);
     void WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr);
     void SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_ptr);
-    void EgoCallback(const geometry_msgs::PoseStamped::ConstPtr &ego_ptr);
+    void EgoLocalPoseCallback(const geometry_msgs::PoseStamped::ConstPtr &ego_ptr);
+    void EgoGlobalPosCallback(const sensor_msgs::NavSatFix::ConstPtr &ego_ptr);
     void StateCallback(const kuam_msgs::TransReq::ConstPtr &state_ptr);
     void TaskListCallback(const kuam_msgs::TaskList::ConstPtr &ego_ptr);
     void TextPubCallback(const ros::TimerEvent& event);
@@ -194,13 +201,15 @@ bool KuamVisualizer::InitROS()
         m_nh.subscribe<kuam_msgs::Waypoints>(m_data_ns_param + "/csv_parser/waypoints", 10, boost::bind(&KuamVisualizer::WaypointsCallback, this, _1));
     m_setpoint_sub = 
         m_nh.subscribe<kuam_msgs::Setpoint>(m_maneuver_ns_param + "/state_machine/setpoint", 10, boost::bind(&KuamVisualizer::SetpointCallback, this, _1));
-    m_ego_sub = 
-        m_nh.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, boost::bind(&KuamVisualizer::EgoCallback, this, _1));
+    m_local_ego_pose_sub = 
+        m_nh.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, boost::bind(&KuamVisualizer::EgoLocalPoseCallback, this, _1));
+    m_global_ego_pos_sub =
+        m_nh.subscribe<sensor_msgs::NavSatFix>("/mavros/global_position/global", 10, boost::bind(&KuamVisualizer::EgoGlobalPosCallback, this, _1));
     m_state_sub =
         m_nh.subscribe<kuam_msgs::TransReq>(m_maneuver_ns_param + "/state_machine/trans_request", 10, boost::bind(&KuamVisualizer::StateCallback, this, _1));
     m_tasklist_sub = 
         m_nh.subscribe<kuam_msgs::TaskList>(m_maneuver_ns_param + "/mission_manager/tasklist", 10, boost::bind(&KuamVisualizer::TaskListCallback, this, _1));
-
+    
     // Initialize publisher
     m_aruco_pub = m_nh.advertise<visualization_msgs::MarkerArray>(nd_name + "/aruco_markerarray", 10);
     m_global_path_pub = m_nh.advertise<visualization_msgs::MarkerArray>(nd_name + "/global_path_markerarray", 10);
@@ -480,6 +489,9 @@ void KuamVisualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpo
 {
     kuam_msgs::Setpoint setpoint = *setpoint_ptr; 
 
+    m_text_datum.home_altitude_m = to_string(setpoint.home_altitude_m);
+    m_text_datum.setpoint_local_h_m = to_string(setpoint.local_height_m);
+
     // Set text marker
     if (setpoint.is_global){
         m_text_datum.coverage = "GPS coverage\n";
@@ -539,7 +551,7 @@ void KuamVisualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpo
         auto geopos = setpoint.geopose.position;
         auto lat = geopos.latitude;
         auto lon = geopos.longitude;
-        auto alt = setpoint.height;
+        auto alt = setpoint.local_height_m;
         auto p = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
         
         float dist = m_utils.Distance3D(p, prev_global_point);
@@ -613,7 +625,7 @@ void KuamVisualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpo
     m_setpoints_pub.publish(visualization_markers);
 }
 
-void KuamVisualizer::EgoCallback(const geometry_msgs::PoseStamped::ConstPtr &ego_ptr)
+void KuamVisualizer::EgoLocalPoseCallback(const geometry_msgs::PoseStamped::ConstPtr &ego_ptr)
 {
     static geometry_msgs::Point prev_pos;
 
@@ -624,10 +636,25 @@ void KuamVisualizer::EgoCallback(const geometry_msgs::PoseStamped::ConstPtr &ego
         prev_pos = p;
     }
 
-    m_text_datum.height = to_string(p.z) + "[m]\n";
+    m_text_datum.ego_height_m = to_string(p.z) + "[m]\n";
     m_ego_pose = *ego_ptr;
 
     m_ego_pub.publish(m_ego_marker);
+}
+
+void KuamVisualizer::EgoGlobalPosCallback(const sensor_msgs::NavSatFix::ConstPtr &ego_ptr)
+{
+    auto ego_global_alt_m = ego_ptr->altitude;
+    float setpoint_local_alt_m;
+    if (m_text_datum.setpoint_local_h_m == "") setpoint_local_alt_m = 0;
+    else setpoint_local_alt_m = stof(m_text_datum.setpoint_local_h_m);
+    float home_altitude_m;
+    if (m_text_datum.home_altitude_m == "") home_altitude_m = 0;
+    else home_altitude_m = stof(m_text_datum.home_altitude_m);
+    m_text_datum.ego_global_alt_m = to_string(ego_global_alt_m);
+
+    float alt_offset_m = ego_global_alt_m - (setpoint_local_alt_m + home_altitude_m);
+    m_text_datum.offset_alt_m = to_string(alt_offset_m);
 }
 
 void KuamVisualizer::StateCallback(const kuam_msgs::TransReq::ConstPtr &state_ptr)
@@ -657,20 +684,26 @@ void KuamVisualizer::TextPubCallback(const ros::TimerEvent& event)
     std_msgs::ColorRGBA bg_color;   bg_color.r = 136.0/255.0;   bg_color.g = 138.0/255.0;   bg_color.b = 133.0/255.0;   bg_color.a = 0.35;
 
     text.width = 350;
-    text.height = 350;
+    text.height = 450;
     text.left = 10;
     text.top = 10;
     text.text_size = 12;
     text.line_width = 2;
     text.font = "DejaVu Sans Mono";
     auto coverage = m_text_datum.coverage;
-    auto height = m_text_datum.height;
+    auto ego_local_height_m = m_text_datum.ego_height_m;
     auto cur_state = m_text_datum.cur_state;
     auto landing_state = m_text_datum.landing_state;
     auto tasklist = m_text_datum.tasklist;
+    auto home_altitude_m =  m_text_datum.home_altitude_m;
+    auto setpoint_local_h_m =  m_text_datum.setpoint_local_h_m;
+    auto offset_alt_m =  m_text_datum.offset_alt_m;
+    auto ego_global_alt_m = m_text_datum.ego_global_alt_m;
     
-    text.text = "Coverage: " + coverage + "\nAltitude: " + height + "\nCurrent state: " + 
-                cur_state + "\nLanding state: " + landing_state + "\nTask list: \n" + tasklist;
+    text.text = "Coverage: " + coverage + "\nLocal altitude: " + ego_local_height_m + "\nCurrent state: " + 
+                cur_state + "\nLanding state: " + landing_state + "\nTask list: \n" + tasklist +
+                "\n---\n\nGlobal altitude: " + ego_global_alt_m + "[m]\nHome altitude: " + home_altitude_m + 
+                "[m]\nLocal setpoint alt: " + setpoint_local_h_m + "[m]\nOffset altitude: " + offset_alt_m + "[m]";
     text.fg_color = fg_color;
     text.bg_color = bg_color;
 
