@@ -160,8 +160,6 @@ if __name__ == '__main__':
     Initialize ROS
     '''
     nd_name_ = rospy.get_name()
-    # Init subcriber
-    # rospy.Subscriber("/mavros/local_position/pose", PoseStamped, EgoPoseCB)
 
     # Init publisher
     kuam_waypoints_pub = rospy.Publisher(nd_name_ + '/waypoints', Waypoints, queue_size=10)

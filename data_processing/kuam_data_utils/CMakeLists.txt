@@ -38,10 +38,6 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-## checker_node
-add_executable(checker_node src/checker_node.cpp)
-target_link_libraries(checker_node ${catkin_LIBRARIES})
-
 ## chat_node
 add_executable(chat_node src/chat_node.cpp)
 target_link_libraries(chat_node ${catkin_LIBRARIES})

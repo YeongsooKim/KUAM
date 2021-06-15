@@ -6,8 +6,16 @@
 	<arg name="target_height_m" default="20" />
 	<arg name="data_ns" default="/kuam/data" />
 	<arg name="drone_offset_m" default="0.188" />
-	<arg name="is_experiment_validation" default="false" />
 	<arg name="exp_camera_height_m" default="1.5" />
+	
+	<!-- Must select only one -->
+	<arg name="is_exp" default="false" />
+	<arg name="is_real" default="false" />
+	<arg name="is_gazebo" default="true" />
+
+	<arg name="extrinsic_imu_to_camera_x" default="12.57" />
+	<arg name="extrinsic_imu_to_camera_y" default="0.0" />
+	<arg name="extrinsic_imu_to_camera_z" default="0.0" />
 
 	<node pkg="kuam_mission_manager" type="kuam_tf_broadcaster_node" name="tf_broadcaster" output="$(arg output)">
         <param name="process_freq" value="$(arg process_freq)" />
@@ -15,7 +23,12 @@
 		<param name="target_height_m" value="$(arg target_height_m)" />
 		<param name="data_ns" value="$(arg data_ns)" />
 		<param name="drone_offset_m" value="$(arg drone_offset_m)" />
-		<param name="is_experiment_validation" value="$(arg is_experiment_validation)" />
+		<param name="is_exp" value="$(arg is_exp)" />
+		<param name="is_real" value="$(arg is_real)" />
+		<param name="is_gazebo" value="$(arg is_gazebo)" />
 		<param name="exp_camera_height_m" value="$(arg exp_camera_height_m)" />
+		<param name="extrinsic_imu_to_camera_x" value="$(arg extrinsic_imu_to_camera_x)" />
+		<param name="extrinsic_imu_to_camera_y" value="$(arg extrinsic_imu_to_camera_y)" />
+		<param name="extrinsic_imu_to_camera_z" value="$(arg extrinsic_imu_to_camera_z)" />
 	</node>
 </launch>
