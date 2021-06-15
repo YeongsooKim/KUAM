@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <string>
 #include <vector>
+#include <boost/format.hpp>
 
 #include <tf/LinearMath/Quaternion.h> // tf::quaternion
 #include "tf2_ros/transform_listener.h" // tf::quaternion
@@ -59,6 +60,7 @@ struct MetaMarkers{
 
 struct TextDatum{
     string coverage;
+    string cur_mode;
     string cur_state;
     string landing_state;
     string tasklist;
@@ -67,6 +69,7 @@ struct TextDatum{
     string setpoint_local_h_m;
     string ego_global_alt_m;
     string offset_alt_m;
+    string battery_per;
 };
 
 class KuamVisualizer
@@ -137,6 +140,7 @@ private: // Function
     void EgoGlobalPosCallback(const sensor_msgs::NavSatFix::ConstPtr &ego_ptr);
     void StateCallback(const kuam_msgs::TransReq::ConstPtr &state_ptr);
     void TaskListCallback(const kuam_msgs::TaskList::ConstPtr &ego_ptr);
+    void BatteryCallback(const sensor_msgs::BatteryState::ConstPtr &battery_ptr);
     void TextPubCallback(const ros::TimerEvent& event);
 };
 
@@ -663,7 +667,17 @@ void KuamVisualizer::EgoGlobalPosCallback(const sensor_msgs::NavSatFix::ConstPtr
 
 void KuamVisualizer::StateCallback(const kuam_msgs::TransReq::ConstPtr &state_ptr)
 {
-    m_text_datum.cur_state = state_ptr->state + "\n";
+    string state = state_ptr->state + "\n";
+    string mode = state_ptr->mode.kuam + "\n";
+    if (mode == "EMERG\n"){
+        m_text_datum.cur_mode = (boost::format("<span style=\"color: rgba(%2%, %3%, %4%, %5%)\">%1%</span>")
+             % mode % 255.0 % 0.0 % 0.0 % 1.0).str();
+    }
+    else{
+        m_text_datum.cur_mode = mode;
+    }
+
+    m_text_datum.cur_state = state;    
 }
 
 void KuamVisualizer::TaskListCallback(const kuam_msgs::TaskList::ConstPtr &tasklist_ptr)
@@ -681,6 +695,25 @@ void KuamVisualizer::TaskListCallback(const kuam_msgs::TaskList::ConstPtr &taskl
     m_text_datum.tasklist = ss.str();
 }
 
+void KuamVisualizer::BatteryCallback(const sensor_msgs::BatteryState::ConstPtr &battery_ptr)
+{
+    string battery_per = to_string(battery_ptr->percentage);
+    if (battery_ptr->percentage == 0.0){
+        m_text_datum.battery_per = "0.0\n";
+    }
+    else if (battery_ptr->percentage < 0.10){
+        m_text_datum.battery_per = (boost::format("<span style=\"color: rgba(%2%, %3%, %4%, %5%)\">%1%</span>")
+             % battery_per % 255.0 % 0.0 % 0.0 % 1.0).str();
+    }
+    else if (battery_ptr->percentage < 0.30){
+        m_text_datum.battery_per = (boost::format("<span style=\"color: rgba(%2%, %3%, %4%, %5%)\">%1%</span>")
+             % battery_per % 255.0 % 204.0 % 0.0 % 1.0).str();
+    }
+    else{
+        m_text_datum.battery_per = battery_per;
+    }
+}
+
 void KuamVisualizer::TextPubCallback(const ros::TimerEvent& event)
 {
     jsk_rviz_plugins::OverlayText text;
@@ -696,6 +729,7 @@ void KuamVisualizer::TextPubCallback(const ros::TimerEvent& event)
     text.font = "DejaVu Sans Mono";
     auto coverage = m_text_datum.coverage;
     auto ego_local_height_m = m_text_datum.ego_height_m;
+    auto cur_mode = m_text_datum.cur_mode;
     auto cur_state = m_text_datum.cur_state;
     auto landing_state = m_text_datum.landing_state;
     auto tasklist = m_text_datum.tasklist;
@@ -703,11 +737,13 @@ void KuamVisualizer::TextPubCallback(const ros::TimerEvent& event)
     auto setpoint_local_h_m =  m_text_datum.setpoint_local_h_m;
     auto offset_alt_m =  m_text_datum.offset_alt_m;
     auto ego_global_alt_m = m_text_datum.ego_global_alt_m;
+    auto battery_per = m_text_datum.battery_per;
     
-    text.text = "Coverage: " + coverage + "\nLocal altitude: " + ego_local_height_m + "\nCurrent state: " + 
-                cur_state + "\nLanding state: " + landing_state + "\nTask list: \n" + tasklist +
+    text.text = "Coverage: " + coverage + "\nLocal altitude: " + ego_local_height_m + "\nCurrent mode: " + cur_mode + 
+                "Current state: " + cur_state + "\nLanding state: " + landing_state + "\nTask list: \n" + tasklist +
                 "\n---\n\nGlobal altitude: " + ego_global_alt_m + "[m]\nHome altitude: " + home_altitude_m + 
-                "[m]\nLocal setpoint alt: " + setpoint_local_h_m + "[m]\nOffset altitude: " + offset_alt_m + "[m]";
+                "[m]\nLocal setpoint alt: " + setpoint_local_h_m + "[m]\nOffset altitude: " + offset_alt_m + "[m]\n" +
+                "\nBattery percentage: " + battery_per;
     text.fg_color = fg_color;
     text.bg_color = bg_color;
 
