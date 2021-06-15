@@ -31,7 +31,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: camera
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -204,21 +204,26 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: 0
-      Class: rviz/TopDownOrtho
+      Class: rviz/ThirdPersonFollower
+      Distance: 19.486068725585938
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
+      Focal Point:
+        X: 0.637385368347168
+        Y: -2.3144240379333496
+        Z: -1.1444091796875e-5
+      Focal Shape Fixed Size: false
+      Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 304.32794189453125
+      Pitch: 0.5703985095024109
       Target Frame: map
-      Value: TopDownOrtho (rviz)
-      X: 0
-      Y: 0
+      Value: ThirdPersonFollower (rviz)
+      Yaw: 0.8754155039787292
     Saved: ~
 Window Geometry:
   Displays:
@@ -237,6 +242,6 @@ Window Geometry:
     collapsed: true
   Width: 927
   X: 993
-  Y: 27
+  Y: 0
   camera:
     collapsed: false

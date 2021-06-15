@@ -23,6 +23,7 @@
 #include <visualization_msgs/Marker.h>
 #include <mavros_msgs/HomePosition.h>
 #include <jsk_rviz_plugins/OverlayText.h>
+#include <sensor_msgs/BatteryState.h>
 
 using namespace std;
 using namespace cv;
@@ -90,6 +91,7 @@ private:
     ros::Subscriber m_global_ego_pos_sub;
     ros::Subscriber m_state_sub;
     ros::Subscriber m_tasklist_sub;
+    ros::Subscriber m_battery_sub;
 
     // Publisher
     ros::Publisher m_aruco_pub;
@@ -209,7 +211,9 @@ bool KuamVisualizer::InitROS()
         m_nh.subscribe<kuam_msgs::TransReq>(m_maneuver_ns_param + "/state_machine/trans_request", 10, boost::bind(&KuamVisualizer::StateCallback, this, _1));
     m_tasklist_sub = 
         m_nh.subscribe<kuam_msgs::TaskList>(m_maneuver_ns_param + "/mission_manager/tasklist", 10, boost::bind(&KuamVisualizer::TaskListCallback, this, _1));
-    
+    m_battery_sub = 
+        m_nh.subscribe<sensor_msgs::BatteryState>("/mavros/battery", 10, boost::bind(&KuamVisualizer::BatteryCallback, this, _1));
+
     // Initialize publisher
     m_aruco_pub = m_nh.advertise<visualization_msgs::MarkerArray>(nd_name + "/aruco_markerarray", 10);
     m_global_path_pub = m_nh.advertise<visualization_msgs::MarkerArray>(nd_name + "/global_path_markerarray", 10);
