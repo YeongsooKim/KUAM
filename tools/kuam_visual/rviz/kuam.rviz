@@ -8,8 +8,7 @@ Panels:
         - /Status1
         - /DataProcessing1
         - /DataProcessing1/camera1
-        - /MissionManager1
-        - /MissionManager1/Tf1/Frames1
+        - /MissionManager1/Tf1
         - /MissionManager1/landing_marker1/Namespaces1
         - /Visual1
       Splitter Ratio: 0.6004056930541992
@@ -85,16 +84,15 @@ Visualization Manager:
           Marker Topic: /kuam/visual/kuam_visual/global_path_markerarray
           Name: global_path
           Namespaces:
-            global/path: true
-            global/yaw: true
+            {}
           Queue Size: 100
           Value: true
         - Class: rviz/Marker
           Enabled: true
           Marker Topic: /kuam/visual/kuam_visual/ego_marker
-          Name: ego
+          Name: ego pos
           Namespaces:
-            ego_trajectory: true
+            {}
           Queue Size: 100
           Value: true
         - Class: rviz/MarkerArray
@@ -102,7 +100,7 @@ Visualization Manager:
           Marker Topic: /kuam/visual/kuam_visual/setpoint_markerarray
           Name: setpoints
           Namespaces:
-            setpoint/global: true
+            {}
           Queue Size: 100
           Value: true
       Enabled: true
@@ -114,19 +112,15 @@ Visualization Manager:
           Frame Timeout: 1
           Frames:
             All Enabled: false
-            base_link:
-              Value: true
-            base_link_frd:
-              Value: true
             camera_link:
               Value: true
             map:
               Value: true
             map_ned:
               Value: true
-            odom:
+            marker0:
               Value: true
-            odom_ned:
+            odom:
               Value: true
           Marker Scale: 1
           Name: Tf
@@ -135,15 +129,9 @@ Visualization Manager:
           Show Names: true
           Tree:
             map:
-              base_link:
-                base_link_frd:
+              camera_link:
+                marker0:
                   {}
-                camera_link:
-                  {}
-              map_ned:
-                odom:
-                  odom_ned:
-                    {}
           Update Interval: 0
           Value: true
         - Class: rviz/MarkerArray
@@ -216,26 +204,21 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Class: rviz/ThirdPersonFollower
-      Distance: 43.13739776611328
+      Angle: 0
+      Class: rviz/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
-      Focal Point:
-        X: -6.082389831542969
-        Y: -1.1471476554870605
-        Z: -1.71661376953125e-5
-      Focal Shape Fixed Size: false
-      Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6753984093666077
+      Scale: 304.32794189453125
       Target Frame: map
-      Value: ThirdPersonFollower (rviz)
-      Yaw: 0.5354158282279968
+      Value: TopDownOrtho (rviz)
+      X: 0
+      Y: 0
     Saved: ~
 Window Geometry:
   Displays:
