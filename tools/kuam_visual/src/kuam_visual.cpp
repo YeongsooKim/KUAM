@@ -111,6 +111,7 @@ private:
     string m_data_ns_param;
     string m_maneuver_ns_param;
     float m_standby_dist_th_m_param;
+    float m_landing_standby_alt_m_param;
 
     // Flag
     bool m_is_home_set;
@@ -153,6 +154,7 @@ KuamVisualizer::KuamVisualizer() :
     m_data_ns_param("missing"),
     m_maneuver_ns_param("missing"),
     m_standby_dist_th_m_param(NAN),
+    m_landing_standby_alt_m_param(NAN),
     m_tfListener(m_tfBuffer)
 {
     InitFlag();
@@ -183,10 +185,12 @@ bool KuamVisualizer::GetParam()
     m_nh.getParam(nd_name + "/data_ns", m_data_ns_param);
     m_nh.getParam(nd_name + "/maneuver_ns", m_maneuver_ns_param);
     m_nh.getParam(nd_name + "/standby_dist_th_m", m_standby_dist_th_m_param);
+    m_nh.getParam(nd_name + "/landing_standby_alt_m", m_landing_standby_alt_m_param);
 
     if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("[kuam_visual] m_data_ns_param is missing"); return false; }
     else if (m_maneuver_ns_param == "missing") { ROS_ERROR_STREAM("[kuam_visual] m_maneuver_ns_param is missing"); return false; }
     else if (__isnan(m_standby_dist_th_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_standby_dist_th_m_param is NAN"); return false; }
+    else if (__isnan(m_landing_standby_alt_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_landing_standby_alt_m_param is NAN"); return false; }
     // else if (__isnan(m_big_marker_id_param)) { ROS_ERROR_STREAM("[kuam_visual] m_big_marker_id_param is NAN"); return false; }
 
     return true;
@@ -509,7 +513,7 @@ void KuamVisualizer::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps
             auto geopose = wps_ptr->waypoints[ld_index].geopose;
             auto lat = geopose.position.latitude;
             auto lon = geopose.position.longitude;
-            auto alt = geopose.position.altitude;
+            auto alt = m_landing_standby_alt_m_param;
             auto p = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
 
             visualization_msgs::Marker landing_point;
