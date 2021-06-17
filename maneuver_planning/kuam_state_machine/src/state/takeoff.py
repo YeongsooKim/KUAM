@@ -10,28 +10,32 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from utils import *
 
 class Takeoff(smach.State, state.Base):
-    def __init__(self):
-        smach.State.__init__(self, input_keys=['setpoint', 'setpoints', 'ego_geopose', 'ego_pose', 'ego_vel'], 
-                                output_keys=['setpoint', 'setpoints', 'ego_geopose', 'ego_pose', 'ego_vel'], 
+    def __init__(self, ego_geopose, ego_pose, ego_vel, setpoint, setpoints):
+        smach.State.__init__(self, input_keys=[], 
+                                output_keys=[], 
                                 outcomes=['done', 'emerg', 'manual'])
         state.Base.__init__(self)
         
-        self.transition = 'none'
+        # Param
         self.takeoff_alt_m = None # defined by ros param
-        self.reachied_dist_th_m = None # defined by ros param
+        self.reached_dist_th_m = None # defined by ros param
 
+        # State value
+        self.ego_geopose = ego_geopose
+        self.ego_pose = ego_pose
+        self.ego_vel = ego_vel
+        self.setpoint = setpoint
+        self.setpoints = setpoints
+        self.transition = 'none'
+        
     def execute(self, userdata):
-        self.Start(userdata)
+        self.Start()
         self.Running()
-        return self.Terminate(userdata)
+        return self.Terminate()
 
 
-    def Start(self, userdata):
+    def Start(self):
         # Initialize setpoint
-        self.setpoint = copy.deepcopy(userdata.setpoint)
-        self.setpoints = copy.deepcopy(userdata.setpoints)
-        self.ego_pose = copy.deepcopy(userdata.ego_pose)
-        self.ego_geopose = copy.deepcopy(userdata.ego_geopose)
         self.setpoint.geopose.position.altitude = self.takeoff_alt_m
 
     def Running(self):
@@ -48,14 +52,8 @@ class Takeoff(smach.State, state.Base):
                 self.transition = 'done'
             rate.sleep()
 
-    def Terminate(self, userdata):
+    def Terminate(self):
         trans = self.transition
-        userdata.setpoint = copy.deepcopy(self.setpoint)
-        userdata.setpoints = copy.deepcopy(self.setpoints)
-        userdata.ego_pose = copy.deepcopy(self.ego_pose)
-        userdata.ego_geopose = copy.deepcopy(self.ego_geopose)
-        userdata.ego_vel = copy.deepcopy(self.ego_vel)
-
         self.transition = 'none'
         return trans
 
@@ -63,7 +61,7 @@ class Takeoff(smach.State, state.Base):
     def IsReached(self):
         dist = DistanceFromLatLonInMeter3D(self.setpoint.geopose.position, self.ego_geopose.position)
 
-        if (dist < self.reachied_dist_th_m):
+        if (dist < self.reached_dist_th_m):
             return True
         else: 
             return False

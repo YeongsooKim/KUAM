@@ -20,6 +20,7 @@
 #include <geographic_msgs/GeoPoint.h>
 
 #include <sensor_msgs/Imu.h>
+#include <sensor_msgs/NavSatFix.h>
 
 #include "kuam_mission_manager/utils.h"
 
@@ -36,8 +37,8 @@ public:
 
 private:
     // Subscriber
-    ros::Subscriber m_ego_vehicle_imu_sub;
-    ros::Subscriber m_ego_vehicle_local_pose_sub;
+    ros::Subscriber m_ego_global_pos_sub;
+    ros::Subscriber m_local_pose_sub;
     ros::Subscriber m_home_position_sub;
     ros::Subscriber m_aruco_sub;
 
@@ -66,6 +67,7 @@ private:
     bool m_base_cb;
     bool m_marker_cb;
 
+    geometry_msgs::PoseStamped m_local_pose;
     geometry_msgs::TransformStamped m_base_tf_stamped;
     geometry_msgs::TransformStamped m_marker_tf_stamped;
     geographic_msgs::GeoPoint m_home_position;
@@ -84,7 +86,8 @@ private:
     void ProcessTimerCallback(const ros::TimerEvent& event);
 
     void HomePositionCallback(const mavros_msgs::HomePosition::ConstPtr &home_ptr);
-    void EgoVehicleLocalPositionCallback(const geometry_msgs::PoseStamped::ConstPtr &pose_stamped_ptr);
+    inline void EgoLocalCallback(const geometry_msgs::PoseStamped::ConstPtr &pose_ptr) { m_local_pose = *pose_ptr; }
+    void EgoGlobalCallback(const sensor_msgs::NavSatFix::ConstPtr &pos_ptr);
     void MarkerCallback(const tf2_msgs::TFMessage::ConstPtr &marker_ptr);
     
     void AddTransform(const std::string &frame_id, const std::string &child_id, const geometry_msgs::Transform tf, std::vector<geometry_msgs::TransformStamped>& vector);

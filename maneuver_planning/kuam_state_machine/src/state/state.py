@@ -12,9 +12,10 @@ class Base():
         self.ego_geopose = GeoPose()
         self.ego_pose = Pose()
         self.ego_vel = Twist()
-
         self.setpoint = Setpoint()
         self.setpoints = GeoPath()
+
+        self.test_pose = Pose()
         
     def IsGeoPathEmpty(self):
         if (len(self.geo_setpoints.poses) == 0):

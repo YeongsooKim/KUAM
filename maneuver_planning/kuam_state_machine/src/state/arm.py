@@ -4,24 +4,29 @@ import state
 import copy
 
 class Arm(smach.State, state.Base):
-    def __init__(self):
-        smach.State.__init__(self, input_keys=['setpoint', 'setpoints', 'ego_geopose', 'ego_pose', 'ego_vel'], 
-                                output_keys=['setpoint', 'setpoints', 'ego_geopose', 'ego_pose', 'ego_vel'], 
+    def __init__(self, ego_geopose, ego_pose, ego_vel, setpoint, setpoints):
+        smach.State.__init__(self, input_keys=[], 
+                                output_keys=[], 
                                 outcomes=['disarm', 'takeoff', 'emerg', 'manual'])
         state.Base.__init__(self)
 
+        # State value
+        self.ego_geopose = ego_geopose
+        self.ego_pose = ego_pose
+        self.ego_vel = ego_vel
+        self.setpoint = setpoint
+        self.setpoints = setpoints
         self.transition = 'none'
   
     def execute(self, userdata):
-        self.Start(userdata)
+        self.Start()
         self.Running()
-        return self.Terminate(userdata)
+        return self.Terminate()
 
 
-    def Start(self, userdata):
+    def Start(self):
         # Initialize setpoint
-        self.setpoint = copy.deepcopy(userdata.setpoint)
-        self.ego_geopose = copy.deepcopy(userdata.ego_geopose)
+        pass
 
     def Running(self):
         rate = rospy.Rate(self.freq)
@@ -34,16 +39,10 @@ class Arm(smach.State, state.Base):
                     self.transition = 'none'  
                           
             # Update setpoint
-            self.setpoint.geopose = self.ego_geopose
+            self.setpoint.geopose = copy.deepcopy(self.ego_geopose)
             rate.sleep()
 
-    def Terminate(self, userdata):
+    def Terminate(self):
         trans = self.transition
-        userdata.setpoint = copy.deepcopy(self.setpoint)
-        userdata.setpoints = copy.deepcopy(self.setpoints)
-        userdata.ego_pose = copy.deepcopy(self.ego_pose)
-        userdata.ego_geopose = copy.deepcopy(self.ego_geopose)
-        userdata.ego_vel = copy.deepcopy(self.ego_vel)
-
         self.transition = 'none'
         return trans

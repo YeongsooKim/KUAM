@@ -63,6 +63,7 @@ struct TextDatum{
     string cur_mode;
     string cur_state;
     string landing_state;
+    string is_detected;
     string tasklist;
     string ego_height_m;
     string home_altitude_m;
@@ -109,6 +110,9 @@ private:
     // Param
     string m_data_ns_param;
     string m_maneuver_ns_param;
+    float m_standby_dist_th_m_param;
+
+    // Flag
     bool m_is_home_set;
     bool m_is_init_global_path;
 
@@ -136,7 +140,7 @@ private: // Function
     void HomePositionCallback(const mavros_msgs::HomePosition::ConstPtr &home_ptr);
     void WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr);
     void SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_ptr);
-    void EgoLocalPoseCallback(const geometry_msgs::PoseStamped::ConstPtr &ego_ptr);
+    inline void EgoLocalPoseCallback(const geometry_msgs::PoseStamped::ConstPtr &ego_ptr) { m_ego_pose = *ego_ptr; }
     void EgoGlobalPosCallback(const sensor_msgs::NavSatFix::ConstPtr &ego_ptr);
     void StateCallback(const kuam_msgs::TransReq::ConstPtr &state_ptr);
     void TaskListCallback(const kuam_msgs::TaskList::ConstPtr &ego_ptr);
@@ -148,6 +152,7 @@ private: // Function
 KuamVisualizer::KuamVisualizer() :
     m_data_ns_param("missing"),
     m_maneuver_ns_param("missing"),
+    m_standby_dist_th_m_param(NAN),
     m_tfListener(m_tfBuffer)
 {
     InitFlag();
@@ -177,9 +182,11 @@ bool KuamVisualizer::GetParam()
 
     m_nh.getParam(nd_name + "/data_ns", m_data_ns_param);
     m_nh.getParam(nd_name + "/maneuver_ns", m_maneuver_ns_param);
+    m_nh.getParam(nd_name + "/standby_dist_th_m", m_standby_dist_th_m_param);
 
     if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("[kuam_visual] m_data_ns_param is missing"); return false; }
     else if (m_maneuver_ns_param == "missing") { ROS_ERROR_STREAM("[kuam_visual] m_maneuver_ns_param is missing"); return false; }
+    else if (__isnan(m_standby_dist_th_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_standby_dist_th_m_param is NAN"); return false; }
     // else if (__isnan(m_big_marker_id_param)) { ROS_ERROR_STREAM("[kuam_visual] m_big_marker_id_param is NAN"); return false; }
 
     return true;
@@ -487,6 +494,44 @@ void KuamVisualizer::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps
             yaw.lifetime = ros::Duration();
             m_global_markers.markers.push_back(yaw);
         }
+
+        int ld_index = 0;
+        bool has_landingpoint = false;
+        for (int i = 0; i < wps_ptr->waypoints.size(); i++){
+            if (wps_ptr->waypoints[i].mission == "landing"){
+                ld_index = i;
+                has_landingpoint = true;
+            }
+        }
+
+        if (has_landingpoint){
+
+            auto geopose = wps_ptr->waypoints[ld_index].geopose;
+            auto lat = geopose.position.latitude;
+            auto lon = geopose.position.longitude;
+            auto alt = geopose.position.altitude;
+            auto p = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
+
+            visualization_msgs::Marker landing_point;
+            landing_point.header.frame_id = "map";
+            landing_point.header.stamp = ros::Time::now();
+            landing_point.ns = "global/landing_point";
+            landing_point.id = 0;
+            landing_point.type = visualization_msgs::Marker::SPHERE;
+            landing_point.action = visualization_msgs::Marker::ADD;
+            landing_point.scale.x = m_standby_dist_th_m_param;
+            landing_point.scale.y = m_standby_dist_th_m_param;
+            landing_point.scale.z = m_standby_dist_th_m_param;
+            landing_point.pose.position = p;
+            landing_point.pose.orientation.x = 0.0;
+            landing_point.pose.orientation.y = 0.0;
+            landing_point.pose.orientation.z = 0.0;
+            landing_point.pose.orientation.w = 1.0;
+            landing_point.color = GREEN;
+            landing_point.color.a = 0.3f;
+            landing_point.lifetime = ros::Duration();
+            m_global_markers.markers.push_back(landing_point);
+        }
     }
     else {
         m_global_path_pub.publish(m_global_markers);
@@ -524,6 +569,19 @@ void KuamVisualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpo
     else {
         m_text_datum.landing_state = "Not in landing\n";
     }
+
+    string is_detected;
+    if (setpoint.landing_state.is_detected){
+        is_detected = "TRUE\n";
+        m_text_datum.is_detected = (boost::format("<span style=\"color: rgba(%2%, %3%, %4%, %5%)\">%1%</span>")
+             % is_detected % 0.0 % 255.0 % 0.0 % 1.0).str();
+    }
+    else{
+        is_detected = "FALSE\n";
+        m_text_datum.is_detected = (boost::format("<span style=\"color: rgba(%2%, %3%, %4%, %5%)\">%1%</span>")
+             % is_detected % 255.0 % 0.0 % 0.0 % 1.0).str();
+    }
+
 
     // Set setpoint marker
     static bool prev_coord = !setpoint.is_global;
@@ -578,14 +636,13 @@ void KuamVisualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpo
         }
 
         geometry_msgs::Pose p;
-        if ("map" != m_ego_pose.header.frame_id){
-            ROS_ERROR("tf");
+        if ("map" != setpoint.header.frame_id){
             geometry_msgs::TransformStamped transformStamped;
             geometry_msgs::Pose transformed_pose;
             try{
                 transformStamped = 
-                    m_tfBuffer.lookupTransform("map", m_ego_pose.header.frame_id, ros::Time(0));
-                tf2::doTransform(m_ego_pose.pose, transformed_pose, transformStamped);
+                    m_tfBuffer.lookupTransform("map", setpoint.header.frame_id, ros::Time(0));
+                tf2::doTransform(setpoint.pose, transformed_pose, transformStamped);
             }
             catch (tf2::TransformException &ex) {
                 ROS_WARN("%s", ex.what());
@@ -594,7 +651,7 @@ void KuamVisualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpo
             p = transformed_pose;
         }
         else{
-            p = m_ego_pose.pose;
+            p = setpoint.pose;
         }
 
         float dist = m_utils.Distance3D(p.position, prev_relative_point);
@@ -633,36 +690,40 @@ void KuamVisualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpo
     m_setpoints_pub.publish(visualization_markers);
 }
 
-void KuamVisualizer::EgoLocalPoseCallback(const geometry_msgs::PoseStamped::ConstPtr &ego_ptr)
+void KuamVisualizer::EgoGlobalPosCallback(const sensor_msgs::NavSatFix::ConstPtr &ego_ptr)
 {
-    static geometry_msgs::Point prev_pos;
+    auto ego_global_alt_m = ego_ptr->altitude;
 
-    auto p = ego_ptr->pose.position;
+    float setpoint_local_alt_m;
+    if (m_text_datum.setpoint_local_h_m == "") setpoint_local_alt_m = 0;
+    else setpoint_local_alt_m = stof(m_text_datum.setpoint_local_h_m);
+
+    float home_altitude_m;
+    if (m_text_datum.home_altitude_m == "") home_altitude_m = 0;
+    else home_altitude_m = stof(m_text_datum.home_altitude_m);
+    
+    m_text_datum.ego_global_alt_m = to_string(ego_global_alt_m);
+
+    float alt_offset_m = ego_global_alt_m - (setpoint_local_alt_m + home_altitude_m);
+    m_text_datum.offset_alt_m = to_string(alt_offset_m);
+
+
+    static geometry_msgs::Point prev_pos;
+    
+    auto lat = ego_ptr->latitude;
+    auto lon = ego_ptr->longitude;
+    auto alt = m_ego_pose.pose.position.z;
+    auto p = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
+
     float dist = m_utils.Distance3D(p, prev_pos);
-    if (dist > 0.04){
+    if (dist > 0.02){
         m_ego_marker.points.push_back(p);
         prev_pos = p;
     }
 
     m_text_datum.ego_height_m = to_string(p.z) + "[m]\n";
-    m_ego_pose = *ego_ptr;
 
     m_ego_pub.publish(m_ego_marker);
-}
-
-void KuamVisualizer::EgoGlobalPosCallback(const sensor_msgs::NavSatFix::ConstPtr &ego_ptr)
-{
-    auto ego_global_alt_m = ego_ptr->altitude;
-    float setpoint_local_alt_m;
-    if (m_text_datum.setpoint_local_h_m == "") setpoint_local_alt_m = 0;
-    else setpoint_local_alt_m = stof(m_text_datum.setpoint_local_h_m);
-    float home_altitude_m;
-    if (m_text_datum.home_altitude_m == "") home_altitude_m = 0;
-    else home_altitude_m = stof(m_text_datum.home_altitude_m);
-    m_text_datum.ego_global_alt_m = to_string(ego_global_alt_m);
-
-    float alt_offset_m = ego_global_alt_m - (setpoint_local_alt_m + home_altitude_m);
-    m_text_datum.offset_alt_m = to_string(alt_offset_m);
 }
 
 void KuamVisualizer::StateCallback(const kuam_msgs::TransReq::ConstPtr &state_ptr)
@@ -721,13 +782,14 @@ void KuamVisualizer::TextPubCallback(const ros::TimerEvent& event)
     std_msgs::ColorRGBA bg_color;   bg_color.r = 136.0/255.0;   bg_color.g = 138.0/255.0;   bg_color.b = 133.0/255.0;   bg_color.a = 0.35;
 
     text.width = 350;
-    text.height = 450;
+    text.height = 800;
     text.left = 10;
     text.top = 10;
     text.text_size = 12;
     text.line_width = 2;
     text.font = "DejaVu Sans Mono";
     auto coverage = m_text_datum.coverage;
+    auto is_detected = m_text_datum.is_detected;
     auto ego_local_height_m = m_text_datum.ego_height_m;
     auto cur_mode = m_text_datum.cur_mode;
     auto cur_state = m_text_datum.cur_state;
@@ -739,11 +801,14 @@ void KuamVisualizer::TextPubCallback(const ros::TimerEvent& event)
     auto ego_global_alt_m = m_text_datum.ego_global_alt_m;
     auto battery_per = m_text_datum.battery_per;
     
-    text.text = "Coverage: " + coverage + "\nLocal altitude: " + ego_local_height_m + "\nCurrent mode: " + cur_mode + 
-                "Current state: " + cur_state + "\nLanding state: " + landing_state + "\nTask list: \n" + tasklist +
-                "\n---\n\nGlobal altitude: " + ego_global_alt_m + "[m]\nHome altitude: " + home_altitude_m + 
-                "[m]\nLocal setpoint alt: " + setpoint_local_h_m + "[m]\nOffset altitude: " + offset_alt_m + "[m]\n" +
-                "\nBattery percentage: " + battery_per;
+    text.text = 
+        "Coverage: " + coverage + "Is detected: " + is_detected + 
+        "\nLocal altitude: " + ego_local_height_m + 
+        "\nCurrent mode: " + cur_mode + "Current state: " + 
+        cur_state + "\nLanding state: " + 
+        landing_state + "\nTask list: \n" + tasklist +
+        "\n---\n\nGlobal altitude: " + ego_global_alt_m + "[m]\nHome altitude: " + home_altitude_m + "[m]\nLocal setpoint alt: " + setpoint_local_h_m + "[m]\nOffset altitude: " + offset_alt_m + "[m]\n" +
+        "\nBattery percentage: " + battery_per;
     text.fg_color = fg_color;
     text.bg_color = bg_color;
 

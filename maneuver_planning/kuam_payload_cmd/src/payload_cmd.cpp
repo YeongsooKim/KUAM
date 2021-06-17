@@ -263,14 +263,12 @@ void Playload::SetpointPub()
         pos_tar.velocity.z = m_setpoint.vel.linear.z;
 
         auto euler = m_utils.Quat2Euler(m_setpoint.pose.orientation);
-        auto yaw_rad = euler.y;
-        if (__isnan(yaw_rad)) yaw_rad = 0.0;
-
+        auto yaw_rad = euler.y - M_PI/2.0;
+        if (__isnan(yaw_rad)){ yaw_rad = 0.0; }
         pos_tar.yaw = yaw_rad;
         
         m_local_pos_tar_pub.publish(pos_tar);
     }
-    
 }
 
 void Playload::PayloadCmdPub()
