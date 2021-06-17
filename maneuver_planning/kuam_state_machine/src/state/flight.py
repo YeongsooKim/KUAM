@@ -11,36 +11,41 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from utils import *
 
 class Flight(smach.State, state.Base):
-    def __init__(self):
-        smach.State.__init__(self, input_keys=['setpoint', 'setpoints', 'ego_geopose', 'ego_pose', 'ego_vel'], 
-                                output_keys=['setpoint', 'setpoints', 'ego_geopose', 'ego_pose', 'ego_vel'], 
+    def __init__(self, ego_geopose, ego_pose, ego_vel, setpoint, setpoints):
+        smach.State.__init__(self, input_keys=[], 
+                                output_keys=[], 
                                 outcomes=['done', 'emerg', 'manual'])
         state.Base.__init__(self)
-        
+
         # Param
-        self.reachied_dist_th_m = None # defined by ros param
+        self.reached_dist_th_m = None # defined by ros param
         self.guidance_dist_th_m = None # defined by ros param
 
         # Flag
         self.is_last = False
+        self.is_first = True
 
+        # State value
+        self.ego_geopose = ego_geopose
+        self.ego_pose = ego_pose
+        self.ego_vel = ego_vel
+        self.setpoint = setpoint
+        self.setpoints = setpoints
         self.transition = 'none'
         self.cur_sp_num = 0
 
     def execute(self, userdata):
 
-        self.Start(userdata)
+        self.Start()
         self.Running()
-        return self.Terminate(userdata)
+        return self.Terminate()
 
 
-    def Start(self, userdata):
+    def Start(self):
         # Initialize setpoint
-        self.setpoint = copy.deepcopy(userdata.setpoint)
-        self.setpoints = copy.deepcopy(userdata.setpoints)
-        self.ego_pose = copy.deepcopy(userdata.ego_pose)
-        self.ego_geopose = copy.deepcopy(userdata.ego_geopose)
-        self.dest_geopose = self.setpoints.poses[-1].pose
+        self.is_last = False
+        self.is_first = True
+        self.dest_geopose = copy.deepcopy(self.setpoints.poses[-1].pose)
         self.cur_sp_num = 0
 
     def Running(self):
@@ -55,43 +60,35 @@ class Flight(smach.State, state.Base):
 
             # Update setpoint
             if self.is_last == False:
-                self.setpoint.geopose = self.NextSetpointPose()
+                self.UpdateSetpointPose()
             else:
-                if self.IsReached(self.ego_geopose.position, self.dest_geopose.position, self.reachied_dist_th_m):
+                if self.IsReached(self.ego_geopose.position, self.dest_geopose.position, self.reached_dist_th_m):
                     self.transition = 'done'
-                    
+
             rate.sleep()
 
-    def Terminate(self, userdata):
+    def Terminate(self):
         trans = self.transition
-        userdata.setpoint = copy.deepcopy(self.setpoint)
-        userdata.setpoints = copy.deepcopy(self.setpoints)
-        userdata.ego_pose = copy.deepcopy(self.ego_pose)
-        userdata.ego_geopose = copy.deepcopy(self.ego_geopose)
-        userdata.ego_vel = copy.deepcopy(self.ego_vel)
-
         self.transition = 'none'
         return trans
-            
-    def NextSetpointPose(self):
+
+    def UpdateSetpointPose(self):
         cur_sp_num = self.cur_sp_num
-        cur_geopose = copy.deepcopy(self.setpoints.poses[cur_sp_num].pose)
+        cur_geopose = self.setpoints.poses[cur_sp_num].pose
 
         is_reached = self.IsReached(self.ego_geopose.position, cur_geopose.position, self.guidance_dist_th_m)
-        self.is_last = False
 
-        if is_reached == True:
-            cur_sp_num += 1
+        if is_reached or self.is_first:
+            if self.is_first:
+                self.is_first = False
 
-            if cur_sp_num == len(self.setpoints.poses):
-                self.is_last = True
-                
-                return self.dest_geopose
+            if (cur_sp_num + 1) < len(self.setpoints.poses):
+                self.cur_sp_num += 1
+                self.is_last = False
+                self.setpoint.geopose = self.setpoints.poses[self.cur_sp_num].pose
             else:
-                self.cur_sp_num = cur_sp_num
-
-        return self.setpoints.poses[self.cur_sp_num].pose
-
+                self.is_last = True
+                self.setpoint.geopose = self.dest_geopose
 
     def IsReached(self, p1, p2, th):
         dist = DistanceFromLatLonInMeter3D(p1, p2)

@@ -9,21 +9,24 @@
 	<arg name="is_gazebo" default="true" />
 
     <!-- state machine -->
-	<arg name="takeoff_alt_m" default="3.0" />
-	<arg name="reached_dist_th_m" default="0.4" />
-	<arg name="guidance_dist_th_m" default="0.7" />
-	<arg name="landing_threshold_m" default="0.25" />
-	<arg name="landing_standby_alt_m" default="3.0" />
-	<arg name="battery_th_per" default="0.10" />
-	<arg name="virtual_border_max_side_m" default="6.0" />
-    <arg name="virtual_border_angle_0_deg" default="20.0" />
-    <arg name="virtual_border_angle_1_deg" default="10.0" />
-	<arg name="alt_division_m" default="10.0" />
-	<arg name="alt_offset_m" default="23.156" />
-	<!-- <arg name="alt_offset_m" default="0.0" /> -->
-	<arg name="standby_dist_th_m" default="1.5" />
-	<arg name="landing_duration_s" default="100" />
-	<arg name="using_aruco" default="True" />
+    <arg name="using_aruco" default="True" />
+        <!-- takeoff -->
+    	<arg name="takeoff_alt_m" default="3.0" />
+    	<arg name="reached_dist_th_m" default="0.4" />
+    	<arg name="guidance_dist_th_m" default="0.7" />
+        <!-- landing -->
+	    <arg name="landing_threshold_m" default="0.25" />
+	    <arg name="landing_standby_alt_m" default="3.0" />
+	    <arg name="landing_duration_s" default="100" />
+	    <arg name="standby_dist_th_m" default="1.5" />
+	    <arg name="virtual_border_max_side_m" default="6.0" />
+        <arg name="virtual_border_angle_0_deg" default="20.0" />
+        <arg name="virtual_border_angle_1_deg" default="10.0" />
+	    <arg name="alt_division_m" default="10.0" />
+        <!-- flight -->
+    	<arg name="alt_offset_m" default="23.156" />
+        <!-- emerg -->
+    	<arg name="battery_th_per" default="0.10" />
 
     <group ns="/kuam/maneuver">
         <include file="$(find kuam_mission_manager)/launch/mission_manager.launch">

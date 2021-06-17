@@ -73,17 +73,24 @@ alt_offset_m_ = 0.0
 State Machines
 '''
 # Create a SMACH state machine
-sm_mode_ = smach.StateMachine(outcomes=['finished'], output_keys=['setpoint', 'setpoints'])
-sm_offb_ = smach.StateMachine(outcomes=['emerg', 'manual'], input_keys=['setpoint', 'setpoints'])
+sm_mode_ = smach.StateMachine(outcomes=['finished'], output_keys=[])
+sm_offb_ = smach.StateMachine(outcomes=['emerg', 'manual'], input_keys=[])
+
+# Init state variable
+ego_geopose_ = GeoPose()
+ego_pose_ = Pose()
+ego_vel_ = Twist()
+setpoint_ = Setpoint()
+setpoints_ = GeoPath()
 
 # Init state
 offb_states_ = {}
-offb_states_[OffbState.STANDBY] = Standby()
-offb_states_[OffbState.ARM] = Arm()
-offb_states_[OffbState.TAKEOFF] = Takeoff()
-offb_states_[OffbState.HOVERING] = Hovering()
-offb_states_[OffbState.FLIGHT] = Flight()
-offb_states_[OffbState.LANDING] = Landing()
+offb_states_[OffbState.STANDBY] = Standby(ego_geopose_, ego_pose_, ego_vel_, setpoint_, setpoints_)
+offb_states_[OffbState.ARM] = Arm(ego_geopose_, ego_pose_, ego_vel_, setpoint_, setpoints_)
+offb_states_[OffbState.TAKEOFF] = Takeoff(ego_geopose_, ego_pose_, ego_vel_, setpoint_, setpoints_)
+offb_states_[OffbState.HOVERING] = Hovering(ego_geopose_, ego_pose_, ego_vel_, setpoint_, setpoints_)
+offb_states_[OffbState.FLIGHT] = Flight(ego_geopose_, ego_pose_, ego_vel_, setpoint_, setpoints_)
+offb_states_[OffbState.LANDING] = Landing(ego_geopose_, ego_pose_, ego_vel_, setpoint_, setpoints_)
 
 # Init transition
 state_transitions_ = []
@@ -91,7 +98,6 @@ mode_transitions_ = 'manual'
 prev_mode_transitions_ = 'manual'
 
 # Etc
-setpoints_ = None
 prev_kuam_mode_ = "none"
 cur_px4_mode_ = "none"
 prev_px4_mode_ = "none"
@@ -116,8 +122,11 @@ Callback functions
 '''
 def TaskCB(msg):
     state_transitions_.append(msg.task)
+
     global setpoints_
-    setpoints_ = msg.geopath
+    setpoints_.header = msg.geopath.header
+    setpoints_.poses = msg.geopath.poses
+
 
 def ModeCB(msg):
     global mode_transitions_
@@ -137,11 +146,9 @@ def ModeCB(msg):
             mode_transitions_ = prev_mode_transitions_
 
 def EgoLocalPoseCB(msg):
-    for state in offb_states_.values():
-        try:
-            state.ego_pose = msg.pose
-        except:
-            pass
+    global ego_pose_
+    ego_pose_.position = msg.pose.position
+    ego_pose_.orientation = msg.pose.orientation
 
 def EgoGlobalPoseCB(msg):
     global gps_home_alt_m_
@@ -156,20 +163,16 @@ def EgoGlobalPoseCB(msg):
     standby_geopose_.position.latitude = msg.latitude
     standby_geopose_.position.altitude = 0.0
 
-    for state in offb_states_.values():
-        try:
-            state.ego_geopose.position.longitude = msg.longitude
-            state.ego_geopose.position.latitude = msg.latitude
-            state.ego_geopose.position.altitude = state.ego_pose.position.z
-        except:
-            pass
+    global ego_geopose_
+    ego_geopose_.position.longitude = msg.longitude
+    ego_geopose_.position.latitude = msg.latitude
+    ego_geopose_.position.altitude = ego_pose_.position.z
+    ego_geopose_.orientation = ego_pose_.orientation
 
 def EgoVelCB(msg):
-    for state in offb_states_.values():
-        try:
-            state.ego_vel = msg.twist
-        except:
-            pass
+    global ego_vel_
+    ego_vel_.linear = msg.twist.linear
+    ego_vel_.angular = msg.twist.angular
 
 def CommandCB(msg):
     if msg.msg == "local_z":
@@ -202,7 +205,6 @@ def DoTransition():
 
     if (len(state_transitions_) > 0) and (cur_kuam_mode == 'OFFBOARD') and (cur_state != 'None'):
         trans = state_transitions_.pop(0)
-        offb_states_[OffbState[cur_state]].setpoints = setpoints_
         offb_states_[OffbState[cur_state]].transition = trans
 
 def SetpointPub():
@@ -213,8 +215,8 @@ def SetpointPub():
 
     landing_state = LandingState()
     if cur_kuam_mode == "OFFBOARD" and cur_state != "None":
-        geopose = copy.deepcopy(offb_states_[OffbState[cur_state]].setpoint.geopose)
-        vel = copy.deepcopy(offb_states_[OffbState[cur_state]].setpoint.vel)
+        geopose = copy.deepcopy(setpoint_.geopose)
+        vel = copy.deepcopy(setpoint_.vel)
         if cur_state == "LANDING":
             landing_state = offb_states_[OffbState[cur_state]].landing_state
         else:
@@ -228,17 +230,19 @@ def SetpointPub():
 
     if is_init_gps_alt_ == True:
         msg = Setpoint()
+        global gps_home_alt_m_
         if cur_state == "LANDING":
             is_valid = True
 
-            if offb_states_[OffbState[cur_state]].landing_state.is_pass_landing_standby:
+            msg.landing_state = landing_state
+            if offb_states_[OffbState[cur_state]].landing_state.is_pass_landing_standby and offb_states_[OffbState[cur_state]].landing_state.is_detected:
+                pose = copy.deepcopy(setpoint_.pose)
                 msg.header.frame_id = "base_link"
                 msg.header.stamp = rospy.Time.now()
                 msg.vel = vel
-                msg.landing_state = landing_state
+                msg.pose.orientation = pose.orientation
                 msg.is_global = False
             else:
-                global gps_home_alt_m_
                 msg.header.frame_id = "map"
                 msg.header.stamp = rospy.Time.now()
                 msg.geopose = geopose
@@ -252,7 +256,6 @@ def SetpointPub():
             else:
                 is_valid = True
 
-                global gps_home_alt_m_
                 msg.header.frame_id = "map"
                 msg.header.stamp = rospy.Time.now()
                 msg.geopose = geopose
@@ -263,13 +266,6 @@ def SetpointPub():
 
         if is_valid:
             setpoint_pub.publish(msg)
-
-            for state in offb_states_.values():
-                try:
-                    msg.geopose.position.altitude = msg.height
-                    state.setpoint = copy.deepcopy(msg)
-                except:
-                    pass
 
 def TransRequest():
     global prev_kuam_mode_
@@ -396,7 +392,7 @@ if __name__ == '__main__':
     '''
     freq_ = rospy.get_param(nd_name + "/freq")
     takeoff_alt_m = rospy.get_param(nd_name + "/takeoff_alt_m")
-    reachied_dist_th_m = rospy.get_param(nd_name + "/reached_dist_th_m")
+    reached_dist_th_m = rospy.get_param(nd_name + "/reached_dist_th_m")
     guidance_dist_th_m = rospy.get_param(nd_name + "/guidance_dist_th_m")
     data_ns = rospy.get_param(nd_name + "/data_ns")
     landing_threshold_m = rospy.get_param(nd_name + "/landing_threshold_m")
@@ -419,8 +415,8 @@ if __name__ == '__main__':
             rospy.logerr("Fail init %s freq" %(cur_state))
 
     offb_states_[OffbState.TAKEOFF].takeoff_alt_m = takeoff_alt_m
-    offb_states_[OffbState.TAKEOFF].reachied_dist_th_m = reachied_dist_th_m
-    offb_states_[OffbState.FLIGHT].reachied_dist_th_m = reachied_dist_th_m
+    offb_states_[OffbState.TAKEOFF].reached_dist_th_m = reached_dist_th_m
+    offb_states_[OffbState.FLIGHT].reached_dist_th_m = reached_dist_th_m
     offb_states_[OffbState.FLIGHT].guidance_dist_th_m = guidance_dist_th_m
     offb_states_[OffbState.LANDING].landing_threshold_m = landing_threshold_m
     offb_states_[OffbState.LANDING].landing_standby_alt_m = landing_standby_alt_m
@@ -458,12 +454,7 @@ if __name__ == '__main__':
     '''
     # Open the container
     with sm_mode_:
-        sm_mode_.userdata.setpoint = Setpoint()
-        sm_mode_.userdata.setpoints = GeoPath()
-        sm_mode_.userdata.ego_pose = Pose()
-        sm_mode_.userdata.ego_geopose = GeoPose()
-        sm_mode_.userdata.ego_vel = Twist()
-
+        
         # Add states to the container
         smach.StateMachine.add('MANUAL', CBState(ManualCB),
                                 transitions={'offboard':'OFFBOARD',

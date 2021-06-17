@@ -22,13 +22,11 @@ from kuam_msgs.msg import LandingState
 from geographic_msgs.msg import GeoPoseStamped
 
 class Landing(smach.State, state.Base):
-    def __init__(self):
-        smach.State.__init__(self, input_keys=['setpoint', 'setpoints', 'ego_geopose', 'ego_pose', 'ego_vel'], 
-                                output_keys=['setpoint', 'setpoints', 'ego_geopose', 'ego_pose', 'ego_vel'], 
+    def __init__(self, ego_geopose, ego_pose, ego_vel, setpoint, setpoints):
+        smach.State.__init__(self, input_keys=[], 
+                                output_keys=[], 
                                 outcomes=['disarm', 'emerg', 'manual'])
         state.Base.__init__(self)
-
-        self.transition = 'none'
         
         # Flag
         self.landing_state = LandingState()
@@ -36,10 +34,6 @@ class Landing(smach.State, state.Base):
         self.landing_state.is_land = False
         self.landing_state.is_pass_landing_standby = False
         self.is_init_z = False
-        
-        # Target state
-        self.target_id = 0 # Change to param
-        self.target_pose = Pose()
         
         # Param
         self.landing_threshold_m = None
@@ -51,6 +45,18 @@ class Landing(smach.State, state.Base):
         self.standby_dist_th_m = 1.5
         self.landing_duration_s = 80
         self.using_aruco = False
+        
+        # State value
+        self.ego_geopose = ego_geopose
+        self.ego_pose = ego_pose
+        self.ego_vel = ego_vel
+        self.setpoint = setpoint
+        self.setpoints = setpoints
+        self.transition = 'none'
+        
+        # Target state
+        self.target_id = 0 # Change to param
+        self.target_pose = Pose()
 
         # tf
         self.tfBuffer = None
@@ -62,30 +68,30 @@ class Landing(smach.State, state.Base):
         self.z_traj = []
         self.z_cnt = 0
         self.standby_cnt = 0
+        self.orientation = None
 
         '''
         Change target pose and target id to dictionary when the id is more than two
         '''
         
     def execute(self, userdata):
-        self.Start(userdata)
+        self.Start()
         self.Running()
-        return self.Terminate(userdata)
+        return self.Terminate()
 
     '''
     State functions
     '''
-    def Start(self, userdata):
+    def Start(self):
         # Initialize setpoint
-        self.setpoints = copy.deepcopy(userdata.setpoints)
-        self.ego_pose = copy.deepcopy(userdata.ego_pose)
-        self.ego_geopose = copy.deepcopy(userdata.ego_geopose)
-        self.ego_vel = copy.deepcopy(userdata.ego_vel)
-        self.setpoint.geopose = copy.deepcopy(self.setpoints.poses[-1].pose)
-
-        geopose = copy.deepcopy(self.setpoints.poses[-1].pose)
+        geopose = self.setpoints.poses[-1].pose
         geopose.position.altitude = self.landing_standby_alt_m
         self.landing_standby = geopose.position
+        self.orientation = self.ego_geopose.orientation
+
+        self.setpoint.geopose.position = self.landing_standby
+        self.setpoint.geopose.orientation = self.orientation
+
         self.GenInitTrajectory(self.ego_pose, self.landing_standby)
 
 
@@ -110,9 +116,8 @@ class Landing(smach.State, state.Base):
 
             rate.sleep()
 
-    def Terminate(self, userdata):
+    def Terminate(self):
         trans = self.transition
-
         self.transition = 'none'
         return trans
 
@@ -144,6 +149,8 @@ class Landing(smach.State, state.Base):
             geopose_stamped.pose.position.latitude = target_lat
             geopose_stamped.pose.position.longitude = target_lon
             geopose_stamped.pose.position.altitude = init_z - ds*cnt
+
+            geopose_stamped.pose.orientation = self.orientation
 
             self.setpoints.poses.append(geopose_stamped)
             cnt += 1
@@ -219,6 +226,8 @@ class Landing(smach.State, state.Base):
                         cnt += 1
 
                 if self.is_init_z:
+
+                    # Init x, y trajectory
                     dt = 1.0/self.freq
                     init_x = -self.target_pose.position.x*3.0
                     init_y = -self.target_pose.position.y*3.0
@@ -233,6 +242,7 @@ class Landing(smach.State, state.Base):
                         y_traj.append(self.Y(cnt*dt, init_y, duration))
                         cnt += 1
 
+                    # Allocate x, y velocity
                     if len(x_traj) > 1:
                         self.setpoint.vel.linear.x = (x_traj[1] - x_traj[0])/dt
                         self.setpoint.vel.linear.y = (y_traj[1] - y_traj[0])/dt
@@ -240,15 +250,19 @@ class Landing(smach.State, state.Base):
                         self.setpoint.vel.linear.x = 0.0                    
                         self.setpoint.vel.linear.y = 0.0
 
+                    # Allocate z velocity
                     if self.z_cnt + 1 < len(self.z_traj):
                         self.setpoint.vel.linear.z = (self.z_traj[self.z_cnt + 1] - self.z_traj[self.z_cnt])/dt
                         self.z_cnt += 1
+                    
+                    self.setpoint.pose.orientation = self.orientation
             else:
                 if self.standby_cnt < len(self.setpoints.poses):
-                    self.setpoint.geopose = copy.deepcopy(self.setpoints.poses[self.standby_cnt].pose)
+                    self.setpoint.geopose = self.setpoints.poses[self.standby_cnt].pose
                     self.standby_cnt += 1
                 else:
                     self.setpoint.geopose.position = self.landing_standby
+                    self.setpoint.geopose.orientation = self.orientation
 
         # only gps
         else :
@@ -256,12 +270,14 @@ class Landing(smach.State, state.Base):
                 self.setpoint.vel.linear.x = 0.0
                 self.setpoint.vel.linear.y = 0.0
                 self.setpoint.vel.linear.z = -0.3
+                self.setpoint.pose.orientation = self.orientation
             else:
                 if self.standby_cnt < len(self.setpoints.poses):
-                    self.setpoint.geopose = copy.deepcopy(self.setpoints.poses[self.standby_cnt].pose)
+                    self.setpoint.geopose = self.setpoints.poses[self.standby_cnt].pose
                     self.standby_cnt += 1
                 else:
                     self.setpoint.geopose.position = self.landing_standby
+                    self.setpoint.geopose.orientation = self.orientation
     '''
     Util functions
     '''

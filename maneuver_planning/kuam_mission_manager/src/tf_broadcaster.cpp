@@ -70,8 +70,6 @@ void TfBroadcaster::InitROS()
     string nd_name = ros::this_node::getName();
     
     // Initialize subscriber
-    m_ego_vehicle_local_pose_sub = m_nh.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, boost::bind(&TfBroadcaster::EgoVehicleLocalPositionCallback, this, _1));
-
     if (!m_is_exp_param){
         if (!m_is_finding_home_param){
             m_home_position_sub = m_nh.subscribe<mavros_msgs::HomePosition>("/mavros/home_position/home", 10, boost::bind(&TfBroadcaster::HomePositionCallback, this, _1));
@@ -83,6 +81,8 @@ void TfBroadcaster::InitROS()
             }
         }
     }
+    m_local_pose_sub = m_nh.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, boost::bind(&TfBroadcaster::EgoLocalCallback, this, _1));
+    m_ego_global_pos_sub = m_nh.subscribe<sensor_msgs::NavSatFix>("/mavros/global_position/global", 10, boost::bind(&TfBroadcaster::EgoGlobalCallback, this, _1));
     m_aruco_sub = m_nh.subscribe<tf2_msgs::TFMessage>(m_data_ns_param + "/aruco_tracking/tf_list", 10, boost::bind(&TfBroadcaster::MarkerCallback, this, _1));
 
     // Initialize publisher
@@ -208,22 +208,24 @@ void TfBroadcaster::HomePositionCallback(const mavros_msgs::HomePosition::ConstP
     }
 }
 
-void TfBroadcaster::EgoVehicleLocalPositionCallback(const geometry_msgs::PoseStamped::ConstPtr &pose_stamped_ptr)
+void TfBroadcaster::EgoGlobalCallback(const sensor_msgs::NavSatFix::ConstPtr &pos_ptr)
 {
     m_base_cb = true;
-    m_base_tf_stamped.header.stamp = pose_stamped_ptr->header.stamp;
+
+    auto lat = pos_ptr->latitude;
+    auto lon = pos_ptr->longitude;
+    auto alt = m_local_pose.pose.position.z;
+    auto pose = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
+    auto q = m_local_pose.pose.orientation;
+
     m_base_tf_stamped.header.frame_id = "map";
     m_base_tf_stamped.child_frame_id = "base_link";
 
-    m_base_tf_stamped.transform.translation.x = pose_stamped_ptr->pose.position.x;
-    m_base_tf_stamped.transform.translation.y = pose_stamped_ptr->pose.position.y;
-    // m_base_tf_stamped.transform.translation.z = pose_stamped_ptr->pose.position.z - m_drone_offset_m_param;
-    m_base_tf_stamped.transform.translation.z = pose_stamped_ptr->pose.position.z;
+    m_base_tf_stamped.transform.translation.x = pose.position.x;
+    m_base_tf_stamped.transform.translation.y = pose.position.y;
+    m_base_tf_stamped.transform.translation.z = pose.position.z;
 
-    m_base_tf_stamped.transform.rotation.x = pose_stamped_ptr->pose.orientation.x;
-    m_base_tf_stamped.transform.rotation.y = pose_stamped_ptr->pose.orientation.y;
-    m_base_tf_stamped.transform.rotation.z = pose_stamped_ptr->pose.orientation.z;
-    m_base_tf_stamped.transform.rotation.w = pose_stamped_ptr->pose.orientation.w;
+    m_base_tf_stamped.transform.rotation = q;
 }
 
 void TfBroadcaster::MarkerCallback(const tf2_msgs::TFMessage::ConstPtr &marker_ptr)

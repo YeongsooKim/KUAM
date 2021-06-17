@@ -194,19 +194,6 @@ void Maneuver::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr)
             }
         }
 
-        // Add flight last waypoint
-        auto mssn_wps_it = mssn_wps.find("landing");
-        if (mssn_wps_it != mssn_wps.end()){
-            if (mssn_wps_it->second.poses.size() != 0){
-                auto ld_pose = mssn_wps_it->second.poses.back();
-
-                auto fl_poses_it = mssn_wps.find("flight");
-                if (fl_poses_it != mssn_wps.end()){
-                    fl_poses_it->second.poses.push_back(ld_pose);
-                }
-            }
-        }
-
         m_mssn_wps_map = mssn_wps;
     }
 }
