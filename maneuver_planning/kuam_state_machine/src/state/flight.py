@@ -46,6 +46,7 @@ class Flight(smach.State, state.Base):
         self.is_last = False
         self.is_first = True
         self.dest_geopose = copy.deepcopy(self.setpoints.poses[-1].pose)
+        self.dest_geopose.position.altitude = 10.0
         self.cur_sp_num = 0
 
     def Running(self):

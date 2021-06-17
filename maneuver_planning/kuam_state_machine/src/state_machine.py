@@ -12,6 +12,7 @@ from smach_ros import IntrospectionServer
 from smach import CBState
 
 # Message
+from nav_msgs.msg import Odometry 
 from sensor_msgs.msg import BatteryState
 from sensor_msgs.msg import NavSatFix
 from uav_msgs.msg import Chat
@@ -147,8 +148,8 @@ def ModeCB(msg):
 
 def EgoLocalPoseCB(msg):
     global ego_pose_
-    ego_pose_.position = msg.pose.position
-    ego_pose_.orientation = msg.pose.orientation
+    ego_pose_.position = msg.pose.pose.position
+    ego_pose_.orientation = msg.pose.pose.orientation
 
 def EgoGlobalPoseCB(msg):
     global gps_home_alt_m_
@@ -436,7 +437,7 @@ if __name__ == '__main__':
     # Init subcriber
     rospy.Subscriber(ns_name + "mission_manager/task", Task, TaskCB)
     rospy.Subscriber(ns_name + "mission_manager/mode", Mode, ModeCB)
-    rospy.Subscriber("/mavros/local_position/pose", PoseStamped, EgoLocalPoseCB)
+    rospy.Subscriber("/mavros/global_position/local", Odometry, EgoLocalPoseCB)
     rospy.Subscriber("/mavros/global_position/global", NavSatFix, EgoGlobalPoseCB)
     rospy.Subscriber("/mavros/local_position/velocity_body", TwistStamped, EgoVelCB)
     rospy.Subscriber(data_ns + "/aruco_tracking/target_state", ArucoState, offb_states_[OffbState.LANDING].MarkerCB)

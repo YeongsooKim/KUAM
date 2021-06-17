@@ -200,10 +200,13 @@ class Landing(smach.State, state.Base):
         if self.landing_threshold_m is None:
             pass
         else:
-            h = self.ego_geopose.position.altitude
+            if self.using_aruco:
+                h = -self.target_pose.position.z
+            else:
+                h = self.ego_geopose.position.altitude
 
             if h < self.landing_threshold_m:
-                self.landing_state.is_land = True
+                    self.landing_state.is_land = True
 
     def UpdateSetpoint(self):
         if self.landing_state.is_pass_landing_standby == False:
@@ -229,8 +232,8 @@ class Landing(smach.State, state.Base):
 
                     # Init x, y trajectory
                     dt = 1.0/self.freq
-                    init_x = -self.target_pose.position.x*3.0
-                    init_y = -self.target_pose.position.y*3.0
+                    init_x = -self.target_pose.position.x*5.0
+                    init_y = -self.target_pose.position.y*5.0
                     duration = self.landing_duration_s - self.z_cnt*dt - (self.landing_duration_s/3.0)
 
                     x_traj = []
@@ -317,14 +320,14 @@ class Landing(smach.State, state.Base):
     def X(self, t, init_x, duration):
         # a = init_x/(duration**2)
         # x = a*(t - duration)**2
-        a = -1*init_x/duration
+        a = -1.4*init_x/duration
         x = a*(t-duration)
         return x
 
     def Y(self, t, init_y, duration):
         # a = init_y/(duration**2)
         # y = a*(t - duration)**2
-        a = -1*init_y/duration
+        a = -1.4*init_y/duration
         y = a*(t-duration)
         return y
 

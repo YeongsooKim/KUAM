@@ -81,7 +81,7 @@ void TfBroadcaster::InitROS()
             }
         }
     }
-    m_local_pose_sub = m_nh.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, boost::bind(&TfBroadcaster::EgoLocalCallback, this, _1));
+    m_local_pose_sub = m_nh.subscribe<nav_msgs::Odometry>("/mavros/global_position/local", 10, boost::bind(&TfBroadcaster::EgoLocalCallback, this, _1));
     m_ego_global_pos_sub = m_nh.subscribe<sensor_msgs::NavSatFix>("/mavros/global_position/global", 10, boost::bind(&TfBroadcaster::EgoGlobalCallback, this, _1));
     m_aruco_sub = m_nh.subscribe<tf2_msgs::TFMessage>(m_data_ns_param + "/aruco_tracking/tf_list", 10, boost::bind(&TfBroadcaster::MarkerCallback, this, _1));
 
@@ -214,9 +214,9 @@ void TfBroadcaster::EgoGlobalCallback(const sensor_msgs::NavSatFix::ConstPtr &po
 
     auto lat = pos_ptr->latitude;
     auto lon = pos_ptr->longitude;
-    auto alt = m_local_pose.pose.position.z;
+    auto alt = m_local_pose.pose.pose.position.z;
     auto pose = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
-    auto q = m_local_pose.pose.orientation;
+    auto q = m_local_pose.pose.pose.orientation;
 
     m_base_tf_stamped.header.frame_id = "map";
     m_base_tf_stamped.child_frame_id = "base_link";
