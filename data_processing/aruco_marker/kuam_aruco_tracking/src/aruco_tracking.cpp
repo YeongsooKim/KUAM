@@ -4,9 +4,7 @@
 
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_msgs/TFMessage.h>
-
 #include <std_msgs/Int16.h>
-
 #include <kuam_msgs/ArucoVisual.h>
 
 using namespace std;
@@ -314,7 +312,7 @@ bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& 
             m_cv_ptr->image = copy_image;
             m_cv_ptr->header.frame_id = CAMERA_FRAME;
             img_msg = *m_cv_ptr->toImageMsg();
-            m_image_pub.publish(img_msg); // ros::Publisher pub_img = node.advertise<sensor_msgs::Image>("topic", queuesize);    
+            m_image_pub.publish(img_msg); // ros::Publisher pub_img = node.advertise<sensor_msgs::Image>("topic", queuesize);
         }
     }
 

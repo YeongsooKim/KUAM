@@ -235,7 +235,9 @@ def SetpointPub():
             is_valid = True
 
             msg.landing_state = landing_state
-            if offb_states_[OffbState[cur_state]].landing_state.is_pass_landing_standby and offb_states_[OffbState[cur_state]].landing_state.is_detected:
+            if offb_states_[OffbState[cur_state]].landing_state.is_pass_landing_standby and \
+                (offb_states_[OffbState[cur_state]].landing_state.is_detected or offb_states_[OffbState[cur_state]].using_aruco == False):
+
                 pose = copy.deepcopy(setpoint_.pose)
                 msg.header.frame_id = "base_link"
                 msg.header.stamp = rospy.Time.now()

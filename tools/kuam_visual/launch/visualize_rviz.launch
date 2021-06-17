@@ -4,20 +4,22 @@
 	<arg name="maneuver_ns" default="/kuam/maneuver" />
 
 	<arg name="standby_dist_th_m" default="1.5" />
+	<arg name="landing_standby_alt_m" default="5.0" />
 
 	<group if="$(arg simulation)">
 		<param name="use_sim_time" value="true" />
 	</group>
 
-    <!-- <group ns="/kuam/visual">
+    <group ns="/kuam/visual">
 		<node pkg="kuam_visual" type="marker.py" name="marker" />
 
 		<node pkg="kuam_visual" type="kuam_visual_node" name="kuam_visual" >
         	<param name="data_ns" value="$(arg data_ns)" />
         	<param name="maneuver_ns" value="$(arg maneuver_ns)" />
         	<param name="standby_dist_th_m" value="$(arg standby_dist_th_m)" />
+			<param name="landing_standby_alt_m" value="$(arg landing_standby_alt_m)" />
 		</node>
-	</group> -->
+	</group>
 
 	<node pkg="rviz" type="rviz" name="rviz" args="-d $(find kuam_visual)/rviz/kuam.rviz" />
 </launch>
