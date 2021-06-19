@@ -83,17 +83,18 @@ class Landing(smach.State, state.Base):
     State functions
     '''
     def Start(self):
+        # Initialize flag
+        self.landing_state.is_land = False
+        self.landing_state.is_detected = False
+        self.landing_state.is_pass_landing_standby = False
+
         # Initialize setpoint
         geopose = self.setpoints.poses[-1].pose
         geopose.position.altitude = self.landing_standby_alt_m
         self.landing_standby = geopose.position
         self.orientation = self.ego_geopose.orientation
 
-        self.setpoint.geopose.position = self.landing_standby
-        self.setpoint.geopose.orientation = self.orientation
-
         self.GenInitTrajectory(self.ego_pose, self.landing_standby)
-
 
     def Running(self):
         rate = rospy.Rate(self.freq)
@@ -201,12 +202,16 @@ class Landing(smach.State, state.Base):
             pass
         else:
             if self.using_aruco:
-                h = -self.target_pose.position.z
+                if self.landing_state.is_detected:
+                    h = -self.target_pose.position.z
+
+                    if h < self.landing_threshold_m:
+                        self.landing_state.is_land = True
             else:
                 h = self.ego_geopose.position.altitude
-
-            if h < self.landing_threshold_m:
-                    self.landing_state.is_land = True
+                
+                if h < self.landing_threshold_m:
+                        self.landing_state.is_land = True
 
     def UpdateSetpoint(self):
         if self.landing_state.is_pass_landing_standby == False:
