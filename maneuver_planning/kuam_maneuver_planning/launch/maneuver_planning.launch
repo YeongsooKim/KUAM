@@ -15,9 +15,9 @@
     	<arg name="reached_dist_th_m" default="0.4" />
     	<arg name="guidance_dist_th_m" default="0.7" />
         <!-- landing -->
-	    <arg name="landing_threshold_m" default="0.25" />
+	    <arg name="landing_threshold_m" default="0.5" />
 	    <arg name="landing_standby_alt_m" default="3.0" />
-	    <arg name="landing_duration_s" default="100" />
+	    <arg name="landing_duration_s" default="120" />
 	    <arg name="standby_dist_th_m" default="1.5" />
 	    <arg name="virtual_border_max_side_m" default="6.0" />
         <arg name="virtual_border_angle_0_deg" default="20.0" />

@@ -19,6 +19,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geographic_msgs/GeoPoint.h>
 
+#include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/NavSatFix.h>
 
@@ -67,7 +68,7 @@ private:
     bool m_base_cb;
     bool m_marker_cb;
 
-    geometry_msgs::PoseStamped m_local_pose;
+    nav_msgs::Odometry m_local_pose;
     geometry_msgs::TransformStamped m_base_tf_stamped;
     geometry_msgs::TransformStamped m_marker_tf_stamped;
     geographic_msgs::GeoPoint m_home_position;
@@ -86,7 +87,7 @@ private:
     void ProcessTimerCallback(const ros::TimerEvent& event);
 
     void HomePositionCallback(const mavros_msgs::HomePosition::ConstPtr &home_ptr);
-    inline void EgoLocalCallback(const geometry_msgs::PoseStamped::ConstPtr &pose_ptr) { m_local_pose = *pose_ptr; }
+    inline void EgoLocalCallback(const nav_msgs::Odometry::ConstPtr &pose_ptr) { m_local_pose = *pose_ptr; }
     void EgoGlobalCallback(const sensor_msgs::NavSatFix::ConstPtr &pos_ptr);
     void MarkerCallback(const tf2_msgs::TFMessage::ConstPtr &marker_ptr);
     

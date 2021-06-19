@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   uav_msgs
   kuam_msgs
   mavros_msgs
+  nav_msgs
   tf2
   tf2_ros
   tf2_sensor_msgs
@@ -31,7 +32,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS roscpp std_msgs uav_msgs kuam_msgs mavros_msgs
+  CATKIN_DEPENDS roscpp std_msgs uav_msgs kuam_msgs mavros_msgs nav_msgs
 )
 
 ###########

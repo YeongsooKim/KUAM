@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   kuam_msgs
   mavros_msgs
+  nav_msgs
   kuam_aruco_tracking
 )
 
@@ -36,6 +37,7 @@ catkin_package(
   sensor_msgs 
   kuam_msgs
   mavros_msgs
+  nav_msgs
   kuam_aruco_tracking
 )
 

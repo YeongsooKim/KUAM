@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   uav_msgs
   kuam_msgs
+  nav_msgs
 )
 
 ###################################
@@ -25,7 +26,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  CATKIN_DEPENDS roscpp std_msgs uav_msgs kuam_msgs
+  CATKIN_DEPENDS roscpp std_msgs uav_msgs kuam_msgs nav_msgs
 )
 
 ###########

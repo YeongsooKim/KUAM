@@ -7,6 +7,7 @@
 #include "tf2_ros/transform_listener.h" // tf::quaternion
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
+#include <nav_msgs/Odometry.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <kuam_visual/utils.h>
 #include <kuam_aruco_tracking/aruco_tracking.h>
@@ -125,7 +126,7 @@ private:
 
     geographic_msgs::GeoPoint m_home_position;
     vector < vector < geometry_msgs::Point > > m_setpoints;
-    geometry_msgs::PoseStamped m_ego_pose;
+    nav_msgs::Odometry m_ego_pose;
 
 	tf2_ros::Buffer m_tfBuffer;
 	tf2_ros::TransformListener m_tfListener;
@@ -141,7 +142,7 @@ private: // Function
     void HomePositionCallback(const mavros_msgs::HomePosition::ConstPtr &home_ptr);
     void WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr);
     void SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_ptr);
-    inline void EgoLocalPoseCallback(const geometry_msgs::PoseStamped::ConstPtr &ego_ptr) { m_ego_pose = *ego_ptr; }
+    inline void EgoLocalPoseCallback(const nav_msgs::Odometry::ConstPtr &ego_ptr) { m_ego_pose = *ego_ptr; }
     void EgoGlobalPosCallback(const sensor_msgs::NavSatFix::ConstPtr &ego_ptr);
     void StateCallback(const kuam_msgs::TransReq::ConstPtr &state_ptr);
     void TaskListCallback(const kuam_msgs::TaskList::ConstPtr &ego_ptr);
@@ -219,7 +220,7 @@ bool KuamVisualizer::InitROS()
     m_setpoint_sub = 
         m_nh.subscribe<kuam_msgs::Setpoint>(m_maneuver_ns_param + "/state_machine/setpoint", 10, boost::bind(&KuamVisualizer::SetpointCallback, this, _1));
     m_local_ego_pose_sub = 
-        m_nh.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, boost::bind(&KuamVisualizer::EgoLocalPoseCallback, this, _1));
+        m_nh.subscribe<nav_msgs::Odometry>("/mavros/global_position/local", 10, boost::bind(&KuamVisualizer::EgoLocalPoseCallback, this, _1));
     m_global_ego_pos_sub =
         m_nh.subscribe<sensor_msgs::NavSatFix>("/mavros/global_position/global", 10, boost::bind(&KuamVisualizer::EgoGlobalPosCallback, this, _1));
     m_state_sub =
@@ -728,7 +729,7 @@ void KuamVisualizer::EgoGlobalPosCallback(const sensor_msgs::NavSatFix::ConstPtr
     
     auto lat = ego_ptr->latitude;
     auto lon = ego_ptr->longitude;
-    auto alt = m_ego_pose.pose.position.z;
+    auto alt = m_ego_pose.pose.pose.position.z;
     auto p = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
 
     float dist = m_utils.Distance3D(p, prev_pos);
