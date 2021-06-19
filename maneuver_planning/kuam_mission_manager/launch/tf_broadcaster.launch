@@ -9,11 +9,11 @@
 	<arg name="exp_camera_height_m" default="1.5" />
 	
 	<!-- Must select only one -->
-	<arg name="is_exp" default="false" />
+	<arg name="is_exp" default="true" />
 	<arg name="is_real" default="false" />
-	<arg name="is_gazebo" default="true" />
+	<arg name="is_gazebo" default="false" />
 
-	<arg name="extrinsic_imu_to_camera_x" default="12.57" />
+	<arg name="extrinsic_imu_to_camera_x" default="0.1257" />
 	<arg name="extrinsic_imu_to_camera_y" default="0.0" />
 	<arg name="extrinsic_imu_to_camera_z" default="0.0" />
 

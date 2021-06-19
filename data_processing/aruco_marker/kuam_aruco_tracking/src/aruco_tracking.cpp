@@ -252,7 +252,7 @@ bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& 
     // Noise filter
     for (auto id : ids){
         if (m_id_to_markersize_map.find(id) != m_id_to_markersize_map.end()){
-            if (IsNoise()) is_detected = false;
+            if (IsNoise()) is_detected = false; 
             else{
                 is_detected = true;
                 m_target.id = id;
@@ -395,6 +395,7 @@ bool ArucoTracking::TargetStateEstimating(const vector<int> ids, const geometry_
     }
     else{
         if ((ros::Time::now() - m_last_detected_time) > ros::Duration(0.5)){
+            m_target.id = -1;
             m_target.is_detected = false;
         }
         else{

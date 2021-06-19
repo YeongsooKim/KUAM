@@ -3,6 +3,8 @@
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import rospy
+import tf2_ros
+import tf2_geometry_msgs
 import sys
 from utils import *
 from enum import Enum
@@ -10,9 +12,7 @@ from math import sqrt
 
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Point
-from geographic_msgs.msg import GeoPoint
 from geometry_msgs.msg import TwistStamped
-from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point
 from kuam_msgs.msg import ArucoState
 from uav_msgs.msg import Chat
@@ -20,23 +20,20 @@ from uav_msgs.msg import Chat
 Y_AXIS_MARGIN = [1.0, 1.0, 2.0, 0.15]
 BUF_SIZE = 200
 
-BIG_MARKER = [6.2933, -6.5594, 0.0]
-SMALL_MARKER = [37.54406001, 127.07828695, 0.0]
-
 class Val(Enum):
     TARGET = 0
     ALT = 0
     VEL_X = 0
     VEL_Y = 1
     VEL_Z = 2
-    RMSE = 0
+    REL_PX = 0
+    REL_PY = 1
 
-global_pos_ = GeoPoint()
 local_pos_ = Point()
-small_marker_ = GeoPoint()
-target_ = 0
-small_marker_.latitude = SMALL_MARKER[0]
-small_marker_.longitude = SMALL_MARKER[1]
+target_id_ = 0
+target_pos_ = Point()
+tfBuffer_ = None
+listener_ = None
 
 class Plotting:
     def __init__(self):
@@ -64,20 +61,20 @@ class Plotting:
         self.t_title = 'Target Marker ID'
         
         self.heights = [[]]
-        self.h_colors = ['green']
-        self.h_labels = ['height']
+        self.h_colors = ['blue']
+        self.h_labels = ['z relative dist']
         self.h_xlabel = 'time [s]'
         self.h_ylabel = 'distance [m]'
-        self.h_title = 'Ego Vehicle Height'
+        self.h_title = 'Relative Height from Drone to Target'
 
-        self.rmses = [[]]
-        self.r_colors = ['red']
-        self.r_labels = ['distance']
+        self.rel_dists = [[], []]
+        self.r_colors = ['red', 'green']
+        self.r_labels = ['x relative dist', 'y relative dist']
         self.r_xlabel = 'time [s]'
-        self.r_ylabel = 'rmse [m]'
-        self.r_title = "Error between Marker Ground Truth and Ego Pos"
+        self.r_ylabel = 'distance [m]'
+        self.r_title = "Relative Distance from Drone to Target"
 
-        self.list_set = [self.heights, self.vels, self.target, self.rmses]
+        self.list_set = [self.heights, self.vels, self.target, self.rel_dists]
         self.color_set = [self.h_colors, self.v_colors, self.t_colors, self.r_colors]
         self.label_set = [self.h_labels, self.v_labels, self.t_labels, self.r_labels]
         self.xlabel_set = [self.h_xlabel, self.v_xlabel, self.t_xlabel, self.r_xlabel]
@@ -101,53 +98,53 @@ class Plotting:
         self.vels[Val.VEL_Y.value].append(msg.twist.linear.y)
         self.vels[Val.VEL_Z.value].append(msg.twist.linear.z)
 
-        global target_
-        self.target[Val.TARGET.value].append(target_)
+        global target_id_
+        self.target[Val.TARGET.value].append(target_id_)
 
-        global local_pos_
-        self.heights[Val.ALT.value].append(local_pos_.z)
+        if target_id_ == 1 or target_id_ == 2:
+            self.rel_dists[Val.REL_PX.value].append(abs(target_pos_.x))
+            self.rel_dists[Val.REL_PY.value].append(abs(target_pos_.y))
+            self.heights[Val.ALT.value].append(abs(target_pos_.z))
 
-        # if target_ == 1:
-        #     if self.big_rmse_init == False:
-        #         self.big_rmse_init = True
-        #         self.err_cnt = 0
-        #         self.err_squar_sums = [0.0, 0.0]
-
-        #     err_x = BIG_MARKER[0] - global_pos_.x
-        #     err_y = BIG_MARKER[1] - global_pos_.y
-        #     rmses = self.RMSE([err_x, err_y])
-
-        #     self.rmses[Val.RMSE_X.value].append(rmses[0])
-        #     self.rmses[Val.RMSE_Y.value].append(rmses[1])
-
-        if target_ == 2:
-            if self.small_rmse_init == False:
-                self.small_rmse_init = True
-                self.err_cnt = 0
-                self.err_squar_sums = 0.0
-
-            err = DistanceFromLatLonInMeter2D(small_marker_, global_pos_)
-            rmse = self.RMSE(err)
-
-            self.rmses[Val.RMSE.value].append(rmse)
         else:
-            self.rmses[Val.RMSE.value].append(0.0)
+            self.rel_dists[Val.REL_PX.value].append(0.0)
+            self.rel_dists[Val.REL_PY.value].append(0.0)
+            self.heights[Val.ALT.value].append(0.0)
             
-    def EgoGlobalCB(self, msg):
-        global global_pos_
-        global_pos_.latitude = msg.latitude
-        global_pos_.longitude = msg.longitude
-
     def EgoLocalCB(self, msg):
         global local_pos_
         local_pos_.z = msg.pose.position.z
 
     def TargetMarkerCB(self, msg):
-        global target_
+        global target_id_
         if msg.id == 0 or msg.id == 1:
-            target_ = msg.id + 1
+            is_valid = False
+            
+            msg_pose_stamped = PoseStamped()
+            msg_pose_stamped.header = msg.header
+            msg_pose_stamped.pose = msg.pose
+            # transform from camera_link to base_link
+            is_transformed = False
+            try:
+                transform = tfBuffer_.lookup_transform('base_link', msg_pose_stamped.header.frame_id, rospy.Time())
+                is_transformed = True
+            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+                pass
+
+            if is_transformed == True:
+                pose_transformed = tf2_geometry_msgs.do_transform_pose(msg_pose_stamped, transform)
+                if self.IsValid(pose_transformed):
+                    target_pose = pose_transformed.pose
+                    is_valid = True
+            
+            if is_valid:
+                target_id_ = msg.id + 1
+                global target_pos_
+                target_pos_ = target_pose.position
+            else:
+                target_id_ = 0
         else:
-            target_ = 0
+            target_id_ = 0
 
     def ChatCB(self, msg):
         cmd = msg.msg
@@ -177,7 +174,10 @@ class Plotting:
                 
                 for element in range(len(self.list_set[type])):
                     if (len(self.time_s) == len(self.list_set[type][element])):
-                        self.axs[i][j].plot(self.time_s, self.list_set[type][element], color=self.color_set[type][element], label=self.label_set[type][element])
+                        try:
+                            self.axs[i][j].plot(self.time_s, self.list_set[type][element], color=self.color_set[type][element], label=self.label_set[type][element])
+                        except:
+                            pass
 
                 self.axs[i][j].set_xlabel(self.xlabel_set[type])  # Add an x-label to the axes.
                 self.axs[i][j].set_ylabel(self.ylabel_set[type])  # Add a y-label to the axes.
@@ -189,14 +189,6 @@ class Plotting:
     '''
     Util functions
     '''
-    def RMSE(self, err):
-        self.err_cnt += 1
-        self.err_squar_sums += pow(err,2)
-    
-        rmse = sqrt(self.err_squar_sums/self.err_cnt)
-
-        return rmse
-
     def GetLimMinMax(self, lists, margin):
         ylim = [0, BUF_SIZE - 1]
         lengths = []
@@ -234,11 +226,26 @@ class Plotting:
 
         return ylim
 
+    def IsValid(self, pose_stamped):
+            x = pose_stamped.pose.position.x
+            y = pose_stamped.pose.position.y
+            z = pose_stamped.pose.position.z
+
+            if (x>1e+100) or (x<-1e+100):
+                return False
+            if (y>1e+100) or (y<-1e+100):
+                return False
+            if (z>1e+100) or (z<-1e+100):
+                return False
+            return True
+
 rospy.init_node('multi_marker_eval')
 plotting = Plotting()
 
+tfBuffer_ = tf2_ros.Buffer()
+listener_ = tf2_ros.TransformListener(tfBuffer_)
+
 vel_sub = rospy.Subscriber('/kuam/data/aruco_tracking/target_state', ArucoState, plotting.TargetMarkerCB)
-ego_local_sub = rospy.Subscriber("/mavros/global_position/global", NavSatFix, plotting.EgoGlobalCB)
 ego_local_sub = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, plotting.EgoLocalCB)
 vel_sub = rospy.Subscriber('/mavros/local_position/velocity_body', TwistStamped, plotting.VelocityCB)
 cmd_sub = rospy.Subscriber("/kuam/data/chat/command", Chat, plotting.ChatCB)

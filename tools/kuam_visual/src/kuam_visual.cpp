@@ -119,9 +119,9 @@ private:
 
     // Marker
     vector<MetaMarkers> m_target_markers; // target markers
+    MetaMarkers m_ego_markers; // target markers
     visualization_msgs::MarkerArray m_global_markers;
     vector<visualization_msgs::MarkerArray> m_setpoints_markers;
-    visualization_msgs::Marker m_ego_marker;
 
     geographic_msgs::GeoPoint m_home_position;
     vector < vector < geometry_msgs::Point > > m_setpoints;
@@ -233,7 +233,7 @@ bool KuamVisualizer::InitROS()
     m_aruco_pub = m_nh.advertise<visualization_msgs::MarkerArray>(nd_name + "/aruco_markerarray", 10);
     m_global_path_pub = m_nh.advertise<visualization_msgs::MarkerArray>(nd_name + "/global_path_markerarray", 10);
     m_setpoints_pub = m_nh.advertise<visualization_msgs::MarkerArray>(nd_name + "/setpoint_markerarray", 10);
-    m_ego_pub = m_nh.advertise<visualization_msgs::Marker>(nd_name + "/ego_marker", 10);
+    m_ego_pub = m_nh.advertise<visualization_msgs::MarkerArray>(nd_name + "/ego_markerarray", 10);
     m_text_pub = m_nh.advertise<jsk_rviz_plugins::OverlayText>(nd_name + "/text", 10);
     
     // Initialize timer
@@ -271,25 +271,10 @@ bool KuamVisualizer::InitMarkers()
     path.lifetime = ros::Duration();
     m_global_markers.markers.push_back(path);
 
-    //// ego path
-    m_ego_marker.header.frame_id = "map";
-    m_ego_marker.ns = "ego_trajectory";
-    m_ego_marker.id = 0;
-    m_ego_marker.type = visualization_msgs::Marker::LINE_STRIP;
-    m_ego_marker.action = visualization_msgs::Marker::ADD;
-    m_ego_marker.scale.x = 0.05;
-    m_ego_marker.pose.orientation.w = 1.0;
-    m_ego_marker.pose.orientation.x = 0.0;
-    m_ego_marker.pose.orientation.y = 0.0;
-    m_ego_marker.pose.orientation.z = 0.0;
-    m_ego_marker.color = CYAN;
-    m_ego_marker.color.a = 0.4f;
-    m_ego_marker.lifetime = ros::Duration();
-
     //// setpoint
     m_setpoints_markers.resize((int)SETPOINT::ItemNum);
 
-
+    //// target aruco marker
     for (int method = (int)EstimatingMethod::WOF; method < (int)EstimatingMethod::ItemNum; method++){
         MetaMarkers target_marker;
         // Without filter. GREEN
@@ -376,6 +361,34 @@ bool KuamVisualizer::InitMarkers()
         }
         m_target_markers.push_back(target_marker);
     }
+
+    //// ego pose
+    MetaMarkers ego_marker;
+    m_ego_markers.trajectory.ns = "ego/trajectory";
+    m_ego_markers.trajectory.id = 0;
+    m_ego_markers.trajectory.type = visualization_msgs::Marker::LINE_STRIP;
+    m_ego_markers.trajectory.action = visualization_msgs::Marker::ADD;
+    m_ego_markers.trajectory.scale.x = 0.05;
+    m_ego_markers.trajectory.pose.orientation.w = 1.0;
+    m_ego_markers.trajectory.pose.orientation.x = 0.0;
+    m_ego_markers.trajectory.pose.orientation.y = 0.0;
+    m_ego_markers.trajectory.pose.orientation.z = 0.0;
+    m_ego_markers.trajectory.color = CYAN;
+    m_ego_markers.trajectory.color.a = 0.4f;
+    m_ego_markers.trajectory.lifetime = ros::Duration(0.8);
+    m_ego_markers.is_trajectory_add = false;
+
+    m_ego_markers.current_point.ns = "ego/current_point";
+    m_ego_markers.current_point.id = 0;
+    m_ego_markers.current_point.type = visualization_msgs::Marker::SPHERE;
+    m_ego_markers.current_point.action = visualization_msgs::Marker::ADD;
+    m_ego_markers.current_point.scale.x = 0.15;
+    m_ego_markers.current_point.scale.y = 0.15;
+    m_ego_markers.current_point.scale.z = 0.15;
+    m_ego_markers.current_point.color = CYAN;
+    m_ego_markers.current_point.color.a = 0.4f;
+    m_ego_markers.current_point.lifetime = ros::Duration(0.8);
+    m_ego_markers.is_current_point_add = false;
 }
 
 void KuamVisualizer::HomePositionCallback(const mavros_msgs::HomePosition::ConstPtr &home_ptr)
@@ -421,10 +434,9 @@ void KuamVisualizer::ArucoVisualCallback(const kuam_msgs::ArucoVisual::ConstPtr 
 
     for (int method = (int)EstimatingMethod::WOF; method < (int)EstimatingMethod::ItemNum; method++){
         m_target_markers[method].self.markers.clear();
-        if (m_target_markers[method].is_trajectory_add) m_target_markers[method].self.markers.push_back(m_target_markers[method].trajectory);
         if (m_target_markers[method].is_current_point_add) m_target_markers[method].self.markers.push_back(m_target_markers[method].current_point);
         if (m_target_markers[method].is_txt_add) m_target_markers[method].self.markers.push_back(m_target_markers[method].txt);
-        m_target_markers[method].is_trajectory_add = m_target_markers[method].is_current_point_add = m_target_markers[method].is_txt_add = false;
+        m_target_markers[method].is_current_point_add = m_target_markers[method].is_txt_add = false;
     }
     
     visualization_msgs::MarkerArray visualization_markers;
@@ -720,14 +732,35 @@ void KuamVisualizer::EgoGlobalPosCallback(const sensor_msgs::NavSatFix::ConstPtr
     auto p = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
 
     float dist = m_utils.Distance3D(p, prev_pos);
+    // trajectory
     if (dist > 0.02){
-        m_ego_marker.points.push_back(p);
+        m_ego_markers.trajectory.header.frame_id = "map";
+        m_ego_markers.trajectory.header.stamp = ros::Time::now();
+
+        m_ego_markers.trajectory.points.push_back(p);
+        m_ego_markers.is_trajectory_add = true;
         prev_pos = p;
     }
 
-    m_text_datum.ego_height_m = to_string(p.z) + "[m]\n";
+    // current_point
+    m_ego_markers.current_point.header.frame_id = "map";
+    m_ego_markers.current_point.header.stamp = ros::Time::now();
 
-    m_ego_pub.publish(m_ego_marker);
+    m_ego_markers.current_point.pose.position = p;
+    m_ego_markers.is_current_point_add = true;
+
+    m_ego_markers.self.markers.clear();
+    if (m_ego_markers.is_trajectory_add) m_ego_markers.self.markers.push_back(m_ego_markers.trajectory);
+    if (m_ego_markers.is_current_point_add) m_ego_markers.self.markers.push_back(m_ego_markers.current_point);
+    m_ego_markers.is_trajectory_add = m_ego_markers.is_current_point_add = false;
+    
+    visualization_msgs::MarkerArray visualization_markers;
+    visualization_markers.markers.insert(visualization_markers.markers.end(), 
+                                        m_ego_markers.self.markers.begin(), m_ego_markers.self.markers.end());
+
+    m_ego_pub.publish(visualization_markers);
+
+    m_text_datum.ego_height_m = to_string(p.z) + "[m]\n";
 }
 
 void KuamVisualizer::StateCallback(const kuam_msgs::TransReq::ConstPtr &state_ptr)

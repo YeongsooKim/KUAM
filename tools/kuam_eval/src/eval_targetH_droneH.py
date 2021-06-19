@@ -3,6 +3,8 @@
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import rospy
+import tf2_ros
+import tf2_geometry_msgs
 import sys
 from utils import *
 from enum import Enum
@@ -34,9 +36,12 @@ class Val(Enum):
 global_pos_ = GeoPoint()
 local_pos_ = Point()
 small_marker_ = GeoPoint()
-target_ = 0
+target_id_ = 0
+target_height_ = 0.0
 small_marker_.latitude = SMALL_MARKER[0]
 small_marker_.longitude = SMALL_MARKER[1]
+tfBuffer_ = tf2_ros.Buffer()
+listener_ = tf2_ros.TransformListener(tfBuffer_)
 
 class Plotting:
     def __init__(self):
@@ -101,13 +106,13 @@ class Plotting:
         self.vels[Val.VEL_Y.value].append(msg.twist.linear.y)
         self.vels[Val.VEL_Z.value].append(msg.twist.linear.z)
 
-        global target_
-        self.target[Val.TARGET.value].append(target_)
+        global target_id_
+        self.target[Val.TARGET.value].append(target_id_)
 
         global local_pos_
         self.heights[Val.ALT.value].append(local_pos_.z)
 
-        # if target_ == 1:
+        # if target_id_ == 1:
         #     if self.big_rmse_init == False:
         #         self.big_rmse_init = True
         #         self.err_cnt = 0
@@ -120,7 +125,7 @@ class Plotting:
         #     self.rmses[Val.RMSE_X.value].append(rmses[0])
         #     self.rmses[Val.RMSE_Y.value].append(rmses[1])
 
-        if target_ == 2:
+        if target_id_ == 2:
             if self.small_rmse_init == False:
                 self.small_rmse_init = True
                 self.err_cnt = 0
@@ -143,11 +148,35 @@ class Plotting:
         local_pos_.z = msg.pose.position.z
 
     def TargetMarkerCB(self, msg):
-        global target_
+        global target_id_
         if msg.id == 0 or msg.id == 1:
-            target_ = msg.id + 1
+            is_valid = False
+            
+            msg_pose_stamped = PoseStamped()
+            msg_pose_stamped.header = msg.header
+            msg_pose_stamped.pose = msg.pose
+            # transform from camera_link to base_link
+            is_transformed = False
+            try:
+                transform = tfBuffer_.lookup_transform('base_link', msg_pose_stamped.header.frame_id, rospy.Time())
+                is_transformed = True
+            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+                pass
+
+            if is_transformed == True:
+                pose_transformed = tf2_geometry_msgs.do_transform_pose(msg_pose_stamped, transform)
+                if self.IsValid(pose_transformed):
+                    target_pose = pose_transformed.pose
+                    is_valid = True
+            
+            if is_valid:
+                target_id_ = msg.id + 1
+                global target_height_
+                target_height_ = target_pose.position.z
+            else:
+                target_id_ = 0
         else:
-            target_ = 0
+            target_id_ = 0
 
     def ChatCB(self, msg):
         cmd = msg.msg
@@ -233,6 +262,19 @@ class Plotting:
         ylim = [float(list_min) - margin, float(list_max) + margin]
 
         return ylim
+
+    def IsValid(self, pose_stamped):
+            x = pose_stamped.pose.position.x
+            y = pose_stamped.pose.position.y
+            z = pose_stamped.pose.position.z
+
+            if (x>1e+100) or (x<-1e+100):
+                return False
+            if (y>1e+100) or (y<-1e+100):
+                return False
+            if (z>1e+100) or (z<-1e+100):
+                return False
+            return True
 
 rospy.init_node('multi_marker_eval')
 plotting = Plotting()

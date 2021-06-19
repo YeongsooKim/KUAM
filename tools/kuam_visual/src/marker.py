@@ -7,9 +7,8 @@ from geometry_msgs.msg import Point
 from std_msgs.msg import ColorRGBA
 from visualization_msgs.msg import Marker,MarkerArray
 
-BIG_ARC_POS = Point(12.6443, -7.6162, 0.0)
-SMALL_ARC_POS = Point(12.7843, -7.8162, 0.0)
-
+BIG_ARC_POS = Point(11.3726, 0.1937, 0.0)
+SMALL_ARC_POS = Point(11.5126, -0.0062, 0.0)
 
 # left_top = Point(-0.48, 0.48, 0.0)
 # right_top = Point(0.48, 0.48, 0.0)
@@ -31,7 +30,7 @@ def MarkerPub():
 
     # Cube
     gt_marker = Marker()
-    gt_marker.ns = "ground_truth"
+    gt_marker.ns = "gt/big"
     gt_marker.id = 0
     gt_marker.header.frame_id = "map"
     gt_marker.type = gt_marker.CUBE
@@ -51,7 +50,7 @@ def MarkerPub():
 
     # Cube
     gt_marker = Marker()
-    gt_marker.ns = "ground_truth"
+    gt_marker.ns = "gt/small"
     gt_marker.id = 1
     gt_marker.header.frame_id = "map"
     gt_marker.type = gt_marker.CUBE

@@ -144,7 +144,7 @@ void TfBroadcaster::InitStaticTf(void)
         tf_stamped.transform.translation.z = m_exp_camera_height_m_param;
         
         tf2::Quaternion q;
-		q.setRPY(0.0, M_PI, M_PI);
+        q.setRPY(0.0, M_PI, M_PI/2);
         tf_stamped.transform.rotation.x = q.x();
         tf_stamped.transform.rotation.y = q.y();
         tf_stamped.transform.rotation.z = q.z();
@@ -160,13 +160,12 @@ void TfBroadcaster::InitStaticTf(void)
         tf_stamped.transform.translation.z = m_extrinsic_imu_to_camera_z_param;
         
         tf2::Quaternion q;
-		q.setRPY(0.0, M_PI, M_PI);
+        q.setRPY(0.0, M_PI, M_PI/2);
         tf_stamped.transform.rotation.x = q.x();
         tf_stamped.transform.rotation.y = q.y();
         tf_stamped.transform.rotation.z = q.z();
         tf_stamped.transform.rotation.w = q.w();
     }
-
     transform_vector.push_back(tf_stamped);
 
     static_tf_broadcaster.sendTransform(transform_vector);

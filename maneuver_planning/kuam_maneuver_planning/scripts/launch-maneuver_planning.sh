@@ -47,8 +47,8 @@ if [ "$1" == "-h" ]; then
     echo -e "      Example: launch-maneuver_planning.sh --aruco true\n"
 
 	exit 0
-elif [ "$2" == "true" ]; then
-    using="True"
+elif [ "$2" == "false" ]; then
+    using="False"
 elif [ "$3" == "-h" ]; then
     echo -e "Usage: launch-maneuver_planning.sh --aruco true [OPTION] ...\n"
     echo -e "  -h, show this help message and exit.\n"
@@ -57,17 +57,17 @@ elif [ "$3" == "-h" ]; then
 
     exit -
 elif [ "$4" == "gazebo" ]; then
-    using="true"
+    using="True"
     gazebo="true"
     real="false"
     exp="false"
 elif [ "$4" == "real" ]; then
-    using="true"
+    using="True"
     gazebo="false"
     real="true"
     exp="false"
 elif [ "$4" == "exp" ]; then
-    using="true"
+    using="True"
     gazebo="false"
     real="false"
     exp="true"
