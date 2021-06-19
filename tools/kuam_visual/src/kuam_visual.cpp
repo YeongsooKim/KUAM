@@ -364,7 +364,6 @@ bool KuamVisualizer::InitMarkers()
     }
 
     //// ego pose
-    MetaMarkers ego_marker;
     m_ego_markers.trajectory.ns = "ego/trajectory";
     m_ego_markers.trajectory.id = 0;
     m_ego_markers.trajectory.type = visualization_msgs::Marker::LINE_STRIP;
