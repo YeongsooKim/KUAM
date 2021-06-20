@@ -1,2 +1,2 @@
 string task
-geometry_msgs/PoseArray pose_array
+geographic_msgs/GeoPath geopath

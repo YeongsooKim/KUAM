@@ -18,9 +18,10 @@
 
 #include <geometry_msgs/PoseStamped.h>
 #include <geographic_msgs/GeoPoint.h>
-#include <novatel_oem7_msgs/INSPVA.h>
 
+#include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Imu.h>
+#include <sensor_msgs/NavSatFix.h>
 
 #include "kuam_mission_manager/utils.h"
 
@@ -37,9 +38,8 @@ public:
 
 private:
     // Subscriber
-    ros::Subscriber m_novatel_sub;
-    ros::Subscriber m_ego_vehicle_imu_sub;
-    ros::Subscriber m_ego_vehicle_local_pose_sub;
+    ros::Subscriber m_ego_global_pos_sub;
+    ros::Subscriber m_local_pose_sub;
     ros::Subscriber m_home_position_sub;
     ros::Subscriber m_aruco_sub;
 
@@ -56,11 +56,19 @@ private:
     float m_target_height_m_param;
     std::string m_data_ns_param;
     float m_drone_offset_m_param;
+    bool m_is_exp_param;
+    bool m_is_real_param;
+    bool m_is_gazebo_param;
+    float m_exp_camera_height_m_param;
+    float m_extrinsic_imu_to_camera_x_param;
+    float m_extrinsic_imu_to_camera_y_param;
+    float m_extrinsic_imu_to_camera_z_param;
 
     // Flag
     bool m_base_cb;
     bool m_marker_cb;
 
+    nav_msgs::Odometry m_local_pose;
     geometry_msgs::TransformStamped m_base_tf_stamped;
     geometry_msgs::TransformStamped m_marker_tf_stamped;
     geographic_msgs::GeoPoint m_home_position;
@@ -79,8 +87,8 @@ private:
     void ProcessTimerCallback(const ros::TimerEvent& event);
 
     void HomePositionCallback(const mavros_msgs::HomePosition::ConstPtr &home_ptr);
-    void NovatelINSPVACallback(const novatel_oem7_msgs::INSPVA::ConstPtr &inspva_msg_ptr);
-    void EgoVehicleLocalPositionCallback(const geometry_msgs::PoseStamped::ConstPtr &pose_stamped_ptr);
+    inline void EgoLocalCallback(const nav_msgs::Odometry::ConstPtr &pose_ptr) { m_local_pose = *pose_ptr; }
+    void EgoGlobalCallback(const sensor_msgs::NavSatFix::ConstPtr &pos_ptr);
     void MarkerCallback(const tf2_msgs::TFMessage::ConstPtr &marker_ptr);
     
     void AddTransform(const std::string &frame_id, const std::string &child_id, const geometry_msgs::Transform tf, std::vector<geometry_msgs::TransformStamped>& vector);

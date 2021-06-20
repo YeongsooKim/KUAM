@@ -1,0 +1,39 @@
+Calibration using a ChArUco board
+  To capture a frame for calibration, press 'c',
+  If input comes from video, press any key for next frame
+  To finish capturing, press 'ESC' key and calibration starts.
+
+Usage: calibrate_camera_charuco [params] outfile 
+
+	-a
+		Fix aspect ratio (fx/fy) to this value
+	--ci (value:0) (not use)
+		Camera id if input doesnt come from video (-v)
+	-d
+		dictionary: DICT_4X4_50=0, DICT_4X4_100=1, DICT_4X4_250=2,DICT_4X4_1000=3, DICT_5X5_50=4, DICT_5X5_100=5, DICT_5X5_250=6, DICT_5X5_1000=7, DICT_6X6_50=8, DICT_6X6_100=9, DICT_6X6_250=10, DICT_6X6_1000=11, DICT_7X7_50=12,DICT_7X7_100=13, DICT_7X7_250=14, DICT_7X7_1000=15, DICT_ARUCO_ORIGINAL = 16
+	--dp
+		File of marker detector parameters
+	-h
+		Number of squares in Y direction
+	--ml
+		Marker side length (in meters)
+	--pc (value:false)
+		Fix the principal point at the center
+	--rs (value:false)
+		Apply refind strategy
+	--sc (value:false)
+		Show detected chessboard corners after calibration
+	--sl
+		Square side length (in meters)
+	-v
+		Input from video file, if ommited, input comes from camera
+	-w
+		Number of squares in X direction
+	--zt (value:false)
+		Assume zero tangential distortion
+
+	outfile (value:<none>)
+		Output file with calibrated camera parameters
+
+
+example: rosrun charuco_calibration calibrate_camera_charuco "/home/ys/calib.txt" -dp="/home/ys/kuam_ws/src/KUAM/data_processing/aruco_marker/kuam_aruco_tracking/config/detector_params.yml" -w=5 -h=7 -sl=100 -ml=50 -d=0

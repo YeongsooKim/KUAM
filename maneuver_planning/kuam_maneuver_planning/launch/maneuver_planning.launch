@@ -1,40 +1,31 @@
 <launch>
     <!-- namespace -->
-	<arg name="data_ns" default="/kuam/data" />
-	<arg name="control_ns" default="/kuam/control" />
+    <rosparam command="load" file="$(find config)/param.yaml" />
 
-	<arg name="mode" default="false" />
-	<arg name="target_height_m" default="10.0" />
+    <!-- tf_broadcaster -->
+    	<!-- Must select only one -->
+	<arg name="is_exp" default="false" />
+	<arg name="is_real" default="false" />
+	<arg name="is_gazebo" default="true" />
 
     <!-- state machine -->
-	<arg name="takeoff_alt_m" default="3.0" />
-	<arg name="reached_dist_th_m" default="0.4" />
-	<arg name="guidance_dist_th_m" default="0.7" />
-	<arg name="target_marker_id" default="0" />
-	<arg name="landing_threshold_m" default="0.1" />
-	<arg name="landing_standby_alt_m" default="5.0" />
+    <arg name="using_aruco" default="True" />
 
     <group ns="/kuam/maneuver">
         <include file="$(find kuam_mission_manager)/launch/mission_manager.launch">
-            <arg name="mode" value="$(arg mode)" />
-            <arg name="data_ns" value="$(arg data_ns)" />
-            <arg name="control_ns" value="$(arg control_ns)" />
-            <arg name="target_height_m" value="$(arg target_height_m)" />
+            <arg name="stand_alone" value="false" />
         </include>
 
         <include file="$(find kuam_mission_manager)/launch/tf_broadcaster.launch">
-            <arg name="target_height_m" value="$(arg target_height_m)" />
-            <arg name="data_ns" value="$(arg data_ns)" />
+            <arg name="stand_alone" value="false" />
+            <arg name="is_exp" value="$(arg is_exp)" />
+            <arg name="is_real" value="$(arg is_real)" />
+            <arg name="is_gazebo" value="$(arg is_gazebo)" />
         </include>
 
         <include file="$(find kuam_state_machine)/launch/state_machine.launch">
-            <arg name="data_ns" value="$(arg data_ns)" />
-            <arg name="takeoff_alt_m" value="$(arg takeoff_alt_m)" />
-            <arg name="reached_dist_th_m" value="$(arg reached_dist_th_m)" />
-            <arg name="guidance_dist_th_m" value="$(arg guidance_dist_th_m)" />
-            <arg name="target_marker_id" value="$(arg target_marker_id)" />
-            <arg name="landing_threshold_m" value="$(arg landing_threshold_m)" />
-            <arg name="landing_standby_alt_m" value="$(arg landing_standby_alt_m)" />
+            <arg name="stand_alone" value="false" />
+            <arg name="using_aruco" value="$(arg using_aruco)" />
         </include>
     </group>
 </launch>

@@ -64,21 +64,21 @@
       ratio = 0.5
       type = VPaned
     [[[terminal10]]]
-      command = "bash -c 'sleep 2; source /opt/ros/melodic/setup.bash; source /home/ys/kuam_ws/devel/setup.bash; roslaunch kuam_visual visualize_rviz.launch; $SHELL'"
+      command = "bash -c 'sleep 3; source /opt/ros/melodic/setup.bash; source /home/${USER}/kuam_ws/devel/setup.bash; roslaunch kuam_visual visualize_rviz.launch; $SHELL'"
       order = 1
       parent = child8
       profile = default
       type = Terminal
       uuid = da700d73-21e0-4751-83a7-9b129463e322
     [[[terminal12]]]
-      command = "bash -c 'sleep 2; source /opt/ros/melodic/setup.bash; source /home/ys/kuam_ws/devel/setup.bash; roslaunch kuam_data_utils chat.launch; $SHELL'"
+      command = "bash -c 'sleep 3; source /opt/ros/melodic/setup.bash; source /home/${USER}/kuam_ws/devel/setup.bash; roslaunch kuam_data_utils chat.launch; $SHELL'"
       order = 0
       parent = child11
       profile = default
       type = Terminal
       uuid = 2764a3f0-1197-4c6b-8527-75e61a042251
     [[[terminal14]]]
-      command = "bash -c 'sleep 2; source /opt/ros/melodic/setup.bash; source /home/ys/kuam_ws/devel/setup.bash; rosrun kuam_offb eval.py; $SHELL'"
+      command = "bash -c 'sleep 3; source /opt/ros/melodic/setup.bash; source /home/${USER}/kuam_ws/devel/setup.bash; rosrun kuam_eval eval_target_relative_zxy.py; $SHELL'"
       order = 0
       parent = child13
       profile = default
@@ -91,28 +91,28 @@
       type = Terminal
       uuid = b1987651-3d26-4713-8566-2e0106eeaa0e
     [[[terminal4]]]
-      command = "bash -c 'source /opt/ros/melodic/setup.bash; source /home/ys/kuam_ws/devel/setup.bash; roslaunch kuam_data_processing data_processing.launch; $SHELL'"
+      command = "bash -c 'source /opt/ros/melodic/setup.bash; source /home/${USER}/kuam_ws/devel/setup.bash; roscd kuam_data_processing/scripts/; ./launch-data_processing.sh --aruco true -t gazebo; $SHELL'"
       order = 0
       parent = child3
       profile = default
       type = Terminal
       uuid = 93984ae9-bcde-4d81-9bec-0256bb88cec3
     [[[terminal5]]]
-      command = "bash -c 'source /opt/ros/melodic/setup.bash; source /home/ys/kuam_ws/devel/setup.bash; roscd kuam_flight_control/scripts; sleep 2; ./launch-offb.sh -s gazebo; $SHELL'"
+      command = "bash -c 'sleep 3; source /opt/ros/melodic/setup.bash; source /home/${USER}/kuam_ws/devel/setup.bash; roscd kuam_payload_cmd/scripts; ./launch-payload_cmd.sh -s gazebo; $SHELL'"
       order = 1
       parent = child3
       profile = default
       type = Terminal
       uuid = b45b1949-7857-464b-af6f-960b453a43cd
     [[[terminal7]]]
-      command = "bash -c 'sleep 2; source /opt/ros/melodic/setup.bash; source /home/ys/kuam_ws/devel/setup.bash; roslaunch kuam_maneuver_planning maneuver_planning.launch; $SHELL'"
+      command = "bash -c 'sleep 3; source /opt/ros/melodic/setup.bash; source /home/${USER}/kuam_ws/devel/setup.bash; roscd kuam_maneuver_planning/scripts; ./launch-maneuver_planning.sh --aruco true -t gazebo; $SHELL'"
       order = 0
       parent = child6
       profile = default
       type = Terminal
       uuid = 89aed4a2-3a01-4f23-af34-148780e2ac9c
     [[[terminal9]]]
-      command = "bash -c 'sleep 2; source /opt/ros/melodic/setup.bash; source /home/ys/kuam_ws/devel/setup.bash; rosrun smach_viewer smach_viewer.py; $SHELL'"
+      command = ""
       order = 0
       parent = child8
       profile = default

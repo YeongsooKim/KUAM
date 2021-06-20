@@ -4,24 +4,29 @@ import copy
 import state
 
 class Hovering(smach.State, state.Base):
-    def __init__(self):
-        smach.State.__init__(self, input_keys=['setpoint', 'setpoints'], 
-                                output_keys=['setpoint', 'setpoints'], 
+    def __init__(self, ego_geopose, ego_pose, ego_vel, setpoint, setpoints):
+        smach.State.__init__(self, input_keys=[], 
+                                output_keys=[], 
                                 outcomes=['flight', 'landing', 'emerg', 'manual'])
         state.Base.__init__(self)
         
+        # State value
+        self.ego_geopose = ego_geopose
+        self.ego_pose = ego_pose
+        self.ego_vel = ego_vel
+        self.setpoint = setpoint
+        self.setpoints = setpoints
         self.transition = 'none'
         
     def execute(self, userdata):
-        self.Start(userdata)
+        self.Start()
         self.Running()
-        return self.Terminate(userdata)
+        return self.Terminate()
 
 
-    def Start(self, userdata):
+    def Start(self):
         # Initialize setpoint
-        self.setpoint = copy.deepcopy(userdata.setpoint)
-        self.setpoints = copy.deepcopy(userdata.setpoints)
+        pass
 
     def Running(self):
         rate = rospy.Rate(self.freq)
@@ -34,10 +39,7 @@ class Hovering(smach.State, state.Base):
                     self.transition = 'none'        
             rate.sleep()
 
-    def Terminate(self, userdata):
+    def Terminate(self):
         trans = self.transition
-        userdata.setpoint = copy.deepcopy(self.setpoint)
-        userdata.setpoints = copy.deepcopy(self.setpoints)
-
         self.transition = 'none'
         return trans

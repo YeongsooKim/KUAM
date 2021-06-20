@@ -1,0 +1,27 @@
+data_ns: ''
+maneuver_ns: ''
+visual_ns: ''
+
+state_machine:
+  process_freq: 20.0
+
+  # takeoff
+  takeoff_alt_m: 3.0
+  reached_dist_th_m: 0.4
+  guidance_dist_th_m: 0.7
+
+  # landing
+  landing_threshold_m: 0.5
+  landing_standby_alt_m: 3.0
+  landing_duration_s: 120
+  standby_dist_th_m: 1.5
+  virtual_border_max_side_m: 6.0
+  virtual_border_angle_0_deg: 20.0
+  virtual_border_angle_1_deg: 10.0
+  alt_division_m: 10.0
+
+  # flight
+  alt_offset_m: 23.156
+
+  # emerg
+  battery_th_per: 0.10

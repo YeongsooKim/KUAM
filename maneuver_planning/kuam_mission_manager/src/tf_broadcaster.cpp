@@ -12,7 +12,11 @@ TfBroadcaster::TfBroadcaster() :
     m_process_freq_param(NAN),
     m_target_height_m_param(NAN),
     m_drone_offset_m_param(NAN),
-    m_data_ns_param("missing")
+    m_exp_camera_height_m_param(NAN),
+    m_data_ns_param("missing"),
+    m_extrinsic_imu_to_camera_x_param(NAN),
+    m_extrinsic_imu_to_camera_y_param(NAN),
+    m_extrinsic_imu_to_camera_z_param(NAN)    
 {
     InitFlag();
     if (!GetParam()) ROS_ERROR_STREAM("Fail GetParam");
@@ -28,22 +32,34 @@ void TfBroadcaster::InitFlag()
     m_is_home_set = false;
     m_base_cb = false;
     m_marker_cb = false;
+    m_is_exp_param = false;
 }
 
 bool TfBroadcaster::GetParam()
 {
     string nd_name = ros::this_node::getName();
 
+    m_nh.getParam("/data_ns", m_data_ns_param);
     m_nh.getParam(nd_name + "/process_freq", m_process_freq_param);
     m_nh.getParam(nd_name + "/is_finding_home", m_is_finding_home_param);
     m_nh.getParam(nd_name + "/target_height_m", m_target_height_m_param);
-    m_nh.getParam(nd_name + "/data_ns", m_data_ns_param);
     m_nh.getParam(nd_name + "/drone_offset_m", m_drone_offset_m_param);
+    m_nh.getParam(nd_name + "/is_exp", m_is_exp_param);
+    m_nh.getParam(nd_name + "/is_real", m_is_real_param);
+    m_nh.getParam(nd_name + "/is_gazebo", m_is_gazebo_param);
+    m_nh.getParam(nd_name + "/exp_camera_height_m", m_exp_camera_height_m_param);
+    m_nh.getParam(nd_name + "/extrinsic_imu_to_camera_x", m_extrinsic_imu_to_camera_x_param);
+    m_nh.getParam(nd_name + "/extrinsic_imu_to_camera_y", m_extrinsic_imu_to_camera_y_param);
+    m_nh.getParam(nd_name + "/extrinsic_imu_to_camera_z", m_extrinsic_imu_to_camera_z_param);
 
     if (__isnan(m_target_height_m_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_target_height_m_param is NAN"); return false; }
     else if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("[tf_broadcaster] m_data_ns_param is missing"); return false; }
     else if (__isnan(m_drone_offset_m_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_drone_offset_m_param is NAN"); return false; }
     else if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_process_freq_param is NAN"); return false; }
+    else if (__isnan(m_exp_camera_height_m_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_exp_camera_height_m_param is NAN"); return false; }
+    else if (__isnan(m_extrinsic_imu_to_camera_x_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_extrinsic_imu_to_camera_x_param is NAN"); return false; }
+    else if (__isnan(m_extrinsic_imu_to_camera_y_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_extrinsic_imu_to_camera_y_param is NAN"); return false; }
+    else if (__isnan(m_extrinsic_imu_to_camera_z_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_extrinsic_imu_to_camera_z_param is NAN"); return false; }
 
     return true;
 }
@@ -54,17 +70,19 @@ void TfBroadcaster::InitROS()
     string nd_name = ros::this_node::getName();
     
     // Initialize subscriber
-    m_novatel_sub = m_nh.subscribe<novatel_oem7_msgs::INSPVA>("/novatel/oem7/inspva", 10, boost::bind(&TfBroadcaster::NovatelINSPVACallback, this, _1));
-    m_ego_vehicle_local_pose_sub = m_nh.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, boost::bind(&TfBroadcaster::EgoVehicleLocalPositionCallback, this, _1));
-    if (!m_is_finding_home_param){
-        m_home_position_sub = m_nh.subscribe<mavros_msgs::HomePosition>("/mavros/home_position/home", 10, boost::bind(&TfBroadcaster::HomePositionCallback, this, _1));
-        
-        ros::Rate rate(10);
-        while (ros::ok() && !m_is_home_set){
-            ros::spinOnce();
-            rate.sleep();
+    if (!m_is_exp_param){
+        if (!m_is_finding_home_param){
+            m_home_position_sub = m_nh.subscribe<mavros_msgs::HomePosition>("/mavros/home_position/home", 10, boost::bind(&TfBroadcaster::HomePositionCallback, this, _1));
+            
+            ros::Rate rate(10);
+            while (ros::ok() && !m_is_home_set){
+                ros::spinOnce();
+                rate.sleep();
+            }
         }
     }
+    m_local_pose_sub = m_nh.subscribe<nav_msgs::Odometry>("/mavros/global_position/local", 10, boost::bind(&TfBroadcaster::EgoLocalCallback, this, _1));
+    m_ego_global_pos_sub = m_nh.subscribe<sensor_msgs::NavSatFix>("/mavros/global_position/global", 10, boost::bind(&TfBroadcaster::EgoGlobalCallback, this, _1));
     m_aruco_sub = m_nh.subscribe<tf2_msgs::TFMessage>(m_data_ns_param + "/aruco_tracking/tf_list", 10, boost::bind(&TfBroadcaster::MarkerCallback, this, _1));
 
     // Initialize publisher
@@ -100,21 +118,54 @@ void TfBroadcaster::InitStaticTf(void)
     transform_vector.push_back(tf_stamped);
 
     // camera_link static transformation
-    tf_stamped.header.stamp = ros::Time::now();
-    tf_stamped.header.frame_id = "base_link";
-    tf_stamped.child_frame_id = "camera_link";
+    if (m_is_gazebo_param){
+        tf_stamped.header.stamp = ros::Time::now();
+        tf_stamped.header.frame_id = "base_link";
+        tf_stamped.child_frame_id = "camera_link";
 
-    tf_stamped.transform.translation.x = 0.1;
-    tf_stamped.transform.translation.y = 0.0;
-    tf_stamped.transform.translation.z = 0.0;
-    
-    tf2::Quaternion q;
-    q.setRPY(0.0, M_PI, M_PI/2);
-    tf_stamped.transform.rotation.x = q.x();
-    tf_stamped.transform.rotation.y = q.y();
-    tf_stamped.transform.rotation.z = q.z();
-    tf_stamped.transform.rotation.w = q.w();
+        tf_stamped.transform.translation.x = 0.1;
+        tf_stamped.transform.translation.y = 0.0;
+        tf_stamped.transform.translation.z = 0.28;
+        
+        tf2::Quaternion q;
+        q.setRPY(0.0, M_PI, M_PI/2);
+        tf_stamped.transform.rotation.x = q.x();
+        tf_stamped.transform.rotation.y = q.y();
+        tf_stamped.transform.rotation.z = q.z();
+        tf_stamped.transform.rotation.w = q.w();
+    }
+    else if (m_is_exp_param){
+        tf_stamped.header.stamp = ros::Time::now();
+        tf_stamped.header.frame_id = "map";
+        tf_stamped.child_frame_id = "camera_link";
 
+        tf_stamped.transform.translation.x = 0.0;
+        tf_stamped.transform.translation.y = 0.0;
+        tf_stamped.transform.translation.z = m_exp_camera_height_m_param;
+        
+        tf2::Quaternion q;
+        q.setRPY(0.0, M_PI, M_PI/2);
+        tf_stamped.transform.rotation.x = q.x();
+        tf_stamped.transform.rotation.y = q.y();
+        tf_stamped.transform.rotation.z = q.z();
+        tf_stamped.transform.rotation.w = q.w();
+    }
+    else if (m_is_real_param){
+        tf_stamped.header.stamp = ros::Time::now();
+        tf_stamped.header.frame_id = "base_link";
+        tf_stamped.child_frame_id = "camera_link";
+
+        tf_stamped.transform.translation.x = m_extrinsic_imu_to_camera_x_param;
+        tf_stamped.transform.translation.y = m_extrinsic_imu_to_camera_y_param;
+        tf_stamped.transform.translation.z = m_extrinsic_imu_to_camera_z_param;
+        
+        tf2::Quaternion q;
+        q.setRPY(0.0, M_PI, M_PI/2);
+        tf_stamped.transform.rotation.x = q.x();
+        tf_stamped.transform.rotation.y = q.y();
+        tf_stamped.transform.rotation.z = q.z();
+        tf_stamped.transform.rotation.w = q.w();
+    }
     transform_vector.push_back(tf_stamped);
 
     static_tf_broadcaster.sendTransform(transform_vector);
@@ -156,102 +207,37 @@ void TfBroadcaster::HomePositionCallback(const mavros_msgs::HomePosition::ConstP
     }
 }
 
-void TfBroadcaster::NovatelINSPVACallback(const novatel_oem7_msgs::INSPVA::ConstPtr &inspva_msg_ptr)
-{
-    if (m_is_home_set){
-        // geometry_msgs::TransformStamped novatel_tf_stamped;
-
-        // novatel_tf_stamped.header.stamp = inspva_msg_ptr->header.stamp;
-        // novatel_tf_stamped.header.frame_id = "map";
-        // novatel_tf_stamped.child_frame_id = inspva_msg_ptr->header.frame_id;
-
-        // // Get offset
-        // geometry_msgs::Pose novatel_enu_pose = m_utils.ConvertToMapFrame(inspva_msg_ptr->latitude, 
-        //                                                                         inspva_msg_ptr->longitude, 
-        //                                                                         m_target_height_m_param, 
-        //                                                                         m_home_position);
-        // novatel_tf_stamped.transform.translation.x = novatel_enu_pose.position.x;
-        // novatel_tf_stamped.transform.translation.y = novatel_enu_pose.position.y;
-        // novatel_tf_stamped.transform.translation.z = novatel_enu_pose.position.z;
-        
-        // tf2::Quaternion q;
-        // q.setRPY(inspva_msg_ptr->roll * M_PI / 180., inspva_msg_ptr->pitch * M_PI / 180., (-1*inspva_msg_ptr->azimuth + 90.0) * M_PI / 180.);
-        // novatel_tf_stamped.transform.rotation.x = q.x();
-        // novatel_tf_stamped.transform.rotation.y = q.y();
-        // novatel_tf_stamped.transform.rotation.z = q.z();
-        // novatel_tf_stamped.transform.rotation.w = q.w();
-
-        // if (!m_novatel_tf_init){
-        //     m_transforms.push_back(novatel_tf_stamped);
-        // }
-        // m_novatel_tf_init = true;
-    }
-    else if (!m_is_home_set && m_is_finding_home_param){
-        m_is_home_set = true;
-
-        m_home_position.latitude = inspva_msg_ptr->latitude;
-        m_home_position.longitude = inspva_msg_ptr->longitude;
-        m_home_position.altitude = inspva_msg_ptr->height;
-        ROS_WARN_STREAM("[tf_broadcaster] Home set");
-    }
-}
-
-void TfBroadcaster::EgoVehicleLocalPositionCallback(const geometry_msgs::PoseStamped::ConstPtr &pose_stamped_ptr)
+void TfBroadcaster::EgoGlobalCallback(const sensor_msgs::NavSatFix::ConstPtr &pos_ptr)
 {
     m_base_cb = true;
-    m_base_tf_stamped.header.stamp = pose_stamped_ptr->header.stamp;
+
+    auto lat = pos_ptr->latitude;
+    auto lon = pos_ptr->longitude;
+    auto alt = m_local_pose.pose.pose.position.z;
+    auto pose = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
+    auto q = m_local_pose.pose.pose.orientation;
+
     m_base_tf_stamped.header.frame_id = "map";
     m_base_tf_stamped.child_frame_id = "base_link";
 
-    m_base_tf_stamped.transform.translation.x = pose_stamped_ptr->pose.position.x;
-    m_base_tf_stamped.transform.translation.y = pose_stamped_ptr->pose.position.y;
-    // m_base_tf_stamped.transform.translation.z = pose_stamped_ptr->pose.position.z - m_drone_offset_m_param;
-    m_base_tf_stamped.transform.translation.z = pose_stamped_ptr->pose.position.z;
+    m_base_tf_stamped.transform.translation.x = pose.position.x;
+    m_base_tf_stamped.transform.translation.y = pose.position.y;
+    m_base_tf_stamped.transform.translation.z = pose.position.z;
 
-    m_base_tf_stamped.transform.rotation.x = pose_stamped_ptr->pose.orientation.x;
-    m_base_tf_stamped.transform.rotation.y = pose_stamped_ptr->pose.orientation.y;
-    m_base_tf_stamped.transform.rotation.z = pose_stamped_ptr->pose.orientation.z;
-    m_base_tf_stamped.transform.rotation.w = pose_stamped_ptr->pose.orientation.w;
+    m_base_tf_stamped.transform.rotation = q;
 }
 
 void TfBroadcaster::MarkerCallback(const tf2_msgs::TFMessage::ConstPtr &marker_ptr)
 {
     if (marker_ptr->transforms.size() > 0){
         m_marker_cb = true;
-        m_marker_tf_stamped = marker_ptr->transforms[0]; // After get multiple aruco marker, change to select mode
-
-        tf::Quaternion ego_q(
-        m_base_tf_stamped.transform.rotation.x,
-        m_base_tf_stamped.transform.rotation.y,
-        m_base_tf_stamped.transform.rotation.z,
-        m_base_tf_stamped.transform.rotation.w);
-        
-        tf::Matrix3x3 ego_m(ego_q);
-        double ego_roll, ego_pitch, ego_yaw;
-        ego_m.getRPY(ego_roll, ego_pitch, ego_yaw);
+        m_marker_tf_stamped = marker_ptr->transforms[0];
 
         tf::Quaternion marker_q(
         m_marker_tf_stamped.transform.rotation.x,
         m_marker_tf_stamped.transform.rotation.y,
         m_marker_tf_stamped.transform.rotation.z,
         m_marker_tf_stamped.transform.rotation.w);
-        
-        tf::Matrix3x3 marker_m(marker_q);
-        double marker_roll, marker_pitch, marker_yaw;
-        marker_m.getRPY(marker_roll, marker_pitch, marker_yaw);
-        double tmp_r = marker_roll;
-        double tmp_p = marker_pitch;
-        double tmp_w = marker_yaw;
-        marker_roll -= ego_roll;
-        marker_pitch -= ego_pitch;
-        marker_yaw -= ego_yaw;
-
-        tf2::Quaternion q;
-        q.setRPY(marker_roll, marker_pitch, marker_yaw);
-        m_marker_tf_stamped.transform.rotation.x = q.x();
-        m_marker_tf_stamped.transform.rotation.y = q.y();
-        m_marker_tf_stamped.transform.rotation.z = q.z();
-        m_marker_tf_stamped.transform.rotation.w = q.w();
     }
 }
 
