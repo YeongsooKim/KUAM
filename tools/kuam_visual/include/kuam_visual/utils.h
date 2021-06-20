@@ -1,11 +1,22 @@
 #ifndef __UTILS_H__
 #define __UTILS_H__
 #include <geometry_msgs/Point.h>
+#include <geometry_msgs/Pose.h>
 #include <geographic_msgs/GeoPoint.h>
 #include <tf/LinearMath/Quaternion.h> // tf::quaternion
 #include "tf2_ros/transform_listener.h" // tf::quaternion
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
+#include <Eigen/Dense>
+
 
 namespace kuam{
+
+struct Euler {
+    double r;
+    double p;
+    double y;
+};
+
 class Utils
 {
 private:
@@ -30,6 +41,8 @@ public:
     geometry_msgs::Point ConvertToMapFrame(double lat, double lon, double hgt, geographic_msgs::GeoPoint home_position);
     double FnKappaLat(double dRef_Latitude, double dHeight);
     double FnKappaLon(double dRef_Latitude, double dHeight);
+    bool IsValid(geometry_msgs::Pose pose);
+    Euler Quat2Euler(const geometry_msgs::Quaternion& quat_msg);
 };
 }
 

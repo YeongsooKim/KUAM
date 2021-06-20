@@ -393,11 +393,11 @@ if __name__ == '__main__':
     '''
     Initialize Parameters
     '''
-    freq_ = rospy.get_param(nd_name + "/freq")
+    data_ns = rospy.get_param("/data_ns")
+    freq_ = rospy.get_param(nd_name + "/process_freq")
     takeoff_alt_m = rospy.get_param(nd_name + "/takeoff_alt_m")
     reached_dist_th_m = rospy.get_param(nd_name + "/reached_dist_th_m")
     guidance_dist_th_m = rospy.get_param(nd_name + "/guidance_dist_th_m")
-    data_ns = rospy.get_param(nd_name + "/data_ns")
     landing_threshold_m = rospy.get_param(nd_name + "/landing_threshold_m")
     landing_standby_alt_m = rospy.get_param(nd_name + "/landing_standby_alt_m")
     standby_dist_th_m = rospy.get_param(nd_name + "/standby_dist_th_m")

@@ -1,6 +1,6 @@
 <launch>
     <!-- namespace -->
-	<arg name="data_ns" default="/kuam/data" />
+    <rosparam command="load" file="$(find config)/param.yaml" />
 
     <!-- tf_broadcaster -->
     	<!-- Must select only one -->
@@ -10,51 +10,21 @@
 
     <!-- state machine -->
     <arg name="using_aruco" default="True" />
-        <!-- takeoff -->
-    	<arg name="takeoff_alt_m" default="3.0" />
-    	<arg name="reached_dist_th_m" default="0.4" />
-    	<arg name="guidance_dist_th_m" default="0.7" />
-        <!-- landing -->
-	    <arg name="landing_threshold_m" default="0.5" />
-	    <arg name="landing_standby_alt_m" default="3.0" />
-	    <arg name="landing_duration_s" default="120" />
-	    <arg name="standby_dist_th_m" default="1.5" />
-	    <arg name="virtual_border_max_side_m" default="6.0" />
-        <arg name="virtual_border_angle_0_deg" default="20.0" />
-        <arg name="virtual_border_angle_1_deg" default="10.0" />
-	    <arg name="alt_division_m" default="10.0" />
-        <!-- flight -->
-    	<arg name="alt_offset_m" default="23.156" />
-        <!-- emerg -->
-    	<arg name="battery_th_per" default="0.10" />
 
     <group ns="/kuam/maneuver">
         <include file="$(find kuam_mission_manager)/launch/mission_manager.launch">
-            <arg name="data_ns" value="$(arg data_ns)" />
+            <arg name="stand_alone" value="false" />
         </include>
 
         <include file="$(find kuam_mission_manager)/launch/tf_broadcaster.launch">
-            <arg name="data_ns" value="$(arg data_ns)" />
+            <arg name="stand_alone" value="false" />
             <arg name="is_exp" value="$(arg is_exp)" />
             <arg name="is_real" value="$(arg is_real)" />
             <arg name="is_gazebo" value="$(arg is_gazebo)" />
         </include>
 
         <include file="$(find kuam_state_machine)/launch/state_machine.launch">
-            <arg name="data_ns" value="$(arg data_ns)" />
-            <arg name="takeoff_alt_m" value="$(arg takeoff_alt_m)" />
-            <arg name="reached_dist_th_m" value="$(arg reached_dist_th_m)" />
-            <arg name="guidance_dist_th_m" value="$(arg guidance_dist_th_m)" />
-            <arg name="landing_threshold_m" value="$(arg landing_threshold_m)" />
-            <arg name="landing_standby_alt_m" value="$(arg landing_standby_alt_m)" />
-            <arg name="battery_th_per" value="$(arg battery_th_per)" />
-            <arg name="virtual_border_max_side_m" value="$(arg virtual_border_max_side_m)" />
-            <arg name="virtual_border_angle_0_deg" value="$(arg virtual_border_angle_0_deg)" />
-            <arg name="virtual_border_angle_1_deg" value="$(arg virtual_border_angle_1_deg)" />
-            <arg name="alt_division_m" value="$(arg alt_division_m)" />
-            <arg name="alt_offset_m" value="$(arg alt_offset_m)" />
-            <arg name="standby_dist_th_m" value="$(arg standby_dist_th_m)" />
-            <arg name="landing_duration_s" value="$(arg landing_duration_s)" />
+            <arg name="stand_alone" value="false" />
             <arg name="using_aruco" value="$(arg using_aruco)" />
         </include>
     </group>

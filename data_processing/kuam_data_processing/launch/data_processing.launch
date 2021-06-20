@@ -1,11 +1,9 @@
 <launch>
+    <!-- namespace -->
+    <rosparam command="load" file="$(find config)/param.yaml" />
+
     <!-- - kuam_aruco_tracking - -->
     <arg name="using_aruco" default="true" />
-    <arg name="marker_cnt_th" default="25" />
-	<arg name="filter_buf_size" default="10"/>
-	<arg name="noise_dist_th_m" default="3.0"/>
-        <!-- (3/5)*process_frequency -->
-    <arg name="noise_cnt_th" default="6" />
 
         <!-- Select only one data type -->
     <arg name="using_gazebo_data" default="true" />
@@ -17,16 +15,14 @@
 
     <group ns="/kuam/data">
         <include file="$(find kuam_csv_parser)/launch/csv_parser.launch">
+            <!-- <arg name="stand_alone" value="false" /> -->
         </include>
 
         <include file="$(find kuam_aruco_tracking)/launch/aruco_tracking.launch" if="$(arg using_aruco)">
-            <arg name="noise_dist_th_m" value="$(arg noise_dist_th_m)" />
-            <arg name="filter_buf_size" value="$(arg filter_buf_size)" />
+            <arg name="stand_alone" value="false" />
             <arg name="using_gazebo_data" value="$(arg using_gazebo_data)" />
             <arg name="using_logging_data" value="$(arg using_logging_data)" />
             <arg name="using_device_data" value="$(arg using_device_data)" />
-            <arg name="noise_cnt_th" value="$(arg noise_cnt_th)" />
-            <arg name="marker_cnt_th" value="$(arg marker_cnt_th)" />
             <arg name="usb_cam_logging_topic" value="$(arg usb_cam_logging_topic)" />
         </include>        
     </group>

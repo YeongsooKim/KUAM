@@ -1,24 +1,16 @@
 <?xml version="1.0"?>
 <launch>
-    <!-- aruco_tracking -->
-	<arg name="process_freq" default="10.0" />
-	<arg name="is_eval" default="false" />
-    
-    <arg name="dictionaryID" default="0" />
-    <arg name="big_marker_id" default="0" />
-    <arg name="small_marker_id" default="1" />
-    <arg name="big_marker_size_m" default="0.2" />
-    <arg name="small_marker_size_m" default="0.06" />
-    <arg name="filter_buf_size" default="20" />
-    <arg name="compare_mode" default="false" />
-    <arg name="marker_cnt_th" default="10" />
+    <arg name="stand_alone" default="true" />
+	<group if="$(arg stand_alone)">
+        <rosparam command="load" file="$(find kuam_aruco_tracking)/config/param.yaml" />
+	</group>
 
-        <!-- Select only one data type -->
+    <!-- Select only one data type -->
     <arg name="using_gazebo_data" default="true" />
     <arg name="using_logging_data" default="false" />
     <arg name="using_device_data" default="false" />
 
-        <!-- Aruco lib param -->
+    <!-- Aruco lib param -->
     <arg name="detector_params_path" default="$(find kuam_aruco_tracking)/config/detector_params.yml" />
     <arg name="calib_path" value="$(find kuam_aruco_tracking)/config/calib_sim.txt" unless="$(arg using_device_data)"/>
     <arg name="calib_path" value="$(find kuam_aruco_tracking)/config/calib.txt" if="$(arg using_device_data)"/>
@@ -32,28 +24,12 @@
         <!-- 2. Exponential moving average filter -->
     <arg name="estimating_method" default="1" />
 
-    <arg name="noise_dist_th_m" default="1.0" />
-        <!-- (3/5)*process_frequency -->
-    <arg name="noise_cnt_th" default="6" />
-
     <node pkg="kuam_aruco_tracking" type="aruco_tracking_node" name="aruco_tracking" cwd="node" output="screen">
-        <param name="process_freq" value="$(arg process_freq)" />
-        <param name="is_eval" value="$(arg is_eval)" />
         <param name="calib_path" value="$(arg calib_path)" />
         <param name="detector_params_path" value="$(arg detector_params_path)" />
-        <param name="dictionaryID" value="$(arg dictionaryID)" />
-        <param name="big_marker_id" value="$(arg big_marker_id)" />
-        <param name="small_marker_id" value="$(arg small_marker_id)" />
-        <param name="big_marker_size_m" value="$(arg big_marker_size_m)" />
-        <param name="small_marker_size_m" value="$(arg small_marker_size_m)" />
-        <param name="filter_buf_size" value="$(arg filter_buf_size)" />
-        <param name="compare_mode" value="$(arg compare_mode)" />
         <param name="estimating_method" value="$(arg estimating_method)" />
         <param name="using_gazebo_data" value="$(arg using_gazebo_data)" />
         <param name="using_logging_data" value="$(arg using_logging_data)" />
-        <param name="noise_dist_th_m" value="$(arg noise_dist_th_m)" />
-        <param name="noise_cnt_th" value="$(arg noise_cnt_th)" />
-        <param name="marker_cnt_th" value="$(arg marker_cnt_th)" />
         <param name="usb_cam_logging_topic" value="$(arg usb_cam_logging_topic)" />
     </node>
 

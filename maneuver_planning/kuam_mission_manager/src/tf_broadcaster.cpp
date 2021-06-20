@@ -39,10 +39,10 @@ bool TfBroadcaster::GetParam()
 {
     string nd_name = ros::this_node::getName();
 
+    m_nh.getParam("/data_ns", m_data_ns_param);
     m_nh.getParam(nd_name + "/process_freq", m_process_freq_param);
     m_nh.getParam(nd_name + "/is_finding_home", m_is_finding_home_param);
     m_nh.getParam(nd_name + "/target_height_m", m_target_height_m_param);
-    m_nh.getParam(nd_name + "/data_ns", m_data_ns_param);
     m_nh.getParam(nd_name + "/drone_offset_m", m_drone_offset_m_param);
     m_nh.getParam(nd_name + "/is_exp", m_is_exp_param);
     m_nh.getParam(nd_name + "/is_real", m_is_real_param);

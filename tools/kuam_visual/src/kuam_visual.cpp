@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <boost/format.hpp>
 
 #include <tf/LinearMath/Quaternion.h> // tf::quaternion
@@ -9,15 +10,18 @@
 
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/NavSatFix.h>
+#include <std_msgs/Float32.h>
 #include <kuam_visual/utils.h>
 #include <kuam_aruco_tracking/aruco_tracking.h>
 #include <kuam_msgs/ArucoVisual.h>
+#include <kuam_msgs/ArucoState.h>
 #include <kuam_msgs/Waypoints.h>
 #include <kuam_msgs/Setpoint.h>
 #include <kuam_msgs/TaskList.h>
 #include <kuam_msgs/TransReq.h>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/PoseArray.h>
 #include <geographic_msgs/GeoPoint.h>
 #include <geographic_msgs/GeoPose.h>
 #include <std_msgs/ColorRGBA.h>
@@ -65,6 +69,7 @@ struct TextDatum{
     string cur_state;
     string landing_state;
     string is_detected;
+    string is_pass_landing_standby;
     string tasklist;
     string ego_height_m;
     string home_altitude_m;
@@ -89,6 +94,7 @@ public:
 private:
     // Subscriber
     ros::Subscriber m_aruco_visual_sub;
+    ros::Subscriber m_aruco_state_sub;
     ros::Subscriber m_home_position_sub;
     ros::Subscriber m_global_waypoints_sub;
     ros::Subscriber m_setpoint_sub;
@@ -104,15 +110,21 @@ private:
     ros::Publisher m_setpoints_pub;
     ros::Publisher m_ego_pub;
     ros::Publisher m_text_pub;
+    ros::Publisher m_gt_marker_pub;
+    ros::Publisher m_gt_pos_pub;
+    ros::Publisher m_target_height_pub;
 
     // Timer
     ros::Timer m_text_pub_cb_timer;
+    ros::Timer m_gt_pub_cb_timer;
 
     // Param
     string m_data_ns_param;
     string m_maneuver_ns_param;
     float m_standby_dist_th_m_param;
     float m_landing_standby_alt_m_param;
+    float m_small_marker_size_m_param;
+    float m_big_marker_size_m_param;
 
     // Flag
     bool m_is_home_set;
@@ -122,6 +134,7 @@ private:
     vector<MetaMarkers> m_target_markers; // target markers
     MetaMarkers m_ego_markers; // target markers
     visualization_msgs::MarkerArray m_global_markers;
+    visualization_msgs::MarkerArray m_gt_markers;
     vector<visualization_msgs::MarkerArray> m_setpoints_markers;
 
     geographic_msgs::GeoPoint m_home_position;
@@ -139,6 +152,7 @@ private: // Function
     bool InitMarkers();
     
     void ArucoVisualCallback(const kuam_msgs::ArucoVisual::ConstPtr &aruco_msg_ptr);
+    void ArucoStateCallback(const kuam_msgs::ArucoState::ConstPtr &aruco_msg_ptr);
     void HomePositionCallback(const mavros_msgs::HomePosition::ConstPtr &home_ptr);
     void WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr);
     void SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_ptr);
@@ -148,6 +162,7 @@ private: // Function
     void TaskListCallback(const kuam_msgs::TaskList::ConstPtr &ego_ptr);
     void BatteryCallback(const sensor_msgs::BatteryState::ConstPtr &battery_ptr);
     void TextPubCallback(const ros::TimerEvent& event);
+    void GTPubCallback(const ros::TimerEvent& event);
 };
 
 
@@ -156,6 +171,8 @@ KuamVisualizer::KuamVisualizer() :
     m_maneuver_ns_param("missing"),
     m_standby_dist_th_m_param(NAN),
     m_landing_standby_alt_m_param(NAN),
+    m_small_marker_size_m_param(NAN),
+    m_big_marker_size_m_param(NAN),
     m_tfListener(m_tfBuffer)
 {
     InitFlag();
@@ -183,16 +200,19 @@ bool KuamVisualizer::GetParam()
 {
     string nd_name = ros::this_node::getName();
 
-    m_nh.getParam(nd_name + "/data_ns", m_data_ns_param);
-    m_nh.getParam(nd_name + "/maneuver_ns", m_maneuver_ns_param);
-    m_nh.getParam(nd_name + "/standby_dist_th_m", m_standby_dist_th_m_param);
-    m_nh.getParam(nd_name + "/landing_standby_alt_m", m_landing_standby_alt_m_param);
+    m_nh.getParam("/data_ns", m_data_ns_param);
+    m_nh.getParam("/maneuver_ns", m_maneuver_ns_param);
+    m_nh.getParam(m_maneuver_ns_param + "/state_machine/standby_dist_th_m", m_standby_dist_th_m_param);
+    m_nh.getParam(m_maneuver_ns_param + "/state_machine/landing_standby_alt_m", m_landing_standby_alt_m_param);
+    m_nh.getParam(m_data_ns_param + "/aruco_tracking/small_marker_size_m", m_small_marker_size_m_param);
+    m_nh.getParam(m_data_ns_param + "/aruco_tracking/big_marker_size_m", m_big_marker_size_m_param);
 
     if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("[kuam_visual] m_data_ns_param is missing"); return false; }
     else if (m_maneuver_ns_param == "missing") { ROS_ERROR_STREAM("[kuam_visual] m_maneuver_ns_param is missing"); return false; }
     else if (__isnan(m_standby_dist_th_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_standby_dist_th_m_param is NAN"); return false; }
     else if (__isnan(m_landing_standby_alt_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_landing_standby_alt_m_param is NAN"); return false; }
-    // else if (__isnan(m_big_marker_id_param)) { ROS_ERROR_STREAM("[kuam_visual] m_big_marker_id_param is NAN"); return false; }
+    else if (__isnan(m_small_marker_size_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_small_marker_size_m_param is NAN"); return false; }
+    else if (__isnan(m_big_marker_size_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_big_marker_size_m_param is NAN"); return false; }
 
     return true;
 }
@@ -215,6 +235,8 @@ bool KuamVisualizer::InitROS()
 
     m_aruco_visual_sub = 
         m_nh.subscribe<kuam_msgs::ArucoVisual>(m_data_ns_param + "/aruco_tracking/aruco_visual", 1, boost::bind(&KuamVisualizer::ArucoVisualCallback, this, _1));
+    m_aruco_state_sub = 
+        m_nh.subscribe<kuam_msgs::ArucoState>(m_data_ns_param + "/aruco_tracking/target_state", 10, boost::bind(&KuamVisualizer::ArucoStateCallback, this, _1));        
     m_global_waypoints_sub = 
         m_nh.subscribe<kuam_msgs::Waypoints>(m_data_ns_param + "/csv_parser/waypoints", 10, boost::bind(&KuamVisualizer::WaypointsCallback, this, _1));
     m_setpoint_sub = 
@@ -236,14 +258,17 @@ bool KuamVisualizer::InitROS()
     m_setpoints_pub = m_nh.advertise<visualization_msgs::MarkerArray>(nd_name + "/setpoint_markerarray", 10);
     m_ego_pub = m_nh.advertise<visualization_msgs::MarkerArray>(nd_name + "/ego_markerarray", 10);
     m_text_pub = m_nh.advertise<jsk_rviz_plugins::OverlayText>(nd_name + "/text", 10);
+    m_gt_marker_pub = m_nh.advertise<visualization_msgs::MarkerArray>(nd_name + "/gt_markerarray", 10);
+    m_gt_pos_pub = m_nh.advertise<geometry_msgs::PoseArray>(nd_name + "/gt_pos", 10);
+    m_target_height_pub = m_nh.advertise<std_msgs::Float32>(nd_name + "/target_height", 10);
     
     // Initialize timer
     float freq = 5.0;
     m_text_pub_cb_timer = m_nh.createTimer(ros::Duration(1.0/freq), &KuamVisualizer::TextPubCallback, this);
+    m_gt_pub_cb_timer = m_nh.createTimer(ros::Duration(1.0/freq), &KuamVisualizer::GTPubCallback, this);
 
     return true;
 }
-
 
 bool KuamVisualizer::InitMarkers()
 {
@@ -385,6 +410,10 @@ bool KuamVisualizer::InitMarkers()
     m_ego_markers.current_point.scale.x = 0.15;
     m_ego_markers.current_point.scale.y = 0.15;
     m_ego_markers.current_point.scale.z = 0.15;
+    m_ego_markers.current_point.pose.orientation.w = 1.0;
+    m_ego_markers.current_point.pose.orientation.x = 0.0;
+    m_ego_markers.current_point.pose.orientation.y = 0.0;
+    m_ego_markers.current_point.pose.orientation.z = 0.0;
     m_ego_markers.current_point.color = CYAN;
     m_ego_markers.current_point.color.a = 0.4f;
     m_ego_markers.current_point.lifetime = ros::Duration(0.8);
@@ -446,6 +475,29 @@ void KuamVisualizer::ArucoVisualCallback(const kuam_msgs::ArucoVisual::ConstPtr 
     }
 
     m_aruco_pub.publish(visualization_markers);
+}
+
+void KuamVisualizer::ArucoStateCallback(const kuam_msgs::ArucoState::ConstPtr &aruco_msg_ptr)
+{
+    if (aruco_msg_ptr->is_detected){
+        geometry_msgs::TransformStamped transformStamped;
+        geometry_msgs::Pose transformed_pose;
+        try{
+            transformStamped = 
+                    m_tfBuffer.lookupTransform("base_link", aruco_msg_ptr->header.frame_id, ros::Time(0));
+                    tf2::doTransform(aruco_msg_ptr->pose, transformed_pose, transformStamped);
+            }
+        catch (tf2::TransformException &ex) {
+            ROS_WARN("%s", ex.what());
+            ros::Duration(1.0).sleep();
+        }
+        transformed_pose;
+        if (m_utils.IsValid(transformed_pose)){
+            std_msgs::Float32 msg;
+            msg.data = abs(transformed_pose.position.z);
+            m_target_height_pub.publish(msg);
+        }
+    }
 }
 
 void KuamVisualizer::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr)
@@ -521,12 +573,11 @@ void KuamVisualizer::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps
         }
 
         if (has_landingpoint){
-
             auto geopose = wps_ptr->waypoints[ld_index].geopose;
             auto lat = geopose.position.latitude;
             auto lon = geopose.position.longitude;
             auto alt = m_landing_standby_alt_m_param;
-            auto p = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
+            auto landing_pos = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
 
             visualization_msgs::Marker landing_point;
             landing_point.header.frame_id = "map";
@@ -538,7 +589,7 @@ void KuamVisualizer::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps
             landing_point.scale.x = m_standby_dist_th_m_param;
             landing_point.scale.y = m_standby_dist_th_m_param;
             landing_point.scale.z = m_standby_dist_th_m_param;
-            landing_point.pose.position = p;
+            landing_point.pose.position = landing_pos;
             landing_point.pose.orientation.x = 0.0;
             landing_point.pose.orientation.y = 0.0;
             landing_point.pose.orientation.z = 0.0;
@@ -547,6 +598,57 @@ void KuamVisualizer::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps
             landing_point.color.a = 0.3f;
             landing_point.lifetime = ros::Duration();
             m_global_markers.markers.push_back(landing_point);
+
+            //// global path
+            visualization_msgs::Marker path;
+            path.header.frame_id = "map";
+            path.ns = "global/path";
+            path.id = 0;
+            path.type = visualization_msgs::Marker::LINE_STRIP;
+            path.action = visualization_msgs::Marker::ADD;
+            path.scale.x = 0.05;
+            path.pose.orientation.w = 1.0;
+            path.pose.orientation.x = 0.0;
+            path.pose.orientation.y = 0.0;
+            path.pose.orientation.z = 0.0;
+            path.color = RED;
+            path.color.a = 0.4f;
+            path.lifetime = ros::Duration();
+            m_global_markers.markers.push_back(path);
+
+            //// ground truth
+            visualization_msgs::Marker gt_aruco;
+            gt_aruco.header.frame_id = "map";
+            gt_aruco.type = visualization_msgs::Marker::CUBE;
+            gt_aruco.action = visualization_msgs::Marker::ADD;
+            gt_aruco.pose.orientation.w = 1.0;
+            gt_aruco.pose.orientation.x = 0.0;
+            gt_aruco.pose.orientation.y = 0.0;
+            gt_aruco.pose.orientation.z = 0.0;
+            gt_aruco.color = YELLOW;
+            gt_aruco.color.a = 1.0f;
+            gt_aruco.lifetime = ros::Duration();
+
+            auto small_gt_pos = landing_pos;
+            small_gt_pos.z = 0.0; // ground
+            gt_aruco.ns = "gt/small";
+            gt_aruco.id = 0;
+            gt_aruco.scale.x = m_small_marker_size_m_param;
+            gt_aruco.scale.y = m_small_marker_size_m_param;
+            gt_aruco.scale.z = 0.01;
+            gt_aruco.pose.position = small_gt_pos;
+            m_gt_markers.markers.push_back(gt_aruco);
+
+            auto big_gt_pos = small_gt_pos;
+            // big_marker_side/2.0 + small_marker_side/2.0 + margin
+            big_gt_pos.y -= (m_big_marker_size_m_param/2.0 + m_small_marker_size_m_param/2.0 + 0.03);
+            gt_aruco.ns = "gt/big";
+            gt_aruco.id = 1;
+            gt_aruco.scale.x = m_big_marker_size_m_param;
+            gt_aruco.scale.y = m_big_marker_size_m_param;
+            gt_aruco.scale.z = 0.01;
+            gt_aruco.pose.position = big_gt_pos;
+            m_gt_markers.markers.push_back(gt_aruco);
         }
     }
     else {
@@ -597,6 +699,18 @@ void KuamVisualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpo
         m_text_datum.is_detected = (boost::format("<span style=\"color: rgba(%2%, %3%, %4%, %5%)\">%1%</span>")
              % is_detected % 255.0 % 0.0 % 0.0 % 1.0).str();
     }
+    string is_pass_landing_standby;
+    if (setpoint.landing_state.is_pass_landing_standby){
+        is_pass_landing_standby = "TRUE\n";
+        m_text_datum.is_pass_landing_standby = (boost::format("<span style=\"color: rgba(%2%, %3%, %4%, %5%)\">%1%</span>")
+             % is_pass_landing_standby % 0.0 % 255.0 % 0.0 % 1.0).str();
+    }
+    else{
+        is_pass_landing_standby = "FALSE\n";
+        m_text_datum.is_pass_landing_standby = (boost::format("<span style=\"color: rgba(%2%, %3%, %4%, %5%)\">%1%</span>")
+             % is_pass_landing_standby % 255.0 % 0.0 % 0.0 % 1.0).str();
+    }
+    
 
 
     // Set setpoint marker
@@ -665,6 +779,7 @@ void KuamVisualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpo
                 ros::Duration(1.0).sleep();
             }
             p = transformed_pose;
+            p.orientation = setpoint.pose.orientation;
         }
         else{
             p = setpoint.pose;
@@ -827,6 +942,7 @@ void KuamVisualizer::TextPubCallback(const ros::TimerEvent& event)
     text.font = "DejaVu Sans Mono";
     auto coverage = m_text_datum.coverage;
     auto is_detected = m_text_datum.is_detected;
+    auto is_pass_landing_standby = m_text_datum.is_pass_landing_standby;
     auto ego_local_height_m = m_text_datum.ego_height_m;
     auto cur_mode = m_text_datum.cur_mode;
     auto cur_state = m_text_datum.cur_state;
@@ -839,7 +955,7 @@ void KuamVisualizer::TextPubCallback(const ros::TimerEvent& event)
     auto battery_per = m_text_datum.battery_per;
     
     text.text = 
-        "Coverage: " + coverage + "Is detected: " + is_detected + 
+        "Coverage: " + coverage + "Is detected: " + is_detected + "Is pass landing standby: " + is_pass_landing_standby +
         "\nLocal altitude: " + ego_local_height_m + 
         "\nCurrent mode: " + cur_mode + "Current state: " + 
         cur_state + "\nLanding state: " + 
@@ -850,6 +966,27 @@ void KuamVisualizer::TextPubCallback(const ros::TimerEvent& event)
     text.bg_color = bg_color;
 
     m_text_pub.publish(text);
+}
+
+void KuamVisualizer::GTPubCallback(const ros::TimerEvent& event)
+{
+    if (!m_gt_markers.markers.empty()){
+        m_gt_marker_pub.publish(m_gt_markers);
+
+        geometry_msgs::PoseArray pose_array;
+        pose_array.header.frame_id = "map";
+        pose_array.header.stamp = ros::Time::now();
+
+        for (auto marker : m_gt_markers.markers){
+            geometry_msgs::Pose p;
+            p = marker.pose;
+
+            pose_array.poses.push_back(p);
+        }
+        reverse(pose_array.poses.begin(), pose_array.poses.end());
+
+        m_gt_pos_pub.publish(pose_array);
+    }
 }
 }
 

@@ -2,6 +2,6 @@
 	<arg name="output" default="screen"/>
 
     <group ns="/kuam/data">
-		<node pkg="kuam_data_utils" type="chat_node" name="chat" output="$(arg output)"/>
+		  <node pkg="kuam_data_utils" type="chat_node" name="chat" output="$(arg output)"/>
     </group>
 </launch>

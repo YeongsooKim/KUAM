@@ -1,42 +1,15 @@
 <launch>
+    <arg name="stand_alone" default="true" />
+	<group if="$(arg stand_alone)">
+        <rosparam command="load" file="$(find kuam_state_machine)/config/param.yaml" />
+	</group>
+	
 	<arg name="output" default="screen"/>
 
 	<!-- Do Not Input 0.0 -->
-	<arg name="data_ns" default="/kuam/data" />
-	<arg name="freq" default="20.0" />
-	<arg name="takeoff_alt_m" default="3.0" />
-	<arg name="reached_dist_th_m" default="0.4" />
-	<arg name="guidance_dist_th_m" default="0.7" />
-	<arg name="target_marker_id" default="0" />
-	<arg name="standby_dist_th_m" default="1.5" />
-	<arg name="landing_threshold_m" default="3.0" />
-	<arg name="landing_standby_alt_m" default="5.0" />
-	<arg name="battery_th_per" default="0.05" />
-	<arg name="virtual_border_max_side_m" default="6.0" />
-	<arg name="virtual_border_angle_0_deg" default="20.0" />
-	<arg name="virtual_border_angle_1_deg" default="10.0" />
-	<arg name="alt_division_m" default="10.0" />
-	<arg name="alt_offset_m" default="23.156" />
-	<arg name="landing_duration_s" default="80" />
 	<arg name="using_aruco" default="False" />
 
 	<node pkg="kuam_state_machine" type="state_machine.py" name="state_machine" output="$(arg output)">
-		<param name="data_ns" value="$(arg data_ns)" />
-		<param name="freq" value="$(arg freq)" />
-		<param name="takeoff_alt_m" value="$(arg takeoff_alt_m)" />
-		<param name="reached_dist_th_m" value="$(arg reached_dist_th_m)" />
-		<param name="guidance_dist_th_m" value="$(arg guidance_dist_th_m)" />
-		<param name="target_marker_id" value="$(arg target_marker_id)" />
-		<param name="standby_dist_th_m" value="$(arg standby_dist_th_m)" />
-		<param name="landing_threshold_m" value="$(arg landing_threshold_m)" />
-		<param name="landing_standby_alt_m" value="$(arg landing_standby_alt_m)" />
-		<param name="battery_th_per" value="$(arg battery_th_per)" />
-		<param name="virtual_border_max_side_m" value="$(arg virtual_border_max_side_m)" />
-		<param name="virtual_border_angle_0_deg" value="$(arg virtual_border_angle_0_deg)" />
-		<param name="virtual_border_angle_1_deg" value="$(arg virtual_border_angle_1_deg)" />
-		<param name="alt_division_m" value="$(arg alt_division_m)" />
-		<param name="alt_offset_m" value="$(arg alt_offset_m)" />
-		<param name="landing_duration_s" value="$(arg landing_duration_s)" />
 		<param name="using_aruco" value="$(arg using_aruco)" />
 	</node>
 </launch>

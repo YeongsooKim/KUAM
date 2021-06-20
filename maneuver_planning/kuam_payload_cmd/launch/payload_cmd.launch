@@ -14,7 +14,6 @@
 
     <!-- payload_cmd_node  -->
 	<arg name="process_freq" default="30.0" />
-	<arg name="maneuver_ns" default="/kuam/maneuver" />
 
     <group unless="$(arg simulation)">
         <include file="$(find mavros)/launch/px4.launch">
@@ -29,7 +28,6 @@
     <group ns="/kuam/maneuver">
         <node pkg="kuam_payload_cmd" type="payload_cmd_node" name="payload_cmd" output="screen">
             <param name="process_freq" value="$(arg process_freq)" />
-            <param name="maneuver_ns" value="$(arg maneuver_ns)" />
         </node>
     </group>
 </launch>

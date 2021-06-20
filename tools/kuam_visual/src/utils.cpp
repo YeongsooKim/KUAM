@@ -136,4 +136,27 @@ double Utils::FnKappaLon(double dRef_Latitude, double dHeight)
 	return dKappaLon;
 }
 
+bool Utils::IsValid(geometry_msgs::Pose pose)
+{
+    auto x = pose.position.x;
+    auto y = pose.position.y;
+    auto z = pose.position.z;
+
+    if ((x>1e+100) || (x<-1e+100)) return false;
+    if ((y>1e+100) || (y<-1e+100)) return false;
+    if ((z>1e+100) || (z<-1e+100)) return false;
+    return true;
+}
+
+Euler Utils::Quat2Euler(const geometry_msgs::Quaternion& quat_msg)
+{
+	tf2::Quaternion quat_tf;
+	double roll, pitch, yaw;
+	tf2::fromMsg(quat_msg, quat_tf);
+	tf2::Matrix3x3(quat_tf).getRPY(roll, pitch, yaw);
+	
+	Euler euler = {roll, pitch, yaw};
+
+	return euler;
+}
 }

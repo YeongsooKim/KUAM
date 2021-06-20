@@ -1,0 +1,16 @@
+aruco_tracking:
+  process_freq: 10.0
+  
+  is_eval: false
+  compare_mode: false
+
+  marker_cnt_th: 25
+  filter_buf_size: 10
+  noise_dist_th_m: 3.0
+  noise_cnt_th: 6 # (3/5)*process_frequency
+  
+  dictionaryID: 0
+  big_marker_id: 0
+  small_marker_id: 1
+  big_marker_size_m: 0.2
+  small_marker_size_m: 0.06

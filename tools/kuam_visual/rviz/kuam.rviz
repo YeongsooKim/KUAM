@@ -7,12 +7,11 @@ Panels:
         - /Global Options1
         - /Status1
         - /DataProcessing1
-        - /DataProcessing1/camera1
-        - /DataProcessing1/ego1
-        - /DataProcessing1/ego1/Status1
-        - /MissionManager1/Tf1
+        - /DataProcessing1/ground_truth_marker1/Namespaces1
+        - /MissionManager1
+        - /MissionManager1/Tf1/Frames1
         - /MissionManager1/landing_marker1/Namespaces1
-        - /Visual1
+        - /Tools1
       Splitter Ratio: 0.6004056930541992
     Tree Height: 472
   - Class: rviz/Selection
@@ -108,6 +107,15 @@ Visualization Manager:
             ego/trajectory: true
           Queue Size: 100
           Value: true
+        - Class: rviz/MarkerArray
+          Enabled: true
+          Marker Topic: /kuam/visual/kuam_visual/gt_markerarray
+          Name: ground_truth_marker
+          Namespaces:
+            gt/big: true
+            gt/small: true
+          Queue Size: 100
+          Value: true
       Enabled: true
       Name: DataProcessing
     - Class: rviz/Group
@@ -120,17 +128,17 @@ Visualization Manager:
             base_link:
               Value: true
             base_link_frd:
-              Value: true
+              Value: false
             camera_link:
               Value: true
             map:
               Value: true
             map_ned:
-              Value: true
+              Value: false
             odom:
-              Value: true
+              Value: false
             odom_ned:
-              Value: true
+              Value: false
           Marker Scale: 1
           Name: Tf
           Show Arrows: true
@@ -161,38 +169,54 @@ Visualization Manager:
       Name: MissionManager
     - Class: rviz/Group
       Displays:
-        - Class: rviz/MarkerArray
+        - Align Bottom: false
+          Background Alpha: 0.800000011920929
+          Background Color: 0; 0; 0
+          Class: jsk_rviz_plugin/OverlayText
           Enabled: true
-          Marker Topic: /kuam/visual/marker/gt
-          Name: ground_truth
-          Namespaces:
-            gt/big: true
-            gt/small: true
-          Queue Size: 100
+          Foreground Alpha: 0.800000011920929
+          Foreground Color: 25; 255; 240
+          Invert Shadow: false
+          Name: OverlayText
+          Overtake BG Color Properties: false
+          Overtake FG Color Properties: false
+          Overtake Position Properties: false
+          Topic: /kuam/visual/kuam_visual/text
           Value: true
+          font: DejaVu Sans Mono
+          height: 128
+          left: 0
+          line width: 2
+          text size: 12
+          top: 0
+          width: 128
+        - Buffer length: 100
+          Class: jsk_rviz_plugin/Plotter2D
+          Enabled: true
+          Name: Target Height [m]
+          Show Value: true
+          Topic: /kuam/visual/kuam_visual/target_height
+          Value: true
+          auto color change: false
+          auto scale: true
+          background color: 0; 0; 0
+          backround alpha: 0
+          border: true
+          foreground alpha: 0.699999988079071
+          foreground color: 25; 255; 240
+          height: 200
+          left: 1250
+          linewidth: 1
+          max color: 255; 0; 0
+          max value: 1
+          min value: -1
+          show caption: true
+          text size: 12
+          top: 25
+          update interval: 0.03999999910593033
+          width: 200
       Enabled: true
-      Name: Visual
-    - Align Bottom: false
-      Background Alpha: 0.800000011920929
-      Background Color: 0; 0; 0
-      Class: jsk_rviz_plugin/OverlayText
-      Enabled: true
-      Foreground Alpha: 0.800000011920929
-      Foreground Color: 25; 255; 240
-      Invert Shadow: false
-      Name: OverlayText
-      Overtake BG Color Properties: false
-      Overtake FG Color Properties: false
-      Overtake Position Properties: false
-      Topic: /kuam/visual/kuam_visual/text
-      Value: true
-      font: DejaVu Sans Mono
-      height: 128
-      left: 0
-      line width: 2
-      text size: 12
-      top: 0
-      width: 128
+      Name: Tools
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -221,25 +245,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 20.867046356201172
+      Distance: 21.657743453979492
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 11.374946594238281
-        Y: 1.1621633768081665
-        Z: -1.811981201171875e-5
+        X: 11.240310668945312
+        Y: 0.11245381832122803
+        Z: -1.4543533325195312e-5
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5753986239433289
+      Pitch: 0.4503990411758423
       Target Frame: map
       Value: ThirdPersonFollower (rviz)
-      Yaw: 5.478586196899414
+      Yaw: 5.478621006011963
     Saved: ~
 Window Geometry:
   Displays:
