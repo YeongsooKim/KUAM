@@ -10,8 +10,6 @@ using namespace kuam;
 
 TfBroadcaster::TfBroadcaster() :
     m_process_freq_param(NAN),
-    m_target_height_m_param(NAN),
-    m_drone_offset_m_param(NAN),
     m_exp_camera_height_m_param(NAN),
     m_data_ns_param("missing"),
     m_extrinsic_imu_to_camera_x_param(NAN),
@@ -42,8 +40,6 @@ bool TfBroadcaster::GetParam()
     m_nh.getParam("/data_ns", m_data_ns_param);
     m_nh.getParam(nd_name + "/process_freq", m_process_freq_param);
     m_nh.getParam(nd_name + "/is_finding_home", m_is_finding_home_param);
-    m_nh.getParam(nd_name + "/target_height_m", m_target_height_m_param);
-    m_nh.getParam(nd_name + "/drone_offset_m", m_drone_offset_m_param);
     m_nh.getParam(nd_name + "/is_exp", m_is_exp_param);
     m_nh.getParam(nd_name + "/is_real", m_is_real_param);
     m_nh.getParam(nd_name + "/is_gazebo", m_is_gazebo_param);
@@ -52,9 +48,7 @@ bool TfBroadcaster::GetParam()
     m_nh.getParam(nd_name + "/extrinsic_imu_to_camera_y", m_extrinsic_imu_to_camera_y_param);
     m_nh.getParam(nd_name + "/extrinsic_imu_to_camera_z", m_extrinsic_imu_to_camera_z_param);
 
-    if (__isnan(m_target_height_m_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_target_height_m_param is NAN"); return false; }
-    else if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("[tf_broadcaster] m_data_ns_param is missing"); return false; }
-    else if (__isnan(m_drone_offset_m_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_drone_offset_m_param is NAN"); return false; }
+    if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("[tf_broadcaster] m_data_ns_param is missing"); return false; }
     else if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_process_freq_param is NAN"); return false; }
     else if (__isnan(m_exp_camera_height_m_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_exp_camera_height_m_param is NAN"); return false; }
     else if (__isnan(m_extrinsic_imu_to_camera_x_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_extrinsic_imu_to_camera_x_param is NAN"); return false; }

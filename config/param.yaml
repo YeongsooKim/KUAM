@@ -12,8 +12,8 @@ kuam:
       compare_mode: false
 
       # threshold
-      marker_cnt_th: 25
-      filter_buf_size: 10
+      marker_cnt_th: 25 # count for fixing target when multi marker detected
+      filter_buf_size: 10 # moving average filter buff size
       noise_dist_th_m: 3.0
       noise_cnt_th: 6 # (3/5)*process_frequency
 
@@ -30,14 +30,14 @@ kuam:
 
       # takeoff
       takeoff_alt_m: 3.0
-      reached_dist_th_m: 0.4
-      guidance_dist_th_m: 0.7
+      reached_dist_th_m: 0.4 # checking have reached to mission destination waypoint
+      guidance_dist_th_m: 0.7 # checking have reached to next waypoint during flight mode
 
       # landing
-      landing_threshold_m: 0.5
-      landing_standby_alt_m: 3.0
+      landing_threshold_m: 0.5 # for distingush kuam control and px4 control during landing 
+      landing_standby_alt_m: 3.0 # waiting for detecting marker during landing state
       landing_duration_s: 120
-      standby_dist_th_m: 1.5
+      standby_dist_th_m: 1.5 # checking have reached to landing standby waypoint during landing state
       virtual_border_max_side_m: 6.0
       virtual_border_angle_0_deg: 20.0
       virtual_border_angle_1_deg: 10.0
@@ -55,8 +55,6 @@ kuam:
       # flag
       is_finding_home: false
 
-      target_height_m: 20
-      drone_offset_m: 0.188
       exp_camera_height_m: 1.5
       
       extrinsic_imu_to_camera_x: 0.1257
