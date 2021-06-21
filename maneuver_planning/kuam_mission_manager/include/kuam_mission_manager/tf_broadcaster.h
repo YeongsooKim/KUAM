@@ -29,7 +29,6 @@
 using namespace std; 
 
 namespace kuam{
-const string CAMERA_FRAME = "head_camera";
 class TfBroadcaster{
 private:
 	ros::NodeHandle m_nh;
@@ -54,12 +53,13 @@ private:
     ros::Timer m_tf_broadcaster_timer;
 
     // Param
-    float m_process_freq_param;
+    string m_data_ns_param;
+    string m_camera_frame_id_param;
     bool m_is_finding_home_param;
-    std::string m_data_ns_param;
     bool m_is_exp_param;
     bool m_is_real_param;
     bool m_is_gazebo_param;
+    float m_process_freq_param;
     float m_exp_camera_height_m_param;
     float m_extrinsic_imu_to_camera_x_param;
     float m_extrinsic_imu_to_camera_y_param;
@@ -76,7 +76,7 @@ private:
     bool m_is_home_set;
 
     tf2_ros::TransformBroadcaster m_tf_broadcaster;
-	std::vector<geometry_msgs::TransformStamped> m_transforms;
+	vector<geometry_msgs::TransformStamped> m_transforms;
 
 private:
     void InitFlag();
@@ -92,7 +92,7 @@ private:
     void EgoGlobalCallback(const sensor_msgs::NavSatFix::ConstPtr &pos_ptr);
     void MarkerCallback(const tf2_msgs::TFMessage::ConstPtr &marker_ptr);
     
-    void AddTransform(const std::string &frame_id, const std::string &child_id, const geometry_msgs::Transform tf, std::vector<geometry_msgs::TransformStamped>& vector);
+    void AddTransform(const string &frame_id, const string &child_id, const geometry_msgs::Transform tf, vector<geometry_msgs::TransformStamped>& vector);
 };
 }
 

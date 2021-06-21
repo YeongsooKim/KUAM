@@ -16,3 +16,6 @@ tf_broadcaster:
   
 mission_manager:
   process_freq: 30.0
+
+usb_cam:
+  camera_frame_id: 'camera_link'

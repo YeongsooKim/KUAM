@@ -17,3 +17,30 @@ aruco_tracking:
   small_marker_id: 1
   big_marker_size_m: 0.2
   small_marker_size_m: 0.06
+  
+usb_cam:
+  video_device: '/dev/video0'
+  brightness: 200
+  contrast: 20
+  saturation: 100
+  sharpness: 40
+
+  pixel_format: 'yuyv'
+
+  autofocus: false
+  focus: 51
+
+  io_method: 'mmap'
+  image_width: 640
+  image_height: 480
+  framerate: 10
+
+  autoexposure: false
+  exposure: 100
+  gain: 10
+
+  auto_white_balance: false
+  white_balance: -1
+
+  camera_frame_id: 'camera_link'
+  camera_name: 'usb_cam'

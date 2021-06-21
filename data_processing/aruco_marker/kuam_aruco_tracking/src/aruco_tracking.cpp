@@ -11,14 +11,14 @@ using namespace std;
 using namespace cv;
 
 namespace kuam{
-const string CAMERA_FRAME = "head_camera";
-
+    
 ArucoTracking::ArucoTracking() :
-    m_process_freq_param(NAN),
     OPENCV_WINDOW("Image window"),
     m_usb_cam_logging_topic_param("missing"),
     m_calib_path_param("missing"),
     m_detector_params_path_param("missing"),
+    m_camera_frame_id_param("missing"),
+    m_process_freq_param(NAN),
     m_dictionaryID_param(NAN),
     m_big_marker_id_param(NAN),
     m_small_marker_id_param(NAN),
@@ -42,7 +42,7 @@ ArucoTracking::ArucoTracking() :
 
     m_target.state.resize((int)EstimatingMethod::ItemNum);
     m_target.last_detected_time = ros::Time(0);
-    m_target_pose_list.header.frame_id = CAMERA_FRAME;
+    m_target_pose_list.header.frame_id = m_camera_frame_id_param;
 
     m_id_to_markersize_map.insert(pair<int, float>(m_big_marker_id_param, m_big_marker_size_m_param));
     m_id_to_markersize_map.insert(pair<int, float>(m_small_marker_id_param, m_small_marker_size_m_param));
@@ -64,10 +64,16 @@ bool ArucoTracking::InitFlag()
 bool ArucoTracking::GetParam()
 {
     string nd_name = ros::this_node::getName();
+    string ns_name = ros::this_node::getNamespace();
 
-    m_nh.getParam(nd_name + "/is_eval", m_is_eval_param);
+    m_nh.getParam(nd_name + "/usb_cam_logging_topic", m_usb_cam_logging_topic_param);
     m_nh.getParam(nd_name + "/calib_path", m_calib_path_param);
     m_nh.getParam(nd_name + "/detector_params_path", m_detector_params_path_param);
+    m_nh.getParam(ns_name + "/usb_cam/camera_frame_id", m_camera_frame_id_param);
+    m_nh.getParam(nd_name + "/is_eval", m_is_eval_param);
+    m_nh.getParam(nd_name + "/compare_mode", m_compare_mode_param);
+    m_nh.getParam(nd_name + "/using_gazebo_data", m_using_gazebo_data_param);
+    m_nh.getParam(nd_name + "/using_logging_data", m_using_logging_data_param);
     m_nh.getParam(nd_name + "/dictionaryID", m_dictionaryID_param);
     m_nh.getParam(nd_name + "/big_marker_id", m_big_marker_id_param);
     m_nh.getParam(nd_name + "/small_marker_id", m_small_marker_id_param);
@@ -75,17 +81,15 @@ bool ArucoTracking::GetParam()
     m_nh.getParam(nd_name + "/small_marker_size_m", m_small_marker_size_m_param);
     m_nh.getParam(nd_name + "/filter_buf_size", m_filter_buf_size_param);
     m_nh.getParam(nd_name + "/estimating_method", m_estimating_method_param);
-    m_nh.getParam(nd_name + "/compare_mode", m_compare_mode_param);
-    m_nh.getParam(nd_name + "/using_gazebo_data", m_using_gazebo_data_param);
-    m_nh.getParam(nd_name + "/using_logging_data", m_using_logging_data_param);
     m_nh.getParam(nd_name + "/noise_dist_th_m", m_noise_dist_th_m_param);
     m_nh.getParam(nd_name + "/noise_cnt_th", m_noise_cnt_th_param);
     m_nh.getParam(nd_name + "/process_freq", m_process_freq_param);
     m_nh.getParam(nd_name + "/marker_cnt_th", m_marker_cnt_th_param);
-    m_nh.getParam(nd_name + "/usb_cam_logging_topic", m_usb_cam_logging_topic_param);
 
     if (m_calib_path_param == "missing") { ROS_ERROR_STREAM("[aruco_tracking] m_calib_path_param is missing"); return false; }
     else if (m_detector_params_path_param == "missing") { ROS_ERROR_STREAM("[aruco_tracking] m_detector_params_path_param is missing"); return false; }
+    else if (m_usb_cam_logging_topic_param == "missing") { ROS_ERROR_STREAM("[aruco_tracking] m_usb_cam_logging_topic_param is missing"); return false; }
+    else if (m_camera_frame_id_param == "missing") { ROS_ERROR_STREAM("[aruco_tracking] m_camera_frame_id_param is missing"); return false; }
     else if (__isnan(m_dictionaryID_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_dictionaryID_param is NAN"); return false; }
     else if (__isnan(m_big_marker_id_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_big_marker_id_param is NAN"); return false; }
     else if (__isnan(m_small_marker_id_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_small_marker_id_param is NAN"); return false; }
@@ -97,7 +101,6 @@ bool ArucoTracking::GetParam()
     else if (__isnan(m_noise_cnt_th_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_noise_cnt_th_param is NAN"); return false; }
     else if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_process_freq_param is NAN"); return false; }
     else if (__isnan(m_marker_cnt_th_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_marker_cnt_th_param is NAN"); return false; }
-    else if (m_usb_cam_logging_topic_param == "missing") { ROS_ERROR_STREAM("[aruco_tracking] m_usb_cam_logging_topic_param is missing"); return false; }
 
     return true;
 }
@@ -310,7 +313,7 @@ bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& 
             cnt = 0;
             sensor_msgs::Image img_msg; // >> message to be sent
             m_cv_ptr->image = copy_image;
-            m_cv_ptr->header.frame_id = CAMERA_FRAME;
+            m_cv_ptr->header.frame_id = m_camera_frame_id_param;
             img_msg = *m_cv_ptr->toImageMsg();
             m_image_pub.publish(img_msg); // ros::Publisher pub_img = node.advertise<sensor_msgs::Image>("topic", queuesize);
         }
@@ -328,7 +331,7 @@ bool ArucoTracking::Camera2World(const vector<vector<Point2f>> corners, const ve
 
             geometry_msgs::TransformStamped aruco_tf_stamped;
             aruco_tf_stamped.header.stamp = ros::Time::now();
-            aruco_tf_stamped.header.frame_id = CAMERA_FRAME;
+            aruco_tf_stamped.header.frame_id = m_camera_frame_id_param;
 
             auto translation_vector = tvecs[i];
             auto rotation_vector = rvecs[i];
@@ -427,7 +430,7 @@ bool ArucoTracking::TargetStateEstimating(const vector<int> ids, const geometry_
 
     static unsigned int cnt = 0;
     kuam_msgs::ArucoState target_msg;
-    target_msg.header.frame_id = CAMERA_FRAME;
+    target_msg.header.frame_id = m_camera_frame_id_param;
     target_msg.header.seq = cnt++;
     target_msg.header.stamp = ros::Time::now();
     target_msg.is_detected = m_target.is_detected;
@@ -460,7 +463,7 @@ bool ArucoTracking::TargetStateEstimating(const vector<int> ids, const geometry_
 
     static unsigned int cnt2 = 0;
     kuam_msgs::ArucoVisual aruco_visual_msg;
-    aruco_visual_msg.header.frame_id = CAMERA_FRAME;
+    aruco_visual_msg.header.frame_id = m_camera_frame_id_param;
     aruco_visual_msg.header.seq = cnt2++;
     aruco_visual_msg.header.stamp = ros::Time::now();
 

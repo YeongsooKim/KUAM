@@ -96,10 +96,14 @@ private:
     ros::Timer m_image_timer;
 
     // Param
-    bool m_is_eval_param;
     string m_usb_cam_logging_topic_param;
     string m_calib_path_param;
     string m_detector_params_path_param;
+    string m_camera_frame_id_param;
+    bool m_is_eval_param;
+    bool m_compare_mode_param;
+    bool m_using_gazebo_data_param;
+    bool m_using_logging_data_param;
     int m_dictionaryID_param;
     int m_big_marker_id_param;
     int m_small_marker_id_param;
@@ -107,9 +111,6 @@ private:
     float m_small_marker_size_m_param;
     int m_filter_buf_size_param;
     int m_estimating_method_param;
-    bool m_compare_mode_param;
-    bool m_using_gazebo_data_param;
-    bool m_using_logging_data_param;
     float m_noise_dist_th_m_param;
     float m_noise_cnt_th_param;
     float m_process_freq_param;

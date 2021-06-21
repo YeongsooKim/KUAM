@@ -9,9 +9,10 @@ using namespace std;
 using namespace kuam;
 
 TfBroadcaster::TfBroadcaster() :
+    m_data_ns_param("missing"),
+    m_camera_frame_id_param("missing"),
     m_process_freq_param(NAN),
     m_exp_camera_height_m_param(NAN),
-    m_data_ns_param("missing"),
     m_extrinsic_imu_to_camera_x_param(NAN),
     m_extrinsic_imu_to_camera_y_param(NAN),
     m_extrinsic_imu_to_camera_z_param(NAN)    
@@ -38,6 +39,7 @@ bool TfBroadcaster::GetParam()
     string nd_name = ros::this_node::getName();
 
     m_nh.getParam("/data_ns", m_data_ns_param);
+    m_nh.getParam(m_data_ns_param + "/usb_cam/camera_frame_id", m_camera_frame_id_param);
     m_nh.getParam(nd_name + "/process_freq", m_process_freq_param);
     m_nh.getParam(nd_name + "/is_finding_home", m_is_finding_home_param);
     m_nh.getParam(nd_name + "/is_exp", m_is_exp_param);
@@ -49,6 +51,7 @@ bool TfBroadcaster::GetParam()
     m_nh.getParam(nd_name + "/extrinsic_imu_to_camera_z", m_extrinsic_imu_to_camera_z_param);
 
     if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("[tf_broadcaster] m_data_ns_param is missing"); return false; }
+    else if (m_camera_frame_id_param == "missing") { ROS_ERROR_STREAM("[tf_broadcaster] m_camera_frame_id_param is missing"); return false; }
     else if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_process_freq_param is NAN"); return false; }
     else if (__isnan(m_exp_camera_height_m_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_exp_camera_height_m_param is NAN"); return false; }
     else if (__isnan(m_extrinsic_imu_to_camera_x_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_extrinsic_imu_to_camera_x_param is NAN"); return false; }
@@ -115,7 +118,7 @@ void TfBroadcaster::InitStaticTf(void)
     if (m_is_gazebo_param){
         tf_stamped.header.stamp = ros::Time::now();
         tf_stamped.header.frame_id = "base_link";
-        tf_stamped.child_frame_id = CAMERA_FRAME;
+        tf_stamped.child_frame_id = m_camera_frame_id_param;
 
         tf_stamped.transform.translation.x = 0.1;
         tf_stamped.transform.translation.y = 0.0;
@@ -131,7 +134,7 @@ void TfBroadcaster::InitStaticTf(void)
     else if (m_is_exp_param){
         tf_stamped.header.stamp = ros::Time::now();
         tf_stamped.header.frame_id = "map";
-        tf_stamped.child_frame_id = CAMERA_FRAME; 
+        tf_stamped.child_frame_id = m_camera_frame_id_param; 
 
         tf_stamped.transform.translation.x = 0.0;
         tf_stamped.transform.translation.y = 0.0;
@@ -147,7 +150,7 @@ void TfBroadcaster::InitStaticTf(void)
     else if (m_is_real_param){
         tf_stamped.header.stamp = ros::Time::now();
         tf_stamped.header.frame_id = "base_link";
-        tf_stamped.child_frame_id = CAMERA_FRAME;
+        tf_stamped.child_frame_id = m_camera_frame_id_param;
 
         tf_stamped.transform.translation.x = m_extrinsic_imu_to_camera_x_param;
         tf_stamped.transform.translation.y = m_extrinsic_imu_to_camera_y_param;
@@ -182,7 +185,7 @@ void TfBroadcaster::HomePositionTimerCallback(const ros::TimerEvent& event)
 
 void TfBroadcaster::ProcessTimerCallback(const ros::TimerEvent& event)
 {
-	std::vector<geometry_msgs::TransformStamped> transform_vector;
+	vector<geometry_msgs::TransformStamped> transform_vector;
     if (m_base_cb) { AddTransform(m_base_tf_stamped.header.frame_id, m_base_tf_stamped.child_frame_id, m_base_tf_stamped.transform, transform_vector); m_base_cb = false; }
     if (m_marker_cb) { AddTransform(m_marker_tf_stamped.header.frame_id, m_marker_tf_stamped.child_frame_id, m_marker_tf_stamped.transform, transform_vector); m_marker_cb = false; }
 	
@@ -235,7 +238,7 @@ void TfBroadcaster::MarkerCallback(const tf2_msgs::TFMessage::ConstPtr &marker_p
     }
 }
 
-void TfBroadcaster::AddTransform(const std::string &frame_id, const std::string &child_id, const geometry_msgs::Transform tf, std::vector<geometry_msgs::TransformStamped>& vector)
+void TfBroadcaster::AddTransform(const string &frame_id, const string &child_id, const geometry_msgs::Transform tf, vector<geometry_msgs::TransformStamped>& vector)
 {
 	geometry_msgs::TransformStamped tf_stamped;
 

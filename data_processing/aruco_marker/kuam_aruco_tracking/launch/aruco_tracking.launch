@@ -34,6 +34,8 @@
     </node>
 
     <group if="$(arg using_device_data)">
-        <include file="$(find kuam_usb_cam)/launch/usb_cam.launch"/>
+        <include file="$(find kuam_usb_cam)/launch/usb_cam.launch">
+            <arg name="stand_alone" value="false" />
+        </include>
     </group>
 </launch>
