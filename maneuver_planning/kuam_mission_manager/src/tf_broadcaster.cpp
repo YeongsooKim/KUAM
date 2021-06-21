@@ -115,7 +115,7 @@ void TfBroadcaster::InitStaticTf(void)
     if (m_is_gazebo_param){
         tf_stamped.header.stamp = ros::Time::now();
         tf_stamped.header.frame_id = "base_link";
-        tf_stamped.child_frame_id = "camera_link";
+        tf_stamped.child_frame_id = CAMERA_FRAME;
 
         tf_stamped.transform.translation.x = 0.1;
         tf_stamped.transform.translation.y = 0.0;
@@ -131,7 +131,7 @@ void TfBroadcaster::InitStaticTf(void)
     else if (m_is_exp_param){
         tf_stamped.header.stamp = ros::Time::now();
         tf_stamped.header.frame_id = "map";
-        tf_stamped.child_frame_id = "camera_link";
+        tf_stamped.child_frame_id = CAMERA_FRAME; 
 
         tf_stamped.transform.translation.x = 0.0;
         tf_stamped.transform.translation.y = 0.0;
@@ -147,7 +147,7 @@ void TfBroadcaster::InitStaticTf(void)
     else if (m_is_real_param){
         tf_stamped.header.stamp = ros::Time::now();
         tf_stamped.header.frame_id = "base_link";
-        tf_stamped.child_frame_id = "camera_link";
+        tf_stamped.child_frame_id = CAMERA_FRAME;
 
         tf_stamped.transform.translation.x = m_extrinsic_imu_to_camera_x_param;
         tf_stamped.transform.translation.y = m_extrinsic_imu_to_camera_y_param;

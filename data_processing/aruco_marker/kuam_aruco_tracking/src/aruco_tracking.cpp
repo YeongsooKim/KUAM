@@ -11,7 +11,7 @@ using namespace std;
 using namespace cv;
 
 namespace kuam{
-const string CAMERA_FRAME = "camera_link";
+const string CAMERA_FRAME = "head_camera";
 
 ArucoTracking::ArucoTracking() :
     m_process_freq_param(NAN),
@@ -42,7 +42,7 @@ ArucoTracking::ArucoTracking() :
 
     m_target.state.resize((int)EstimatingMethod::ItemNum);
     m_target.last_detected_time = ros::Time(0);
-    m_target_pose_list.header.frame_id = "camera_link";
+    m_target_pose_list.header.frame_id = CAMERA_FRAME;
 
     m_id_to_markersize_map.insert(pair<int, float>(m_big_marker_id_param, m_big_marker_size_m_param));
     m_id_to_markersize_map.insert(pair<int, float>(m_small_marker_id_param, m_small_marker_size_m_param));

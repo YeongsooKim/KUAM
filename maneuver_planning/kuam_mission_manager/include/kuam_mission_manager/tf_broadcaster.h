@@ -4,6 +4,7 @@
 
 #include "ros/ros.h"
 #include <ros/spinner.h>
+#include <string>
 
 #include <mavros_msgs/HomePosition.h>
 
@@ -25,8 +26,10 @@
 
 #include "kuam_mission_manager/utils.h"
 
-namespace kuam{
+using namespace std; 
 
+namespace kuam{
+const string CAMERA_FRAME = "head_camera";
 class TfBroadcaster{
 private:
 	ros::NodeHandle m_nh;

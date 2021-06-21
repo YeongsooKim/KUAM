@@ -235,33 +235,52 @@ class Landing(smach.State, state.Base):
 
                 if self.is_init_z:
 
-                    # Init x, y trajectory
-                    dt = 1.0/self.freq
-                    init_x = -self.target_pose.position.x*5.0
-                    init_y = -self.target_pose.position.y*5.0
-                    duration = self.landing_duration_s - self.z_cnt*dt - (self.landing_duration_s/3.0)
-
-                    x_traj = []
-                    y_traj = []
-
-                    cnt = 0
-                    while cnt*dt < duration:
-                        x_traj.append(self.X(cnt*dt, init_x, duration))
-                        y_traj.append(self.Y(cnt*dt, init_y, duration))
-                        cnt += 1
+#                    # Init x, y trajectory
+#                    dt = 1.0/self.freq
+#                    init_x = -self.target_pose.position.x*5.0
+#                    init_y = -self.target_pose.position.y*5.0
+#                    duration = self.landing_duration_s - self.z_cnt*dt - (self.landing_duration_s/3.0)
+#
+#                    x_traj = []
+#                    y_traj = []
+#
+#                    cnt = 0
+#                    while cnt*dt < duration:
+#                        x_traj.append(self.X(cnt*dt, init_x, duration))
+#                        y_traj.append(self.Y(cnt*dt, init_y, duration))
+#                        cnt += 1
 
                     # Allocate x, y velocity
-                    if len(x_traj) > 1:
-                        self.setpoint.vel.linear.x = (x_traj[1] - x_traj[0])/dt
-                        self.setpoint.vel.linear.y = (y_traj[1] - y_traj[0])/dt
-                    else:
-                        self.setpoint.vel.linear.x = 0.0                    
-                        self.setpoint.vel.linear.y = 0.0
+#                    if len(x_traj) > 1:
+#                        self.setpoint.vel.linear.x = (x_traj[1] - x_traj[0])/dt
+#                        self.setpoint.vel.linear.y = (y_traj[1] - y_traj[0])/dt
+#                    else:
+#                        self.setpoint.vel.linear.x = 0.0                    
+#                        self.setpoint.vel.linear.y = 0.0
 
                     # Allocate z velocity
-                    if self.z_cnt + 1 < len(self.z_traj):
-                        self.setpoint.vel.linear.z = (self.z_traj[self.z_cnt + 1] - self.z_traj[self.z_cnt])/dt
-                        self.z_cnt += 1
+                    v_z = self.Z_Vel(self.target_pose.position.z)
+                    if v_z < -0.5 or v_z > 0.0:
+                        v_z = -0.3
+                    else:
+                        self.setpoint.vel.linear.z = v_z
+
+                    v_x = self.XY_Vel(self.target_pose.position.x)
+                    if v_x < -0.3 or v_x > 0.3:
+                        v_x = 0.0
+                    else:
+                        self.setpoint.vel.linear.x = v_x
+
+                    v_y = self.XY_Vel(self.target_pose.position.y)
+                    if v_y < -0.3 or v_y > 0.3:
+                        v_y = 0.0
+                    else:
+                        self.setpoint.vel.linear.y = v_y
+
+                    # Allocate z velocity
+#                    if self.z_cnt + 1 < len(self.z_traj):
+#                        self.setpoint.vel.linear.z = (self.z_traj[self.z_cnt + 1] - self.z_traj[self.z_cnt])/dt
+#                        self.z_cnt += 1
                     
                     self.setpoint.pose.orientation = self.orientation
             else:
@@ -325,14 +344,14 @@ class Landing(smach.State, state.Base):
     def X(self, t, init_x, duration):
         # a = init_x/(duration**2)
         # x = a*(t - duration)**2
-        a = -1.4*init_x/duration
+        a = -1.5*init_x/duration
         x = a*(t-duration)
         return x
 
     def Y(self, t, init_y, duration):
         # a = init_y/(duration**2)
         # y = a*(t - duration)**2
-        a = -1.4*init_y/duration
+        a = -1.5*init_y/duration
         y = a*(t-duration)
         return y
 
@@ -342,6 +361,18 @@ class Landing(smach.State, state.Base):
         z = a*(t - duration)**4
         return z
 
+    def Z_Vel(self, target_z):
+        err = target_z
+        #h = -self.target_pose.position.z
+        kp = 0.045
+        z_vel = err*kp
+        return z_vel
+
+    def XY_Vel(self, target):
+        err = target
+        kp = 0.15
+        vel = err*kp
+        return vel
 
     def IsLandingStandby(self):
         dist = DistanceFromLatLonInMeter3D(self.landing_standby, self.ego_geopose.position)

@@ -30,7 +30,7 @@ kuam:
 
       # takeoff
       takeoff_alt_m: 3.0
-      reached_dist_th_m: 0.4 # checking have reached to mission destination waypoint
+      reached_dist_th_m: 0.7 # checking have reached to mission destination waypoint
       guidance_dist_th_m: 0.7 # checking have reached to next waypoint during flight mode
 
       # landing
