@@ -13,7 +13,7 @@ int main()
 
     int id = 0;
     for (; id < 50; id++){
-        cv::aruco::drawMarker(dictionary, id, 200, markerImage, 1);
+        cv::aruco::drawMarker(dictionary, id, 1000, markerImage, 1);
         
         std::string id_str = std::to_string(id);
         std::string marker = marker_name + id_str + extension;
