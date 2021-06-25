@@ -400,7 +400,7 @@ bool KuamVisualizer::InitMarkers()
     m_ego_markers.trajectory.pose.orientation.z = 0.0;
     m_ego_markers.trajectory.color = CYAN;
     m_ego_markers.trajectory.color.a = 0.4f;
-    m_ego_markers.trajectory.lifetime = ros::Duration(0.8);
+    m_ego_markers.trajectory.lifetime = ros::Duration();
     m_ego_markers.is_trajectory_add = false;
 
     m_ego_markers.current_point.ns = "ego/current_point";
@@ -416,7 +416,7 @@ bool KuamVisualizer::InitMarkers()
     m_ego_markers.current_point.pose.orientation.z = 0.0;
     m_ego_markers.current_point.color = CYAN;
     m_ego_markers.current_point.color.a = 0.4f;
-    m_ego_markers.current_point.lifetime = ros::Duration(0.8);
+    m_ego_markers.current_point.lifetime = ros::Duration();
     m_ego_markers.is_current_point_add = false;
 }
 
@@ -853,27 +853,19 @@ void KuamVisualizer::EgoGlobalPosCallback(const sensor_msgs::NavSatFix::ConstPtr
         m_ego_markers.trajectory.header.stamp = ros::Time::now();
 
         m_ego_markers.trajectory.points.push_back(p);
-        m_ego_markers.is_trajectory_add = true;
         prev_pos = p;
     }
 
     // current_point
     m_ego_markers.current_point.header.frame_id = "map";
     m_ego_markers.current_point.header.stamp = ros::Time::now();
-
     m_ego_markers.current_point.pose.position = p;
-    m_ego_markers.is_current_point_add = true;
 
-    m_ego_markers.self.markers.clear();
-    if (m_ego_markers.is_trajectory_add) m_ego_markers.self.markers.push_back(m_ego_markers.trajectory);
-    if (m_ego_markers.is_current_point_add) m_ego_markers.self.markers.push_back(m_ego_markers.current_point);
-    m_ego_markers.is_trajectory_add = m_ego_markers.is_current_point_add = false;
-    
-    visualization_msgs::MarkerArray visualization_markers;
-    visualization_markers.markers.insert(visualization_markers.markers.end(), 
-                                        m_ego_markers.self.markers.begin(), m_ego_markers.self.markers.end());
+    visualization_msgs::MarkerArray visualization_msg;
+    visualization_msg.markers.push_back(m_ego_markers.trajectory);
+    visualization_msg.markers.push_back(m_ego_markers.current_point);
 
-    m_ego_pub.publish(visualization_markers);
+    m_ego_pub.publish(visualization_msg);
 
     m_text_datum.ego_height_m = to_string(p.z) + "[m]\n";
 }
