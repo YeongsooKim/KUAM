@@ -17,24 +17,27 @@ from kuam_msgs.msg import ArucoState
 from kuam_msgs.msg import Setpoint
 from uav_msgs.msg import Chat
 
-Y_AXIS_MARGIN = [1.0, 0.1, 0.1, 0.1]
+Y_AXIS_MARGIN = [0.5, 0.5, 0.5, 0.05, 0.05, 0.05]
+Y_AXIS_MARGIN2 = [0.5, 0.5]
 BUF_SIZE = 200
 
 class Val(Enum):
     TARGET = 0
+    CMD = 0
+    OUTPUT_POS_X = 0
+    OUTPUT_POS_Y = 0
+    OUTPUT_POS_Z = 0
     INPUT_VEL_X = 0
     OUTPUT_VEL_X = 1
-    OUTPUT_POS_X = 2
     INPUT_VEL_Y = 0
     OUTPUT_VEL_Y = 1
-    OUTPUT_POS_Y = 2
     INPUT_VEL_Z = 0
     OUTPUT_VEL_Z = 1
-    OUTPUT_POS_Z = 2
 
 tfBuffer_ = None
 listener_ = None
 target_id_ = 0
+state_machine_cmd_id_ = 0 # 0: not in cmd / 1: kuam ctrl / 2: px4 ctrl
 input_vel_ = Twist()
 output_vel_ = Twist()
 target_pos_ = Point()
@@ -50,45 +53,77 @@ class Plotting:
 
         self.time_s = []
         
+        self.x = [[]]
+        self.x_colors = ['red']
+        self.x_labels = ['x output pos']
+        self.x_xlabel = 'time [s]'
+        self.x_ylabel = 'distance [m]'
+        self.x_title = "'x' Position"
+
+        self.y = [[]]
+        self.y_colors = ['green']
+        self.y_labels = ['y output pos']
+        self.y_xlabel = 'time [s]'
+        self.y_ylabel = 'distance [m]'
+        self.y_title = "'y' Position"
+
+        self.z = [[]]
+        self.z_colors = ['blue']
+        self.z_labels = ['z output pos']
+        self.z_xlabel = 'time [s]'
+        self.z_ylabel = 'distance [m]'
+        self.z_title = "'z' Position"
+
+        self.vx = [[], []]
+        self.vx_colors = ['black', 'red']
+        self.vx_labels = ['input vel [m/s]', 'output vel [m/s]']
+        self.vx_xlabel = 'time [s]'
+        self.vx_ylabel = 'velocity [m/s]'
+        self.vx_title = "'x' Input and Output Velocity"
+
+        self.vy = [[], []]
+        self.vy_colors = ['black', 'green']
+        self.vy_labels = ['input vel [m/s]', 'output vel [m/s]']
+        self.vy_xlabel = 'time [s]'
+        self.vy_ylabel = 'velocity [m/s]'
+        self.vy_title = "'y' Input and Output Velocity"
+
+        self.vz = [[], []]
+        self.vz_colors = ['black', 'blue']
+        self.vz_labels = ['input vel [m/s]', 'output vel [m/s]']
+        self.vz_xlabel = 'time [s]'
+        self.vz_ylabel = 'velocity [m/s]'
+        self.vz_title = "'z' Input and Output Velocity"
+
+        self.list_set = [self.x, self.y, self.z, self.vx, self.vy, self.vz]
+        self.color_set = [self.x_colors, self.y_colors, self.z_colors, self.vx_colors, self.vy_colors, self.vz_colors]
+        self.label_set = [self.x_labels, self.y_labels, self.z_labels, self.vx_labels, self.vy_labels, self.vz_labels]
+        self.xlabel_set = [self.x_xlabel, self.y_xlabel, self.z_xlabel, self.vx_xlabel, self.vy_xlabel, self.vz_xlabel]
+        self.ylabel_set = [self.x_ylabel, self.y_ylabel, self.z_ylabel, self.vx_ylabel, self.vy_ylabel, self.vz_ylabel]
+        self.title_set = [self.x_title, self.y_title, self.z_title, self.vx_title, self.vy_title, self.vz_title]
+        self.fig, self.axs = plt.subplots(2, 3, num=1)
+         
         self.target = [[]]
         self.t_colors = ['red']
         self.t_labels = ['target']
         self.t_xlabel = 'time [s]'
         self.t_ylabel = 'marker id + 1 [ ]'
         self.t_title = 'Target Marker ID'
+
+        self.cmd = [[]]
+        self.c_colors = ['red']
+        self.c_labels = ['command']
+        self.c_xlabel = 'time [s]'
+        self.c_ylabel = 'ctrl type [ ]'
+        self.c_title = '0: not in cmd / 1: kuam ctrl / 2: px4 ctrl'
         
-        self.x = [[], [], []]
-        self.x_colors = ['black', 'red', 'blue']
-        self.x_labels = ['input vel [m/s]', 'output vel [m/s]', 'output pos [m]']
-        self.x_xlabel = 'time [s]'
-        # self.x_ylabel = 'velocity [m/s], distance [m]'
-        self.x_ylabel = 'velocity [m/s], normalized distance'
-        self.x_title = "'x' Input/Output Velocity and Position"
-
-        self.y = [[], [], []]
-        self.y_colors = ['black', 'red', 'blue']
-        self.y_labels = ['input vel [m/s]', 'output vel [m/s]', 'output pos [m]']
-        self.y_xlabel = 'time [s]'
-        self.y_ylabel = 'velocity, distance'
-        # self.y_ylabel = 'velocity [m/s], distance [m]'
-        self.y_ylabel = 'velocity [m/s], normalized distance'
-        self.y_title = "'y' Input/Output Velocity and Position"
-
-        self.z = [[], [], []]
-        self.z_colors = ['black', 'red', 'blue']
-        self.z_labels = ['input vel [m/s]', 'output vel [m/s]', 'output pos [m]']
-        self.z_xlabel = 'time [s]'
-        # self.z_ylabel = 'velocity [m/s], distance [m]'
-        self.z_ylabel = 'velocity [m/s], normalized distance'
-        self.z_title = "'z' Input/Output Velocity and Position"
-
-        self.list_set = [self.target, self.x, self.y, self.z]
-        self.color_set = [self.t_colors, self.x_colors, self.y_colors, self.z_colors]
-        self.label_set = [self.t_labels, self.x_labels, self.y_labels, self.z_labels]
-        self.xlabel_set = [self.t_xlabel, self.x_xlabel, self.y_xlabel, self.z_xlabel]
-        self.ylabel_set = [self.t_ylabel, self.x_ylabel, self.y_ylabel, self.z_ylabel]
-        self.title_set = [self.t_title, self.x_title, self.y_title, self.z_title]
-        self.fig, self.axs = plt.subplots(2, 2)
+        self.list_set2 = [self.target, self.cmd]
+        self.color_set2 = [self.t_colors, self.c_colors]
+        self.label_set2 = [self.t_labels, self.c_labels]
+        self.xlabel_set2 = [self.t_xlabel, self.c_xlabel]
+        self.ylabel_set2 = [self.t_ylabel, self.c_ylabel]
+        self.title_set2 = [self.t_title, self.c_title]
+        self.fig2, self.axs2 = plt.subplots(1, 2, num=2)
 
     '''
     Callback functions
@@ -112,49 +147,49 @@ class Plotting:
             global target_id_
             self.target[Val.TARGET.value].append(target_id_)
 
+            global state_machine_cmd_id_
+            self.cmd[Val.CMD.value].append(state_machine_cmd_id_)
+
             if target_id_ == 1 or target_id_ == 2:
                 global input_vel_
                 global output_vel_
                 global target_pos_
 
-                self.x[Val.INPUT_VEL_X.value].append(input_vel_.linear.x)
-                self.x[Val.OUTPUT_VEL_X.value].append(output_vel_.linear.x)
-                # self.x[Val.OUTPUT_POS_X.value].append(target_pos_.x)
-                self.x_raw.append(target_pos_.x)
-                self.x[Val.OUTPUT_POS_X.value] = self.Normalize(self.x_raw, self.x[Val.INPUT_VEL_X.value], self.time_s)
+                self.x[Val.OUTPUT_POS_X.value].append(target_pos_.x)
+                self.y[Val.OUTPUT_POS_Y.value].append(target_pos_.y)
+                self.z[Val.OUTPUT_POS_Z.value].append(target_pos_.z)
 
-                self.y[Val.INPUT_VEL_Y.value].append(input_vel_.linear.y)
-                self.y[Val.OUTPUT_VEL_Y.value].append(output_vel_.linear.y)
-                # self.y[Val.OUTPUT_POS_Y.value].append(target_pos_.y)
-                self.y_raw.append(target_pos_.y)
-                self.y[Val.OUTPUT_POS_Y.value] = self.Normalize(self.y_raw, self.y[Val.INPUT_VEL_Y.value], self.time_s)
-
-                self.z[Val.INPUT_VEL_Z.value].append(input_vel_.linear.z)
-                self.z[Val.OUTPUT_VEL_Z.value].append(output_vel_.linear.z)
-                # self.z[Val.OUTPUT_POS_Z.value].append(target_pos_.z)
-                self.z_raw.append(target_pos_.z)
-                self.z[Val.OUTPUT_POS_Z.value] = self.Normalize(self.z_raw, self.z[Val.INPUT_VEL_Z.value], self.time_s)
+                self.vx[Val.INPUT_VEL_X.value].append(input_vel_.linear.x)
+                self.vx[Val.OUTPUT_VEL_X.value].append(output_vel_.linear.x)
+                self.vy[Val.INPUT_VEL_Y.value].append(input_vel_.linear.y)
+                self.vy[Val.OUTPUT_VEL_Y.value].append(output_vel_.linear.y)
+                self.vz[Val.INPUT_VEL_Z.value].append(input_vel_.linear.z)
+                self.vz[Val.OUTPUT_VEL_Z.value].append(output_vel_.linear.z)
 
             else:
-                self.x_raw.append(0.0)
-                self.y_raw.append(0.0)
-                self.z_raw.append(0.0)
-
-                self.x[Val.INPUT_VEL_X.value].append(0.0)
-                self.x[Val.OUTPUT_VEL_X.value].append(0.0)
                 self.x[Val.OUTPUT_POS_X.value].append(0.0)
-
-                self.y[Val.INPUT_VEL_Y.value].append(0.0)
-                self.y[Val.OUTPUT_VEL_Y.value].append(0.0)
                 self.y[Val.OUTPUT_POS_Y.value].append(0.0)
-
-                self.z[Val.INPUT_VEL_Z.value].append(0.0)
-                self.z[Val.OUTPUT_VEL_Z.value].append(0.0)
                 self.z[Val.OUTPUT_POS_Z.value].append(0.0)
+
+                self.vx[Val.INPUT_VEL_X.value].append(0.0)
+                self.vx[Val.OUTPUT_VEL_X.value].append(0.0)
+                self.vy[Val.INPUT_VEL_Y.value].append(0.0)
+                self.vy[Val.OUTPUT_VEL_Y.value].append(0.0)
+                self.vz[Val.INPUT_VEL_Z.value].append(0.0)
+                self.vz[Val.OUTPUT_VEL_Z.value].append(0.0)
 
     def SetpointCB(self, msg):
         global input_vel_
         input_vel_ = msg.vel
+
+        global state_machine_cmd_id_
+        if not msg.landing_state.is_pass_landing_standby:
+            state_machine_cmd_id_ = 0
+        else:
+            if not msg.landing_state.is_land:
+                state_machine_cmd_id_ = 1
+            else:
+                state_machine_cmd_id_ = 2
 
     def VelocityCB(self, msg):
         global output_vel_
@@ -197,7 +232,9 @@ class Plotting:
             ani.event_source.stop()
             rospy.loginfo("[eval] pause plotting")
         elif cmd == 'play':
-            ani.event_source.start()
+            ani2.event_source.stop()
+            # ani.event_source.start()
+            # ani2.event_source.start()
             rospy.loginfo("[eval] play plotting")
  
     '''
@@ -205,9 +242,6 @@ class Plotting:
     '''
     def PlotInit(self):
         pass
-        # for ax in self.axs:
-        #     ax.set_xlim(0, BUF_SIZE - 1)
-        #     ax.set_ylim(0.0, 1.0)
 
     def UdatePlot(self, frame):
         type = 0
@@ -230,6 +264,30 @@ class Plotting:
                 self.axs[i][j].legend()  # Add a legend.
 
                 type += 1
+
+    def PlotInit2(self):
+        pass
+
+    def UdatePlot2(self, frame):
+        type = 0
+        for ax in self.axs2:
+            ax.clear()
+            ylim = self.GetLimMinMax(self.list_set2[type], Y_AXIS_MARGIN2[type])
+            ax.set_ylim(ylim[0], ylim[1])
+            
+            for element in range(len(self.list_set2[type])):
+                if (len(self.time_s) == len(self.list_set2[type][element])):
+                    try:
+                        ax.plot(self.time_s, self.list_set2[type][element], color=self.color_set2[type][element], label=self.label_set2[type][element])
+                    except:
+                        pass
+
+            ax.set_xlabel(self.xlabel_set2[type])  # Add an x-label to the axes.
+            ax.set_ylabel(self.ylabel_set2[type])  # Add a y-label to the axes.
+            ax.set_title(self.title_set2[type])  # Add a title to the axes.            
+            ax.legend()  # Add a legend.
+
+            type += 1
 
     '''
     Util functions
@@ -259,6 +317,26 @@ class Plotting:
 
         return ylim
 
+    def GetLimMinMax2(self, lst, margin):
+        ylim = [0, BUF_SIZE - 1]
+        leng = len(lst)
+
+        # If empty list is exist, return
+        if leng == 0:
+            return ylim
+
+        list_max = -sys.maxsize - 1
+        if max(lst) > list_max:
+            list_max = max(lst)
+
+        list_min = sys.maxsize
+        if min(lst) < list_min:
+            list_min = min(lst)
+
+        ylim = [float(list_min) - margin, float(list_max) + margin]
+
+        return ylim
+
     def IsValid(self, pose_stamped):
             x = pose_stamped.pose.position.x
             y = pose_stamped.pose.position.y
@@ -272,32 +350,11 @@ class Plotting:
                 return False
             return True
 
-    def Normalize(self, src, trg, times):
-        trg_max = max(trg)
-        trg_min = min(trg)
-        trg_size = trg_max - trg_min
-
-        src_max = max(src)
-        src_min = min(src)
-        src_size = src_max - src_min
-
-        normalized = []
-        for k in src:
-            if src_size == 0:
-                normalized.append(0.0)
-            else:
-                ratio = (k - src_min)/src_size
-                map = trg_size*ratio + trg_min
-
-                normalized.append(map)
-        
-        return normalized
-
 if __name__ == "__main__":
     if not len(sys.argv) > 1:
         raise Exception ("Please input elapsed time [s].")
 
-    rospy.init_node('eval_target_relative_zxy')
+    rospy.init_node('comp_input_output_vel_and_relative_pos')
     plotting = Plotting()
     plotting.elapsed_time = int(sys.argv[1])
 
@@ -312,4 +369,5 @@ if __name__ == "__main__":
     process_timer = rospy.Timer(rospy.Duration(1.0/freq), plotting.ProcessCB)
 
     ani = FuncAnimation(plotting.fig, plotting.UdatePlot, init_func=plotting.PlotInit)
+    ani2 = FuncAnimation(plotting.fig2, plotting.UdatePlot2, init_func=plotting.PlotInit2)
     plt.show(block=True) 
