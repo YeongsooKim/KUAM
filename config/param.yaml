@@ -19,10 +19,13 @@ kuam:
 
       # aruco marker
       dictionaryID: 0
-      big_marker_id: 0
-      small_marker_id: 1
+      big_marker_id: 2
+      small_marker_id: 3
       big_marker_size_m: 0.2
       small_marker_size_m: 0.06
+
+      # testing
+      test_list: [1, 2, 3, 4]
       
     usb_cam:
       video_device: '/dev/video0'

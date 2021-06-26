@@ -150,7 +150,7 @@ class Plotting:
             global state_machine_cmd_id_
             self.cmd[Val.CMD.value].append(state_machine_cmd_id_)
 
-            if target_id_ == 1 or target_id_ == 2:
+            if not target_id_ == -1:
                 global input_vel_
                 global output_vel_
                 global target_pos_
@@ -197,34 +197,25 @@ class Plotting:
 
     def TargetMarkerCB(self, msg):
         global target_id_
-        if msg.id == 0 or msg.id == 1:
-            is_valid = False
-            
-            msg_pose_stamped = PoseStamped()
-            msg_pose_stamped.header = msg.header
-            msg_pose_stamped.pose = msg.pose
+        if msg.is_detected:
             # transform from camera_link to base_link
-            is_transformed = False
             try:
-                transform = tfBuffer_.lookup_transform('base_link', msg_pose_stamped.header.frame_id, rospy.Time())
-                is_transformed = True
+                transform = tfBuffer_.lookup_transform('base_link', msg.header.frame_id, rospy.Time())
+
+                p = PoseStamped()
+                p.header = msg.header
+                p.pose = msg.pose
+                transformed_pose = tf2_geometry_msgs.do_transform_pose(p, transform)
+                
+                if self.IsValid(transformed_pose):
+                    target_id_ = msg.id
+
+                    global target_pos_
+                    target_pos_ = transformed_pose.pose.position
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
                 pass
-
-            if is_transformed == True:
-                pose_transformed = tf2_geometry_msgs.do_transform_pose(msg_pose_stamped, transform)
-                if self.IsValid(pose_transformed):
-                    target_pose = pose_transformed.pose
-                    is_valid = True
-            
-            if is_valid:
-                target_id_ = msg.id + 1
-                global target_pos_
-                target_pos_ = target_pose.position
-            else:
-                target_id_ = 0
         else:
-            target_id_ = 0
+            target_id_ = -1
 
     def ChatCB(self, msg):
         cmd = msg.msg

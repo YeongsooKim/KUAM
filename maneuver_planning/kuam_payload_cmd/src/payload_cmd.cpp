@@ -254,7 +254,7 @@ void Playload::SetpointPub()
             | mavros_msgs::PositionTarget::IGNORE_AFY
             | mavros_msgs::PositionTarget::IGNORE_AFZ
             | mavros_msgs::PositionTarget::FORCE
-            | mavros_msgs::PositionTarget::IGNORE_YAW_RATE;
+            | mavros_msgs::PositionTarget::IGNORE_YAW;
 
         pos_tar.coordinate_frame = mavros_msgs::PositionTarget::FRAME_BODY_NED;
 
@@ -263,9 +263,9 @@ void Playload::SetpointPub()
         pos_tar.velocity.z = m_setpoint.vel.linear.z;
 
         auto euler = m_utils.Quat2Euler(m_setpoint.pose.orientation);
-        auto yaw_rad = euler.y - M_PI/2.0;
-        if (__isnan(yaw_rad)){ yaw_rad = 0.0; }
-        pos_tar.yaw = yaw_rad;
+        auto yaw_rate_rads = euler.y;
+        if (__isnan(yaw_rate_rads)){ yaw_rate_rads = 0.0; }
+        pos_tar.yaw_rate = yaw_rate_rads;
         
         m_local_pos_tar_pub.publish(pos_tar);
     }

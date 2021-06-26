@@ -599,23 +599,6 @@ void KuamVisualizer::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps
             landing_point.lifetime = ros::Duration();
             m_global_markers.markers.push_back(landing_point);
 
-            //// global path
-            visualization_msgs::Marker path;
-            path.header.frame_id = "map";
-            path.ns = "global/path";
-            path.id = 0;
-            path.type = visualization_msgs::Marker::LINE_STRIP;
-            path.action = visualization_msgs::Marker::ADD;
-            path.scale.x = 0.05;
-            path.pose.orientation.w = 1.0;
-            path.pose.orientation.x = 0.0;
-            path.pose.orientation.y = 0.0;
-            path.pose.orientation.z = 0.0;
-            path.color = RED;
-            path.color.a = 0.4f;
-            path.lifetime = ros::Duration();
-            m_global_markers.markers.push_back(path);
-
             //// ground truth
             visualization_msgs::Marker gt_aruco;
             gt_aruco.header.frame_id = "map";
@@ -625,11 +608,11 @@ void KuamVisualizer::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps
             gt_aruco.pose.orientation.x = 0.0;
             gt_aruco.pose.orientation.y = 0.0;
             gt_aruco.pose.orientation.z = 0.0;
-            gt_aruco.color = YELLOW;
-            gt_aruco.color.a = 1.0f;
             gt_aruco.lifetime = ros::Duration();
 
             auto small_gt_pos = landing_pos;
+            small_gt_pos.x += 0.30;
+            small_gt_pos.y -= 0.30;
             small_gt_pos.z = 0.0; // ground
             gt_aruco.ns = "gt/small";
             gt_aruco.id = 0;
@@ -637,17 +620,22 @@ void KuamVisualizer::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps
             gt_aruco.scale.y = m_small_marker_size_m_param;
             gt_aruco.scale.z = 0.01;
             gt_aruco.pose.position = small_gt_pos;
+            gt_aruco.color = GREEN;
+            gt_aruco.color.a = 1.0f;
             m_gt_markers.markers.push_back(gt_aruco);
 
-            auto big_gt_pos = small_gt_pos;
-            // big_marker_side/2.0 + small_marker_side/2.0 + margin
-            big_gt_pos.y -= (m_big_marker_size_m_param/2.0 + m_small_marker_size_m_param/2.0 + 0.03);
+            auto big_gt_pos = landing_pos;
+            // big_gt_pos.x -= m_big_marker_size_m_param/2.0;
+            // big_gt_pos.y -= (m_big_marker_size_m_param + m_small_marker_size_m_param)/2.0;
+            big_gt_pos.z = 0.0;
             gt_aruco.ns = "gt/big";
             gt_aruco.id = 1;
             gt_aruco.scale.x = m_big_marker_size_m_param;
             gt_aruco.scale.y = m_big_marker_size_m_param;
             gt_aruco.scale.z = 0.01;
             gt_aruco.pose.position = big_gt_pos;
+            gt_aruco.color = YELLOW;
+            gt_aruco.color.a = 1.0f;
             m_gt_markers.markers.push_back(gt_aruco);
         }
     }
@@ -710,7 +698,6 @@ void KuamVisualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpo
         m_text_datum.is_pass_landing_standby = (boost::format("<span style=\"color: rgba(%2%, %3%, %4%, %5%)\">%1%</span>")
              % is_pass_landing_standby % 255.0 % 0.0 % 0.0 % 1.0).str();
     }
-    
 
 
     // Set setpoint marker
@@ -862,7 +849,9 @@ void KuamVisualizer::EgoGlobalPosCallback(const sensor_msgs::NavSatFix::ConstPtr
     m_ego_markers.current_point.pose.position = p;
 
     visualization_msgs::MarkerArray visualization_msg;
-    visualization_msg.markers.push_back(m_ego_markers.trajectory);
+    if (m_ego_markers.trajectory.points.size() > 0){
+        visualization_msg.markers.push_back(m_ego_markers.trajectory);
+    }
     visualization_msg.markers.push_back(m_ego_markers.current_point);
 
     m_ego_pub.publish(visualization_msg);

@@ -13,6 +13,7 @@ using namespace cv;
 namespace kuam{
     
 ArucoTracking::ArucoTracking() :
+    m_p_nh("~"),
     OPENCV_WINDOW("Image window"),
     m_usb_cam_logging_topic_param("missing"),
     m_calib_path_param("missing"),
@@ -63,28 +64,40 @@ bool ArucoTracking::InitFlag()
 
 bool ArucoTracking::GetParam()
 {
-    string nd_name = ros::this_node::getName();
     string ns_name = ros::this_node::getNamespace();
 
-    m_nh.getParam(nd_name + "/usb_cam_logging_topic", m_usb_cam_logging_topic_param);
-    m_nh.getParam(nd_name + "/calib_path", m_calib_path_param);
-    m_nh.getParam(nd_name + "/detector_params_path", m_detector_params_path_param);
+    m_p_nh.getParam("usb_cam_logging_topic", m_usb_cam_logging_topic_param);
+    m_p_nh.getParam("calib_path", m_calib_path_param);
+    m_p_nh.getParam("detector_params_path", m_detector_params_path_param);
     m_nh.getParam(ns_name + "/usb_cam/camera_frame_id", m_camera_frame_id_param);
-    m_nh.getParam(nd_name + "/is_eval", m_is_eval_param);
-    m_nh.getParam(nd_name + "/compare_mode", m_compare_mode_param);
-    m_nh.getParam(nd_name + "/using_gazebo_data", m_using_gazebo_data_param);
-    m_nh.getParam(nd_name + "/using_logging_data", m_using_logging_data_param);
-    m_nh.getParam(nd_name + "/dictionaryID", m_dictionaryID_param);
-    m_nh.getParam(nd_name + "/big_marker_id", m_big_marker_id_param);
-    m_nh.getParam(nd_name + "/small_marker_id", m_small_marker_id_param);
-    m_nh.getParam(nd_name + "/big_marker_size_m", m_big_marker_size_m_param);
-    m_nh.getParam(nd_name + "/small_marker_size_m", m_small_marker_size_m_param);
-    m_nh.getParam(nd_name + "/filter_buf_size", m_filter_buf_size_param);
-    m_nh.getParam(nd_name + "/estimating_method", m_estimating_method_param);
-    m_nh.getParam(nd_name + "/noise_dist_th_m", m_noise_dist_th_m_param);
-    m_nh.getParam(nd_name + "/noise_cnt_th", m_noise_cnt_th_param);
-    m_nh.getParam(nd_name + "/process_freq", m_process_freq_param);
-    m_nh.getParam(nd_name + "/marker_cnt_th", m_marker_cnt_th_param);
+    m_p_nh.getParam("is_eval", m_is_eval_param);
+    m_p_nh.getParam("compare_mode", m_compare_mode_param);
+    m_p_nh.getParam("using_gazebo_data", m_using_gazebo_data_param);
+    m_p_nh.getParam("using_logging_data", m_using_logging_data_param);
+    m_p_nh.getParam("dictionaryID", m_dictionaryID_param);
+    m_p_nh.getParam("big_marker_id", m_big_marker_id_param);
+    m_p_nh.getParam("small_marker_id", m_small_marker_id_param);
+    m_p_nh.getParam("big_marker_size_m", m_big_marker_size_m_param);
+    m_p_nh.getParam("small_marker_size_m", m_small_marker_size_m_param);
+    m_p_nh.getParam("filter_buf_size", m_filter_buf_size_param);
+    m_p_nh.getParam("estimating_method", m_estimating_method_param);
+    m_p_nh.getParam("noise_dist_th_m", m_noise_dist_th_m_param);
+    m_p_nh.getParam("noise_cnt_th", m_noise_cnt_th_param);
+    m_p_nh.getParam("process_freq", m_process_freq_param);
+    m_p_nh.getParam("marker_cnt_th", m_marker_cnt_th_param);
+
+    XmlRpc::XmlRpcValue list;
+    m_p_nh.getParam("test_list", my_list);
+    ROS_ASSERT(my_list.getType() == XmlRpc::XmlRpcValue::TypeArray);
+    for (int32_t i = 0; i < my_list.size(); ++i) 
+    {
+        ROS_ASSERT(my_list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
+        int a = static_cast<int>(my_list[i]);
+        ROS_ERROR("%d", a);
+    }
+    if (my_list.size() == 0){
+        ROS_ERROR_STREAM("err");
+    }
 
     if (m_calib_path_param == "missing") { ROS_ERROR_STREAM("[aruco_tracking] m_calib_path_param is missing"); return false; }
     else if (m_detector_params_path_param == "missing") { ROS_ERROR_STREAM("[aruco_tracking] m_detector_params_path_param is missing"); return false; }
@@ -108,7 +121,6 @@ bool ArucoTracking::GetParam()
 bool ArucoTracking::InitROS()
 {
     // package, node, topic name
-    string nd_name = ros::this_node::getName();
     string ns_name = ros::this_node::getNamespace();
     string image_topic_name;
     if (m_using_gazebo_data_param) image_topic_name = "/camera/rgb/image_raw";
@@ -121,14 +133,14 @@ bool ArucoTracking::InitROS()
     m_image_sub = m_nh.subscribe<sensor_msgs::Image>(image_topic_name, 1, boost::bind(&ArucoTracking::ImageCallback, this, _1));
     
     // Initialize publisher
-    m_image_pub = m_nh.advertise<sensor_msgs::Image>(nd_name + "/output_video", 10);
-    m_tf_list_pub = m_nh.advertise<tf2_msgs::TFMessage>(nd_name + "/tf_list", 10);
-    m_visual_pub = m_nh.advertise<kuam_msgs::ArucoVisual> (nd_name + "/aruco_visual", 1);
-    m_target_state_pub = m_nh.advertise<kuam_msgs::ArucoState> (nd_name + "/target_state", 1);
-    m_target_list_pub = m_nh.advertise<geometry_msgs::PoseArray> (nd_name + "/target_list", 1);
+    m_image_pub = m_p_nh.advertise<sensor_msgs::Image>("output_video", 10);
+    m_tf_list_pub = m_p_nh.advertise<tf2_msgs::TFMessage>("tf_list", 10);
+    m_visual_pub = m_p_nh.advertise<kuam_msgs::ArucoVisual> ("aruco_visual", 1);
+    m_target_state_pub = m_p_nh.advertise<kuam_msgs::ArucoState> ("target_state", 1);
+    m_target_list_pub = m_p_nh.advertise<geometry_msgs::PoseArray> ("target_list", 1);
     if (m_is_eval_param){
-        m_cnt_pub = m_nh.advertise<std_msgs::Int16> (nd_name + "/cnt", 1);
-        m_target_marker_pub = m_nh.advertise<std_msgs::Int16> (nd_name + "/target_marker", 1);
+        m_cnt_pub = m_p_nh.advertise<std_msgs::Int16> ("cnt", 1);
+        m_target_marker_pub = m_p_nh.advertise<std_msgs::Int16> ("target_marker", 1);
     }
     
     // Initialize timer
@@ -174,20 +186,20 @@ bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& 
     bool is_enough = false;
     if (ids.size() > 0){
         // Shift detected marker stack vector
-        if (m_detected_marker_num_stack.size() < MARKER_ID_STACK_SIZE){
-            m_detected_marker_num_stack.push_back(ids.size());
+        if (m_detected_marker_num_queue.size() < MARKER_ID_STACK_SIZE){
+            m_detected_marker_num_queue.push_back(ids.size());
         }
         else {
             int index;
             for (index = 0; index < MARKER_ID_STACK_SIZE - 1; index++){
-                m_detected_marker_num_stack[index] = m_detected_marker_num_stack[index + 1];
+                m_detected_marker_num_queue[index] = m_detected_marker_num_queue[index + 1];
             }
-            m_detected_marker_num_stack[index] = ids.size();
+            m_detected_marker_num_queue[index] = ids.size();
         }
 
         // Count multi aruco marker detected in detected marker stack vector
         int cnt = 0;
-        for (auto num : m_detected_marker_num_stack){
+        for (auto num : m_detected_marker_num_queue){
             if (num == 2) cnt++;
         }
         if (cnt > m_marker_cnt_th_param){
@@ -458,6 +470,7 @@ bool ArucoTracking::TargetStateEstimating(const vector<int> ids, const geometry_
         default:
             break;
     }
+    target_msg.pose.orientation = pose.orientation;
     m_target_state_pub.publish(target_msg);
 
 

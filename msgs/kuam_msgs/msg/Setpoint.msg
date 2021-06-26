@@ -8,5 +8,6 @@ geographic_msgs/GeoPose geopose
 geometry_msgs/Pose pose
 
 geometry_msgs/Twist vel
+float32 yaw_rate
 
 LandingState landing_state

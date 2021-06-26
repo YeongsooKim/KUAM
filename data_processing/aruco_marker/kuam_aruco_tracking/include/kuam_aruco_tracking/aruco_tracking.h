@@ -70,6 +70,7 @@ class ArucoTracking
 private:
     // Node Handler
 	ros::NodeHandle m_nh;
+    ros::NodeHandle m_p_nh;
     Parser m_parser;
     Utils m_utils;
     Target m_target;
@@ -115,6 +116,7 @@ private:
     float m_noise_cnt_th_param;
     float m_process_freq_param;
     int m_marker_cnt_th_param;
+    vector<int> m_testing_list_param;
 
     // Const value
     const int MARKER_ID_STACK_SIZE;
@@ -125,7 +127,7 @@ private:
     Mat m_cam_matrix;
     Mat m_dist_coeffs;
     id2markersizes m_id_to_markersize_map;
-    vector<int> m_detected_marker_num_stack;
+    vector<int> m_detected_marker_num_queue;
     bool m_fix_small_marker;
     ros::Time m_last_enough_time;
 

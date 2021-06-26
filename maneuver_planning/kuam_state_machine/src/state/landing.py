@@ -221,68 +221,28 @@ class Landing(smach.State, state.Base):
         if self.using_aruco:
 
             if self.landing_state.is_detected and self.landing_state.is_pass_landing_standby:
-                if self.is_init_z == False:
-                    self.is_init_z = True
-                    self.z_cnt = 0
+                # if self.is_init_z == False:
+                #     self.is_init_z = True
+                #     self.z_cnt = 0
 
-                    dt = 1.0/self.freq
-                    init_z = -self.target_pose.position.z
+                #     dt = 1.0/self.freq
+                #     init_z = -self.target_pose.position.z
 
-                    cnt = 0
-                    while cnt*dt < self.landing_duration_s:
-                        self.z_traj.append(self.Z(cnt*dt, init_z, self.landing_duration_s))
-                        cnt += 1
+                #     cnt = 0
+                #     while cnt*dt < self.landing_duration_s:
+                #         self.z_traj.append(self.Z(cnt*dt, init_z, self.landing_duration_s))
+                #         cnt += 1
 
-                if self.is_init_z:
+                # if self.is_init_z:
+                self.setpoint.vel.linear.x = self.XY_Vel(self.target_pose.position.x)
+                self.setpoint.vel.linear.y = self.XY_Vel(self.target_pose.position.y)
+                self.setpoint.vel.linear.z = self.Z_Vel(self.target_pose.position.z)
 
-#                    # Init x, y trajectory
-#                    dt = 1.0/self.freq
-#                    init_x = -self.target_pose.position.x*5.0
-#                    init_y = -self.target_pose.position.y*5.0
-#                    duration = self.landing_duration_s - self.z_cnt*dt - (self.landing_duration_s/3.0)
-#
-#                    x_traj = []
-#                    y_traj = []
-#
-#                    cnt = 0
-#                    while cnt*dt < duration:
-#                        x_traj.append(self.X(cnt*dt, init_x, duration))
-#                        y_traj.append(self.Y(cnt*dt, init_y, duration))
-#                        cnt += 1
-
-                    # Allocate x, y velocity
-#                    if len(x_traj) > 1:
-#                        self.setpoint.vel.linear.x = (x_traj[1] - x_traj[0])/dt
-#                        self.setpoint.vel.linear.y = (y_traj[1] - y_traj[0])/dt
-#                    else:
-#                        self.setpoint.vel.linear.x = 0.0                    
-#                        self.setpoint.vel.linear.y = 0.0
-
-                    # Allocate z velocity
-                    v_z = self.Z_Vel(self.target_pose.position.z)
-                    if v_z < -0.5 or v_z > 0.0:
-                        v_z = -0.3
-                    else:
-                        self.setpoint.vel.linear.z = v_z
-
-                    v_x = self.XY_Vel(self.target_pose.position.x)
-                    if v_x < -0.3 or v_x > 0.3:
-                        v_x = 0.0
-                    else:
-                        self.setpoint.vel.linear.x = v_x
-
-                    v_y = self.XY_Vel(self.target_pose.position.y)
-                    if v_y < -0.3 or v_y > 0.3:
-                        v_y = 0.0
-                    else:
-                        self.setpoint.vel.linear.y = v_y
-
-                    # Allocate z velocity
-#                    if self.z_cnt + 1 < len(self.z_traj):
-#                        self.setpoint.vel.linear.z = (self.z_traj[self.z_cnt + 1] - self.z_traj[self.z_cnt])/dt
-#                        self.z_cnt += 1
-                    
-                    self.setpoint.pose.orientation = self.orientation
+                v_yaw = self.YawRate(self.target_pose.orientation)
+                self.setpoint.pose.orientation.x = v_yaw[0]
+                self.setpoint.pose.orientation.y = v_yaw[1]
+                self.setpoint.pose.orientation.z = v_yaw[2]
+                self.setpoint.pose.orientation.w = v_yaw[3]
             else:
                 if self.standby_cnt < len(self.setpoints.poses):
                     self.setpoint.geopose = self.setpoints.poses[self.standby_cnt].pose
@@ -361,17 +321,39 @@ class Landing(smach.State, state.Base):
         z = a*(t - duration)**4
         return z
 
-    def Z_Vel(self, target_z):
-        err = target_z
-        #h = -self.target_pose.position.z
+    def Z_Vel(self, target):
+        err = target
         kp = 0.045
-        z_vel = err*kp
-        return z_vel
+        vel = err*kp
+
+        th = 0.3
+        if vel < -th:
+            vel = -th
+        elif vel > th:
+            vel = th
+        return vel
 
     def XY_Vel(self, target):
         err = target
         kp = 0.15
         vel = err*kp
+
+        th = 0.5
+        if vel < -th:
+            vel = -th
+        elif vel > th:
+            vel = th
+        return vel
+
+    def YawRate(self, q):
+        yaw_rad = euler_from_quaternion([q.x, q.y, q.z, q.w])[2]
+
+        err = yaw_rad
+        kp = 0.1
+
+        yaw_rate_rad = err*kp
+
+        vel = quaternion_from_euler(0.0, 0.0, yaw_rate_rad)
         return vel
 
     def IsLandingStandby(self):
@@ -381,6 +363,15 @@ class Landing(smach.State, state.Base):
         else:
             return False
 
+    def MapTarget(self, pose, id):
+        if id == 2:
+            pose.position.x += 0.30
+            pose.position.y -= 0.30
+
+            return pose
+        if id == 3:
+            return pose
+
     '''
     Callback functions
     '''
@@ -388,22 +379,21 @@ class Landing(smach.State, state.Base):
         self.target_id = msg.id
 
         if msg.is_detected == True:
-            msg_pose_stamped = PoseStamped()
-            msg_pose_stamped.header = msg.header
-            msg_pose_stamped.pose = msg.pose
             # transform from camera_link to base_link
-            is_transformed = False
             try:
-                transform = self.tfBuffer.lookup_transform('base_link', msg_pose_stamped.header.frame_id, rospy.Time())
-                is_transformed = True
-            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-                pass
-
-            if is_transformed == True:
-                pose_transformed = tf2_geometry_msgs.do_transform_pose(msg_pose_stamped, transform)
-                if self.IsValid(pose_transformed):
+                transform = self.tfBuffer.lookup_transform('base_link', msg.header.frame_id, rospy.Time())
+                p = PoseStamped()
+                p.header = msg.header
+                # p.pose = msg.pose
+                # rospy.logwarn("%f, %f, %f", msg.pose.position.x, msg.pose.position.y, msg.pose.position.z)
+                p.pose = self.MapTarget(msg.pose, msg.id)
+                # rospy.logerr("%f, %f, %f", p.pose.position.x, p.pose.position.y, p.pose.position.z)
+                transformed_pose = tf2_geometry_msgs.do_transform_pose(p, transform)
+                if self.IsValid(transformed_pose):
                     self.landing_state.is_detected = True
-                    self.target_pose = pose_transformed.pose
+                    self.target_pose = transformed_pose.pose
 
                 else:
                     self.landing_state.is_detected = False
+            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+                pass
