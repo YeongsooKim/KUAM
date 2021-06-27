@@ -43,6 +43,7 @@ class Flight(smach.State, state.Base):
 
     def Start(self):
         # Initialize setpoint
+        self.is_start = True
         self.is_last = False
         self.is_first = True
         self.dest_geopose = copy.deepcopy(self.setpoints.poses[-1].pose)
@@ -70,6 +71,7 @@ class Flight(smach.State, state.Base):
     def Terminate(self):
         trans = self.transition
         self.transition = 'none'
+        self.is_start = False
         return trans
 
     def UpdateSetpointPose(self):

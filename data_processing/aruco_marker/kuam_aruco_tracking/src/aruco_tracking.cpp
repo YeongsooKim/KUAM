@@ -21,8 +21,6 @@ ArucoTracking::ArucoTracking() :
     m_camera_frame_id_param("missing"),
     m_process_freq_param(NAN),
     m_dictionaryID_param(NAN),
-    m_big_marker_id_param(NAN),
-    m_small_marker_id_param(NAN),
     m_big_marker_size_m_param(NAN),
     m_small_marker_size_m_param(NAN),
     m_filter_buf_size_param(NAN),
@@ -36,17 +34,11 @@ ArucoTracking::ArucoTracking() :
     InitFlag();
     if (!GetParam()) ROS_ERROR_STREAM("[aruco_tracking] Fail GetParam");
     InitROS();
+    InitMarker();
 
     //namedWindow(OPENCV_WINDOW);
     m_parser.ReadFile(m_dictionaryID_param, m_calib_path_param, m_detector_params_path_param,
                     m_detector_params, m_dictionary, m_cam_matrix, m_dist_coeffs);
-
-    m_target.state.resize((int)EstimatingMethod::ItemNum);
-    m_target.last_detected_time = ros::Time(0);
-    m_target_pose_list.header.frame_id = m_camera_frame_id_param;
-
-    m_id_to_markersize_map.insert(pair<int, float>(m_big_marker_id_param, m_big_marker_size_m_param));
-    m_id_to_markersize_map.insert(pair<int, float>(m_small_marker_id_param, m_small_marker_size_m_param));
 }
 
 ArucoTracking::~ArucoTracking()
@@ -56,8 +48,6 @@ ArucoTracking::~ArucoTracking()
 
 bool ArucoTracking::InitFlag()
 {
-    m_target.is_detected = false;
-    m_target.is_init = false;
     m_fix_small_marker = false;
     return true;
 }
@@ -75,8 +65,6 @@ bool ArucoTracking::GetParam()
     m_p_nh.getParam("using_gazebo_data", m_using_gazebo_data_param);
     m_p_nh.getParam("using_logging_data", m_using_logging_data_param);
     m_p_nh.getParam("dictionaryID", m_dictionaryID_param);
-    m_p_nh.getParam("big_marker_id", m_big_marker_id_param);
-    m_p_nh.getParam("small_marker_id", m_small_marker_id_param);
     m_p_nh.getParam("big_marker_size_m", m_big_marker_size_m_param);
     m_p_nh.getParam("small_marker_size_m", m_small_marker_size_m_param);
     m_p_nh.getParam("filter_buf_size", m_filter_buf_size_param);
@@ -87,16 +75,19 @@ bool ArucoTracking::GetParam()
     m_p_nh.getParam("marker_cnt_th", m_marker_cnt_th_param);
 
     XmlRpc::XmlRpcValue list;
-    m_p_nh.getParam("test_list", my_list);
-    ROS_ASSERT(my_list.getType() == XmlRpc::XmlRpcValue::TypeArray);
-    for (int32_t i = 0; i < my_list.size(); ++i) 
-    {
-        ROS_ASSERT(my_list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
-        int a = static_cast<int>(my_list[i]);
-        ROS_ERROR("%d", a);
+    m_p_nh.getParam("big_marker_id", list);
+    ROS_ASSERT(list.getType() == XmlRpc::XmlRpcValue::TypeArray);
+    for (int32_t i = 0; i < list.size(); ++i) {
+        ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
+        int id = static_cast<int>(list[i]);
+        m_big_marker_id_param.push_back(id);
     }
-    if (my_list.size() == 0){
-        ROS_ERROR_STREAM("err");
+    m_p_nh.getParam("small_marker_id", list);
+    ROS_ASSERT(list.getType() == XmlRpc::XmlRpcValue::TypeArray);
+    for (int32_t i = 0; i < list.size(); ++i) {
+        ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
+        int id = static_cast<int>(list[i]);
+        m_small_marker_id_param.push_back(id);
     }
 
     if (m_calib_path_param == "missing") { ROS_ERROR_STREAM("[aruco_tracking] m_calib_path_param is missing"); return false; }
@@ -104,8 +95,6 @@ bool ArucoTracking::GetParam()
     else if (m_usb_cam_logging_topic_param == "missing") { ROS_ERROR_STREAM("[aruco_tracking] m_usb_cam_logging_topic_param is missing"); return false; }
     else if (m_camera_frame_id_param == "missing") { ROS_ERROR_STREAM("[aruco_tracking] m_camera_frame_id_param is missing"); return false; }
     else if (__isnan(m_dictionaryID_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_dictionaryID_param is NAN"); return false; }
-    else if (__isnan(m_big_marker_id_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_big_marker_id_param is NAN"); return false; }
-    else if (__isnan(m_small_marker_id_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_small_marker_id_param is NAN"); return false; }
     else if (__isnan(m_big_marker_size_m_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_big_marker_size_m_param is NAN"); return false; }
     else if (__isnan(m_small_marker_size_m_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_small_marker_size_m_param is NAN"); return false; }
     else if (__isnan(m_filter_buf_size_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_filter_buf_size_param is NAN"); return false; }
@@ -114,6 +103,8 @@ bool ArucoTracking::GetParam()
     else if (__isnan(m_noise_cnt_th_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_noise_cnt_th_param is NAN"); return false; }
     else if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_process_freq_param is NAN"); return false; }
     else if (__isnan(m_marker_cnt_th_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_marker_cnt_th_param is NAN"); return false; }
+    else if (m_big_marker_id_param.empty()) { ROS_ERROR_STREAM("[aruco_tracking] m_big_marker_id_param is empty"); return false; }
+    else if (m_small_marker_id_param.empty()) { ROS_ERROR_STREAM("[aruco_tracking] m_small_marker_id_param is empty"); return false; }
 
     return true;
 }
@@ -149,6 +140,35 @@ bool ArucoTracking::InitROS()
     return true;
 }
 
+bool ArucoTracking::InitMarker()
+{
+    for (auto id : m_big_marker_id_param){
+        m_id_to_markersize_map.insert(pair<int, float>(id, m_big_marker_size_m_param));
+
+        Target target;
+        target.id = id;
+        target.marker_size_m = m_big_marker_size_m_param;
+        target.is_init = false;
+        target.is_detected = false;
+        target.last_detected_time = ros::Time(0);
+        target.state.resize((int)EstimatingMethod::ItemNum);
+        m_targets.push_back(target);
+    }
+    for (auto id : m_small_marker_id_param){
+        m_id_to_markersize_map.insert(pair<int, float>(id, m_small_marker_size_m_param));
+
+        Target target;
+        target.id = id;
+        target.marker_size_m = m_small_marker_size_m_param;
+        target.is_init = false;
+        target.is_detected = false;
+        target.last_detected_time = ros::Time(0);
+        target.state.resize((int)EstimatingMethod::ItemNum);
+        m_targets.push_back(target);
+    }
+    m_target_pose_list.header.frame_id = m_camera_frame_id_param;
+}
+
 void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
 {
     if (m_cv_ptr != nullptr){
@@ -169,12 +189,6 @@ void ArucoTracking::ImageCallback(const sensor_msgs::Image::ConstPtr &img_ptr)
 
 bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& target_pose, bool& is_detected)
 {
-    static int waitTime = 0;
-    static double totalTime = 0;
-    static int totalIterations = 0;
-
-    double tick = (double)getTickCount();
-
     vector<vector<Point2f>> corners;
     vector<vector<Point2f>> rejected;
 
@@ -183,86 +197,7 @@ bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& 
 
     aruco::detectMarkers(image, m_dictionary, corners, ids, m_detector_params, rejected);
 
-    bool is_enough = false;
-    if (ids.size() > 0){
-        // Shift detected marker stack vector
-        if (m_detected_marker_num_queue.size() < MARKER_ID_STACK_SIZE){
-            m_detected_marker_num_queue.push_back(ids.size());
-        }
-        else {
-            int index;
-            for (index = 0; index < MARKER_ID_STACK_SIZE - 1; index++){
-                m_detected_marker_num_queue[index] = m_detected_marker_num_queue[index + 1];
-            }
-            m_detected_marker_num_queue[index] = ids.size();
-        }
-
-        // Count multi aruco marker detected in detected marker stack vector
-        int cnt = 0;
-        for (auto num : m_detected_marker_num_queue){
-            if (num == 2) cnt++;
-        }
-        if (cnt > m_marker_cnt_th_param){
-            is_enough = true;
-        }
-
-        // Timer for multi aruco marker detected
-        static bool is_start_timer = false;
-        if (is_enough){
-            if (!is_start_timer){
-                is_start_timer = true;
-                m_last_enough_time = ros::Time::now();
-            }
-            if ((ros::Time::now() - m_last_enough_time) > ros::Duration(3)){
-                m_fix_small_marker = true;
-            }
-            auto eclapse = ros::Time::now() - m_last_enough_time;
-        }
-        else{
-            is_start_timer = false;
-        }
-
-        // For comparing detected marker count and ego vehicle height
-        if (m_is_eval_param){
-            std_msgs::Int16 msg;
-            msg.data = cnt;
-            m_cnt_pub.publish(msg);
-        }
-    }
-
-    // Remove unused marker
-    if (ids.size() > 0){
-        if (m_fix_small_marker){
-            unsigned int big_index;
-            bool has_big = false;
-            for (int index = 0; index < ids.size(); index++){
-                if (ids[index] == m_big_marker_id_param){
-                    big_index = index;
-                    has_big = true;
-                }
-            }
-
-            if (has_big){
-                corners.erase(corners.begin() + big_index);
-                ids.erase(ids.begin() + big_index);
-            }
-        }
-        else{
-            unsigned int small_index;
-            bool has_small = false;
-            for (int index = 0; index < ids.size(); index++){
-                if (ids[index] == m_small_marker_id_param){
-                    small_index = index;
-                    has_small = true;
-                }
-            }
-
-            if (has_small){
-                corners.erase(corners.begin() + small_index);
-                ids.erase(ids.begin() + small_index);
-            }
-        }
-    }
+    SelectMarkers(corners, ids);
 
     // Noise filter
     for (auto id : ids){
@@ -295,15 +230,7 @@ bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& 
         if (IsNoise(target_pose)) is_detected = false;
         else is_detected = true;
 
-        // double currentTime = ((double)getTickCount() - tick) / getTickFrequency();
-        // totalTime += currentTime;
-        // totalIterations++;
-        // if(totalIterations % 30 == 0) {
-        //     ROS_INFO("Detection Time = %f ms (Mean = %f ms)", currentTime * 1000, 1000 * totalTime / double(totalIterations));
-        // }
-
         // draw results
-        
         if (is_detected){
             aruco::drawDetectedMarkers(copy_image, corners, ids);
 
@@ -317,7 +244,6 @@ bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& 
     }
 
     static unsigned cnt = 0;
-
     if (is_detected){
         cnt++;
 
@@ -330,47 +256,6 @@ bool ArucoTracking::MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& 
             m_image_pub.publish(img_msg); // ros::Publisher pub_img = node.advertise<sensor_msgs::Image>("topic", queuesize);
         }
     }
-
-    return true;
-}
-
-bool ArucoTracking::Camera2World(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, const vector<Vec3d> tvecs, geometry_msgs::Pose& target_pose)
-{
-    // Create and publish tf message for each marker
-    tf2_msgs::TFMessage tf_msg_list;
-    for (auto i = 0; i < rvecs.size(); ++i){
-        if (ids[i] == m_target.id){
-
-            geometry_msgs::TransformStamped aruco_tf_stamped;
-            aruco_tf_stamped.header.stamp = ros::Time::now();
-            aruco_tf_stamped.header.frame_id = m_camera_frame_id_param;
-
-            auto translation_vector = tvecs[i];
-            auto rotation_vector = rvecs[i];
-            auto transform = CreateTransform(translation_vector, rotation_vector);
-            stringstream ss;
-            string marker_tf_prefix = "marker";
-            ss << marker_tf_prefix << ids[i];
-            aruco_tf_stamped.child_frame_id = ss.str();
-            aruco_tf_stamped.transform.translation.x = transform.getOrigin().getX();
-            aruco_tf_stamped.transform.translation.y = transform.getOrigin().getY();
-            aruco_tf_stamped.transform.translation.z = transform.getOrigin().getZ();
-            aruco_tf_stamped.transform.rotation.x = transform.getRotation().getX();
-            aruco_tf_stamped.transform.rotation.y = transform.getRotation().getY();
-            aruco_tf_stamped.transform.rotation.z = transform.getRotation().getZ();
-            aruco_tf_stamped.transform.rotation.w = transform.getRotation().getW();
-            tf_msg_list.transforms.push_back(aruco_tf_stamped);
-
-            target_pose.position.x = transform.getOrigin().getX();
-            target_pose.position.y = transform.getOrigin().getY();
-            target_pose.position.z = transform.getOrigin().getZ();
-            target_pose.orientation.x = transform.getRotation().getX();
-            target_pose.orientation.y = transform.getRotation().getY();
-            target_pose.orientation.z = transform.getRotation().getZ();
-            target_pose.orientation.w = transform.getRotation().getW();
-        }
-    }
-    m_tf_list_pub.publish(tf_msg_list);
 
     return true;
 }
@@ -506,6 +391,111 @@ bool ArucoTracking::Convert2CVImg(const sensor_msgs::Image::ConstPtr &img_ptr)
     }
 }
 
+bool ArucoTracking::Camera2World(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, const vector<Vec3d> tvecs, geometry_msgs::Pose& target_pose)
+{
+    // Create and publish tf message for each marker
+    tf2_msgs::TFMessage tf_msg_list;
+    for (auto i = 0; i < rvecs.size(); ++i){
+        if (ids[i] == m_target.id){
+
+            geometry_msgs::TransformStamped aruco_tf_stamped;
+            aruco_tf_stamped.header.stamp = ros::Time::now();
+            aruco_tf_stamped.header.frame_id = m_camera_frame_id_param;
+
+            auto translation_vector = tvecs[i];
+            auto rotation_vector = rvecs[i];
+            auto transform = CreateTransform(translation_vector, rotation_vector);
+            stringstream ss;
+            string marker_tf_prefix = "marker";
+            ss << marker_tf_prefix << ids[i];
+            aruco_tf_stamped.child_frame_id = ss.str();
+            aruco_tf_stamped.transform.translation.x = transform.getOrigin().getX();
+            aruco_tf_stamped.transform.translation.y = transform.getOrigin().getY();
+            aruco_tf_stamped.transform.translation.z = transform.getOrigin().getZ();
+            aruco_tf_stamped.transform.rotation.x = transform.getRotation().getX();
+            aruco_tf_stamped.transform.rotation.y = transform.getRotation().getY();
+            aruco_tf_stamped.transform.rotation.z = transform.getRotation().getZ();
+            aruco_tf_stamped.transform.rotation.w = transform.getRotation().getW();
+            tf_msg_list.transforms.push_back(aruco_tf_stamped);
+
+            target_pose.position.x = transform.getOrigin().getX();
+            target_pose.position.y = transform.getOrigin().getY();
+            target_pose.position.z = transform.getOrigin().getZ();
+            target_pose.orientation.x = transform.getRotation().getX();
+            target_pose.orientation.y = transform.getRotation().getY();
+            target_pose.orientation.z = transform.getRotation().getZ();
+            target_pose.orientation.w = transform.getRotation().getW();
+        }
+    }
+    m_tf_list_pub.publish(tf_msg_list);
+
+    return true;
+}
+
+void ArucoTracking::SelectMarkers(vector<vector<Point2f>>& corners, vector<int>& ids)
+{
+    bool is_enough = false;
+    if (ids.size() > 0){
+        // Shift detected marker queue vector
+        if (m_is_small_id_queue.size() < MARKER_ID_STACK_SIZE){
+            bool has_small_id = HasSmallMarker(ids);
+            m_is_small_id_queue.push_back(has_small_id);
+        }
+        else {
+            int index;
+            for (index = 0; index < MARKER_ID_STACK_SIZE - 1; index++){
+                m_is_small_id_queue[index] = m_is_small_id_queue[index + 1];
+            }
+
+            bool has_small_id = HasSmallMarker(ids);
+            m_is_small_id_queue[index] = has_small_id;
+        }
+
+        // Count multi aruco marker detected in detected marker stack vector
+        int cnt = 0;
+        for (auto is_small_id : m_is_small_id_queue){
+            if (is_small_id) cnt++;
+        }
+        if (cnt > m_marker_cnt_th_param){
+            is_enough = true;
+        }
+
+        // Timer for multi aruco marker detected
+        static bool is_start_timer = false;
+        if (is_enough){
+            if (!is_start_timer){
+                is_start_timer = true;
+                m_last_enough_time = ros::Time::now();
+            }
+            if ((ros::Time::now() - m_last_enough_time) > ros::Duration(3)){
+                m_fix_small_marker = true;
+            }
+            auto eclapse = ros::Time::now() - m_last_enough_time;
+        }
+        else{
+            is_start_timer = false;
+        }
+
+        // For comparing detected marker count and ego vehicle height
+        if (m_is_eval_param){
+            std_msgs::Int16 msg;
+            msg.data = cnt;
+            m_cnt_pub.publish(msg);
+        }
+    }
+
+    // Remove unused marker
+    if (ids.size() > 0){
+        if (m_fix_small_marker){
+            EraseIdnCorner(m_big_marker_id_param, corners, ids);
+        }
+        else{
+            EraseIdnCorner(m_small_marker_id_param, corners, ids);
+        }
+    }
+}
+
+
 bool ArucoTracking::WithoutFilter(const Eigen::Vector3d pos, State& state)
 {
     state.position = pos;
@@ -570,6 +560,7 @@ bool ArucoTracking::ExpMovingAvgFilter(const Eigen::Vector3d pos, State& state)
     m_target.is_init = true;
 }
 
+
 tf2::Vector3 ArucoTracking::CvVector3d2TfVector3(const Vec3d &vec) 
 {
     return {vec[0], vec[1], vec[2]};
@@ -600,6 +591,7 @@ tf2::Transform ArucoTracking::CreateTransform(const Vec3d &translation_vector, c
     return transform;
 }
 
+
 bool ArucoTracking::IsNoise()
 {
     static bool is_init = false;
@@ -625,9 +617,8 @@ bool ArucoTracking::IsNoise()
     }
     else {
         return false;
-        return !m_target.is_detected;
     }
-}
+} 
 
 bool ArucoTracking::IsNoise(const geometry_msgs::Pose target_pose)
 {
@@ -665,6 +656,44 @@ bool ArucoTracking::IsNoise(const geometry_msgs::Pose target_pose)
         
         if (dist > m_noise_dist_th_m_param) return true;
         else return false;
+    }
+}
+
+bool ArucoTracking::HasSmallMarker(const vector<int> ids)
+{
+    bool has_small = false;
+    for (auto small_id : m_small_marker_id_param){
+        if (!has_small){
+            for (auto detected_id : ids){
+                if (detected_id == small_id){
+                    has_small = true;
+                    break;
+                }
+            }
+        }
+    }
+    return has_small;
+}
+
+void ArucoTracking::EraseIdnCorner(const vector<int> target_ids, vector<vector<Point2f>>& corners, vector<int>& detected_ids)
+{
+    vector<int> indexes;
+    for (auto target_id : target_ids){
+        for (int index = 0; index < detected_ids.size(); index++){
+            if (detected_ids[index] == target_id){
+                indexes.push_back(index);
+                break;
+            }
+        }
+    }
+
+    if (!indexes.empty()){
+        sort(indexes.begin(), indexes.end(), greater<int>());
+
+        for (auto index : indexes){
+            corners.erase(corners.begin() + index);
+            detected_ids.erase(detected_ids.begin() + index);
+        }
     }
 }
 }

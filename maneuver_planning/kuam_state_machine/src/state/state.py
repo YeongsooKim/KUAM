@@ -9,6 +9,8 @@ class Base():
         self.transition = ''
         self.freq = 1.0
 
+        self.is_start = False
+
         self.ego_geopose = GeoPose()
         self.ego_pose = Pose()
         self.ego_vel = Twist()

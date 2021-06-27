@@ -86,7 +86,7 @@ Visualization Manager:
           Marker Topic: /kuam/visual/kuam_visual/global_path_markerarray
           Name: global_path
           Namespaces:
-            {}
+            global/yaw: true
           Queue Size: 100
           Value: true
         - Class: rviz/MarkerArray
@@ -94,7 +94,7 @@ Visualization Manager:
           Marker Topic: /kuam/visual/kuam_visual/setpoint_markerarray
           Name: setpoints
           Namespaces:
-            {}
+            setpoint/global: true
           Queue Size: 100
           Value: true
         - Class: rviz/MarkerArray
@@ -102,7 +102,8 @@ Visualization Manager:
           Marker Topic: /kuam/visual/kuam_visual/ego_markerarray
           Name: ego
           Namespaces:
-            {}
+            ego/current_point: true
+            ego/trajectory: true
           Queue Size: 100
           Value: true
         - Class: rviz/MarkerArray
@@ -126,6 +127,8 @@ Visualization Manager:
               Value: true
             base_link_frd:
               Value: false
+            camera_link:
+              Value: true
             map:
               Value: true
             map_ned:
@@ -141,8 +144,15 @@ Visualization Manager:
           Show Names: true
           Tree:
             map:
+              base_link:
+                base_link_frd:
+                  {}
+                camera_link:
+                  {}
               map_ned:
-                {}
+                odom:
+                  odom_ned:
+                    {}
           Update Interval: 0
           Value: true
         - Class: rviz/MarkerArray
@@ -232,21 +242,26 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: -0.004999999888241291
-      Class: rviz/TopDownOrtho
+      Class: rviz/XYOrbit
+      Distance: 7.9361419677734375
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
+      Focal Point:
+        X: 0.8298473358154297
+        Y: 0.21867108345031738
+        Z: 4.76837158203125e-7
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 50.220115661621094
+      Pitch: 0.7853981852531433
       Target Frame: map
-      Value: TopDownOrtho (rviz)
-      X: 22.61294937133789
-      Y: -2.1441702842712402
+      Value: XYOrbit (rviz)
+      Yaw: 0.7853981852531433
     Saved: ~
 Window Geometry:
   Displays:

@@ -33,7 +33,6 @@ class Landing(smach.State, state.Base):
         self.landing_state.is_detected = False
         self.landing_state.is_land = False
         self.landing_state.is_pass_landing_standby = False
-        self.is_init_z = False
         
         # Param
         self.landing_threshold_m = None
@@ -65,8 +64,6 @@ class Landing(smach.State, state.Base):
         self.marker_array = MarkerArray()
         self.vb_angle_deg = [self.virtual_border_angle_0_deg, self.virtual_border_angle_1_deg]
 
-        self.z_traj = []
-        self.z_cnt = 0
         self.standby_cnt = 0
         self.orientation = None
 
@@ -83,6 +80,7 @@ class Landing(smach.State, state.Base):
     State functions
     '''
     def Start(self):
+        self.is_start = True
         # Initialize flag
         self.landing_state.is_land = False
         self.landing_state.is_detected = False
@@ -120,6 +118,7 @@ class Landing(smach.State, state.Base):
     def Terminate(self):
         trans = self.transition
         self.transition = 'none'
+        self.is_start = False
         return trans
 
 
@@ -221,19 +220,6 @@ class Landing(smach.State, state.Base):
         if self.using_aruco:
 
             if self.landing_state.is_detected and self.landing_state.is_pass_landing_standby:
-                # if self.is_init_z == False:
-                #     self.is_init_z = True
-                #     self.z_cnt = 0
-
-                #     dt = 1.0/self.freq
-                #     init_z = -self.target_pose.position.z
-
-                #     cnt = 0
-                #     while cnt*dt < self.landing_duration_s:
-                #         self.z_traj.append(self.Z(cnt*dt, init_z, self.landing_duration_s))
-                #         cnt += 1
-
-                # if self.is_init_z:
                 self.setpoint.vel.linear.x = self.XY_Vel(self.target_pose.position.x)
                 self.setpoint.vel.linear.y = self.XY_Vel(self.target_pose.position.y)
                 self.setpoint.vel.linear.z = self.Z_Vel(self.target_pose.position.z)
@@ -376,24 +362,27 @@ class Landing(smach.State, state.Base):
     Callback functions
     '''
     def MarkerCB(self, msg):
-        self.target_id = msg.id
+        if self.is_start:
+            self.target_id = msg.id
 
-        if msg.is_detected == True:
-            # transform from camera_link to base_link
-            try:
-                transform = self.tfBuffer.lookup_transform('base_link', msg.header.frame_id, rospy.Time())
-                p = PoseStamped()
-                p.header = msg.header
-                # p.pose = msg.pose
-                # rospy.logwarn("%f, %f, %f", msg.pose.position.x, msg.pose.position.y, msg.pose.position.z)
-                p.pose = self.MapTarget(msg.pose, msg.id)
-                # rospy.logerr("%f, %f, %f", p.pose.position.x, p.pose.position.y, p.pose.position.z)
-                transformed_pose = tf2_geometry_msgs.do_transform_pose(p, transform)
-                if self.IsValid(transformed_pose):
-                    self.landing_state.is_detected = True
-                    self.target_pose = transformed_pose.pose
+            if msg.is_detected == True:
+                # transform from camera_link to base_link
+                try:
+                    transform = self.tfBuffer.lookup_transform('base_link', msg.header.frame_id, rospy.Time())
+                    p = PoseStamped()
+                    p.header = msg.header
+                    # p.pose = msg.pose
+                    # rospy.logwarn("%f, %f, %f", msg.pose.position.x, msg.pose.position.y, msg.pose.position.z)
+                    p.pose = self.MapTarget(msg.pose, msg.id)
+                    # rospy.logerr("%f, %f, %f", p.pose.position.x, p.pose.position.y, p.pose.position.z)
+                    transformed_pose = tf2_geometry_msgs.do_transform_pose(p, transform)
+                    if self.IsValid(transformed_pose):
+                        self.landing_state.is_detected = True
+                        self.target_pose = transformed_pose.pose
 
-                else:
-                    self.landing_state.is_detected = False
-            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-                pass
+                    else:
+                        self.landing_state.is_detected = False
+                except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+                    pass
+        else:
+            pass

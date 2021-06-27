@@ -25,6 +25,7 @@ class Arm(smach.State, state.Base):
 
 
     def Start(self):
+        self.is_start = True
         # Initialize setpoint
         pass
 
@@ -45,4 +46,5 @@ class Arm(smach.State, state.Base):
     def Terminate(self):
         trans = self.transition
         self.transition = 'none'
+        self.is_start = False
         return trans

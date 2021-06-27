@@ -106,8 +106,8 @@ private:
     bool m_using_gazebo_data_param;
     bool m_using_logging_data_param;
     int m_dictionaryID_param;
-    int m_big_marker_id_param;
-    int m_small_marker_id_param;
+    vector<int> m_big_marker_id_param;
+    vector<int> m_small_marker_id_param;
     float m_big_marker_size_m_param;
     float m_small_marker_size_m_param;
     int m_filter_buf_size_param;
@@ -116,7 +116,6 @@ private:
     float m_noise_cnt_th_param;
     float m_process_freq_param;
     int m_marker_cnt_th_param;
-    vector<int> m_testing_list_param;
 
     // Const value
     const int MARKER_ID_STACK_SIZE;
@@ -127,7 +126,7 @@ private:
     Mat m_cam_matrix;
     Mat m_dist_coeffs;
     id2markersizes m_id_to_markersize_map;
-    vector<int> m_detected_marker_num_queue;
+    vector<bool> m_is_small_id_queue;
     bool m_fix_small_marker;
     ros::Time m_last_enough_time;
 
@@ -146,13 +145,17 @@ private: // Function
     bool GetParam();
     bool InitFlag();
     bool InitROS();
+    bool InitMarker();
     
     void ImageCallback(const sensor_msgs::Image::ConstPtr &img_ptr);
     void ProcessTimerCallback(const ros::TimerEvent& event);
 
-    bool Convert2CVImg(const sensor_msgs::Image::ConstPtr &img_ptr);
     bool MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& target_pose, bool& is_detected);
     bool TargetStateEstimating(const vector<int> ids, const geometry_msgs::Pose pose, const bool is_detected);
+
+    bool Convert2CVImg(const sensor_msgs::Image::ConstPtr &img_ptr);
+    bool Camera2World(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, const vector<Vec3d> tvecs, geometry_msgs::Pose& target_pose);
+    void SelectMarkers(vector<vector<Point2f>>& corners, vector<int>& ids);
 
     bool WithoutFilter(const Eigen::Vector3d pos, State& state);
     bool MovingAvgFilter(const Eigen::Vector3d pos, State& state);
@@ -162,9 +165,10 @@ private: // Function
     tf2::Quaternion CvVector3d2TfQuarternion(const Vec3d &rotation_vector);
     tf2::Transform CreateTransform(const Vec3d &tvec, const Vec3d &rotation_vector);
 
-    bool Camera2World(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, const vector<Vec3d> tvecs, geometry_msgs::Pose& target_pose);
     bool IsNoise();
     bool IsNoise(const geometry_msgs::Pose target_pose);
+    bool HasSmallMarker(const vector<int> ids);
+    void EraseIdnCorner(const vector<int> target_ids, vector<vector<Point2f>>& corners, vector<int>& detected_ids);
 };
 }
 #endif //  __ARUCO_TRACKING_H__
