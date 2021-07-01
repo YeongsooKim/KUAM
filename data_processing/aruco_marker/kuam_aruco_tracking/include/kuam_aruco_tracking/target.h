@@ -1,0 +1,145 @@
+#ifndef __TARGET_H__
+#define __TARGET_H__
+
+#include <Eigen/Dense>
+
+#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseArray.h>
+#include <geometry_msgs/Twist.h>
+
+using namespace std;
+
+
+// Target without filter
+struct State{
+    Eigen::Vector3d position;
+    Eigen::Vector3d prev_position;
+};
+
+struct Target{
+    int id;
+    float marker_size_m;
+    bool is_init;
+
+    bool is_detected;
+    ros::Time last_detected_time;
+
+    vector<State> state;
+};
+
+enum class EstimatingMethod : int
+{
+    WOF,    // Without filter
+    MAF,    // Moving average filter
+    EMAF,   // Exponential moving average filter
+    // KF,     // Kalman filter
+
+    ItemNum
+};
+
+class ArucoTracking
+{
+private:
+    // Node Handler
+	ros::NodeHandle m_nh;
+    ros::NodeHandle m_p_nh;
+    Parser m_parser;
+    Utils m_utils;
+    Target m_target;
+    cv_bridge::CvImagePtr m_cv_ptr;
+
+public:
+    ArucoTracking();
+    virtual ~ArucoTracking();
+
+private:
+    // Subscriber
+    ros::Subscriber m_image_sub;
+
+    // Publisher
+    ros::Publisher m_image_pub;
+    ros::Publisher m_tf_list_pub;
+    ros::Publisher m_visual_pub;
+    ros::Publisher m_target_state_pub;
+    ros::Publisher m_target_list_pub;
+    ros::Publisher m_cnt_pub;
+    ros::Publisher m_target_marker_pub;
+
+    // Timer
+    ros::Timer m_image_timer;
+
+    // Param
+    string m_usb_cam_logging_topic_param;
+    string m_calib_path_param;
+    string m_detector_params_path_param;
+    string m_camera_frame_id_param;
+    bool m_is_eval_param;
+    bool m_compare_mode_param;
+    bool m_using_gazebo_data_param;
+    bool m_using_logging_data_param;
+    int m_dictionaryID_param;
+    vector<int> m_big_marker_id_param;
+    vector<int> m_small_marker_id_param;
+    float m_big_marker_size_m_param;
+    float m_small_marker_size_m_param;
+    int m_filter_buf_size_param;
+    int m_estimating_method_param;
+    float m_noise_dist_th_m_param;
+    float m_noise_cnt_th_param;
+    float m_process_freq_param;
+    int m_marker_cnt_th_param;
+
+    // Const value
+    const int MARKER_ID_STACK_SIZE;
+
+    // ArUco variable
+    Ptr<aruco::DetectorParameters> m_detector_params;
+    Ptr<aruco::Dictionary> m_dictionary;
+    Mat m_cam_matrix;
+    Mat m_dist_coeffs;
+    id2markersizes m_id_to_markersize_map;
+    vector<bool> m_is_small_id_queue;
+    bool m_fix_small_marker;
+    ros::Time m_last_enough_time;
+
+    // Time variable
+    ros::Time m_last_detected_time;
+    ros::Time m_last_noise_check_time;
+
+    // Video variable
+    VideoCapture m_input_video;
+    const string OPENCV_WINDOW;
+
+
+    geometry_msgs::PoseArray m_target_pose_list;
+
+private: // Function
+    bool GetParam();
+    bool InitFlag();
+    bool InitROS();
+    bool InitMarker();
+    
+    void ImageCallback(const sensor_msgs::Image::ConstPtr &img_ptr);
+    void ProcessTimerCallback(const ros::TimerEvent& event);
+
+    bool MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& target_pose, bool& is_detected);
+    bool TargetStateEstimating(const vector<int> ids, const geometry_msgs::Pose pose, const bool is_detected);
+
+    bool Convert2CVImg(const sensor_msgs::Image::ConstPtr &img_ptr);
+    bool Camera2World(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, const vector<Vec3d> tvecs, geometry_msgs::Pose& target_pose);
+    void SelectMarkers(vector<vector<Point2f>>& corners, vector<int>& ids);
+
+    bool WithoutFilter(const Eigen::Vector3d pos, State& state);
+    bool MovingAvgFilter(const Eigen::Vector3d pos, State& state);
+    bool ExpMovingAvgFilter(const Eigen::Vector3d pos, State& state);
+    
+    tf2::Vector3 CvVector3d2TfVector3(const Vec3d &vec);
+    tf2::Quaternion CvVector3d2TfQuarternion(const Vec3d &rotation_vector);
+    tf2::Transform CreateTransform(const Vec3d &tvec, const Vec3d &rotation_vector);
+
+    bool IsNoise();
+    bool IsNoise(const geometry_msgs::Pose target_pose);
+    bool HasSmallMarker(const vector<int> ids);
+    void EraseIdnCorner(const vector<int> target_ids, vector<vector<Point2f>>& corners, vector<int>& detected_ids);
+};
+#endif //  __TARGET_H__

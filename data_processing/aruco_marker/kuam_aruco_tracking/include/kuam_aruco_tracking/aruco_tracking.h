@@ -39,7 +39,6 @@ namespace kuam{
 struct State{
     Eigen::Vector3d position;
     Eigen::Vector3d prev_position;
-    vector < vector < Point2f > > corners;
 };
 
 using id2markersizes = map < int , float >;
