@@ -8,20 +8,19 @@ kuam:
       process_freq: 10.0
       
       # flag
-      is_eval: false
       compare_mode: false
 
       # threshold
       marker_cnt_th: 25 # count for fixing target when multi marker detected
       filter_buf_size: 10 # moving average filter buff size
       noise_dist_th_m: 3.0
-      noise_cnt_th: 6 # (3/5)*process_frequency
+      noise_cnt_th: 3 # (3/10)*process_frequency
 
       # aruco marker
       dictionaryID: 0
       big_marker_id: [0, 1, 2, 3]
-      small_marker_id: [4, 5, 6, 7]
       big_marker_size_m: 0.2
+      small_marker_id: [4, 5, 6, 7, 8]
       small_marker_size_m: 0.06
 
     usb_cam:
@@ -56,7 +55,7 @@ kuam:
       process_freq: 20.0
 
       # takeoff
-      takeoff_alt_m: 3.0
+      takeoff_alt_m: 0.7
       reached_dist_th_m: 0.7 # checking have reached to mission destination waypoint
       guidance_dist_th_m: 0.7 # checking have reached to next waypoint during flight mode
 

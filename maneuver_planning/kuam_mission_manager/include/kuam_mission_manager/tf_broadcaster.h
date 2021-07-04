@@ -71,7 +71,7 @@ private:
 
     nav_msgs::Odometry m_local_pose;
     geometry_msgs::TransformStamped m_base_tf_stamped;
-    geometry_msgs::TransformStamped m_marker_tf_stamped;
+    vector<geometry_msgs::TransformStamped> m_marker_tf_stampeds;
     geographic_msgs::GeoPoint m_home_position;
     bool m_is_home_set;
 

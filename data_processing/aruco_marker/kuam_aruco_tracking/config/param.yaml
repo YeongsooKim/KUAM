@@ -2,7 +2,6 @@ aruco_tracking:
   process_freq: 10.0
   
   # flag
-  is_eval: false
   compare_mode: false
 
   # threshold

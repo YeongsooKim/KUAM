@@ -187,7 +187,12 @@ void TfBroadcaster::ProcessTimerCallback(const ros::TimerEvent& event)
 {
 	vector<geometry_msgs::TransformStamped> transform_vector;
     if (m_base_cb) { AddTransform(m_base_tf_stamped.header.frame_id, m_base_tf_stamped.child_frame_id, m_base_tf_stamped.transform, transform_vector); m_base_cb = false; }
-    if (m_marker_cb) { AddTransform(m_marker_tf_stamped.header.frame_id, m_marker_tf_stamped.child_frame_id, m_marker_tf_stamped.transform, transform_vector); m_marker_cb = false; }
+    if (m_marker_cb) { 
+        for (auto tf : m_marker_tf_stampeds){
+            AddTransform(tf.header.frame_id, tf.child_frame_id, tf.transform, transform_vector);  
+        }
+        m_marker_cb = false;
+    }
 	
     m_tf_broadcaster.sendTransform(transform_vector);
 }
@@ -226,15 +231,11 @@ void TfBroadcaster::EgoGlobalCallback(const sensor_msgs::NavSatFix::ConstPtr &po
 
 void TfBroadcaster::MarkerCallback(const tf2_msgs::TFMessage::ConstPtr &marker_ptr)
 {
-    if (marker_ptr->transforms.size() > 0){
+    m_marker_tf_stampeds.clear();
+    for (auto transform : marker_ptr->transforms){
         m_marker_cb = true;
-        m_marker_tf_stamped = marker_ptr->transforms[0];
-
-        tf::Quaternion marker_q(
-        m_marker_tf_stamped.transform.rotation.x,
-        m_marker_tf_stamped.transform.rotation.y,
-        m_marker_tf_stamped.transform.rotation.z,
-        m_marker_tf_stamped.transform.rotation.w);
+        geometry_msgs::TransformStamped tf;
+        m_marker_tf_stampeds.push_back(transform);
     }
 }
 

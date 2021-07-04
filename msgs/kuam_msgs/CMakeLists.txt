@@ -23,7 +23,9 @@ find_package(Boost REQUIRED COMPONENTS system)
 add_message_files(
   FILES
   ArucoState.msg
+  ArucoStates.msg
   ArucoVisual.msg
+  ArucoVisuals.msg
   Waypoint.msg
   Waypoints.msg
   Task.msg

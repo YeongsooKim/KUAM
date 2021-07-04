@@ -22,7 +22,7 @@
         <!-- 0. Without filter -->
         <!-- 1. Moving average filter -->
         <!-- 2. Exponential moving average filter -->
-    <arg name="estimating_method" default="1" />
+    <arg name="estimating_method" default="2" />
 
     <node pkg="kuam_aruco_tracking" type="aruco_tracking_node" name="aruco_tracking" cwd="node" output="screen">
         <param name="calib_path" value="$(arg calib_path)" />

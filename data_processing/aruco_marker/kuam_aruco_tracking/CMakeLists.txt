@@ -59,7 +59,7 @@ include_directories(
 )
 
 ## aruco_tracking_node
-add_executable(aruco_tracking_node src/aruco_tracking_node.cpp src/aruco_tracking.cpp src/parser.cpp src/utils.cpp)
+add_executable(aruco_tracking_node src/aruco_tracking_node.cpp src/aruco_tracking.cpp src/parser.cpp src/utils.cpp src/target.cpp)
 add_dependencies(aruco_tracking_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(aruco_tracking_node
  ${catkin_LIBRARIES}

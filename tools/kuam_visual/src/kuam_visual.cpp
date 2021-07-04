@@ -12,9 +12,11 @@
 #include <sensor_msgs/NavSatFix.h>
 #include <std_msgs/Float32.h>
 #include <kuam_visual/utils.h>
-#include <kuam_aruco_tracking/aruco_tracking.h>
+#include <kuam_aruco_tracking/target.h>
 #include <kuam_msgs/ArucoVisual.h>
+#include <kuam_msgs/ArucoVisuals.h>
 #include <kuam_msgs/ArucoState.h>
+#include <kuam_msgs/ArucoStates.h>
 #include <kuam_msgs/Waypoints.h>
 #include <kuam_msgs/Setpoint.h>
 #include <kuam_msgs/TaskList.h>
@@ -32,7 +34,6 @@
 #include <sensor_msgs/BatteryState.h>
 
 using namespace std;
-using namespace cv;
 
 namespace kuam{
 
@@ -125,13 +126,15 @@ private:
     float m_landing_standby_alt_m_param;
     float m_small_marker_size_m_param;
     float m_big_marker_size_m_param;
+    vector<int> m_small_marker_id_param;
+    vector<int> m_big_marker_id_param;
 
     // Flag
     bool m_is_home_set;
     bool m_is_init_global_path;
 
     // Marker
-    vector<MetaMarkers> m_target_markers; // target markers
+    vector < vector < MetaMarkers > > m_targets_markers; // target markers
     MetaMarkers m_ego_markers; // target markers
     visualization_msgs::MarkerArray m_global_markers;
     visualization_msgs::MarkerArray m_gt_markers;
@@ -151,8 +154,8 @@ private: // Function
     bool InitROS();
     bool InitMarkers();
     
-    void ArucoVisualCallback(const kuam_msgs::ArucoVisual::ConstPtr &aruco_msg_ptr);
-    void ArucoStateCallback(const kuam_msgs::ArucoState::ConstPtr &aruco_msg_ptr);
+    void ArucoVisualCallback(const kuam_msgs::ArucoVisuals::ConstPtr &aruco_msg_ptr);
+    void ArucoStateCallback(const kuam_msgs::ArucoStates::ConstPtr &aruco_msg_ptr);
     void HomePositionCallback(const mavros_msgs::HomePosition::ConstPtr &home_ptr);
     void WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr);
     void SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_ptr);
@@ -206,6 +209,21 @@ bool KuamVisualizer::GetParam()
     m_nh.getParam(m_maneuver_ns_param + "/state_machine/landing_standby_alt_m", m_landing_standby_alt_m_param);
     m_nh.getParam(m_data_ns_param + "/aruco_tracking/small_marker_size_m", m_small_marker_size_m_param);
     m_nh.getParam(m_data_ns_param + "/aruco_tracking/big_marker_size_m", m_big_marker_size_m_param);
+    XmlRpc::XmlRpcValue list;
+    m_nh.getParam(m_data_ns_param + "/aruco_tracking/big_marker_id", list);
+    ROS_ASSERT(list.getType() == XmlRpc::XmlRpcValue::TypeArray);
+    for (int32_t i = 0; i < list.size(); ++i) {
+        ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
+        int id = static_cast<int>(list[i]);
+        m_big_marker_id_param.push_back(id);
+    }
+    m_nh.getParam(m_data_ns_param + "/aruco_tracking/small_marker_id", list);
+    ROS_ASSERT(list.getType() == XmlRpc::XmlRpcValue::TypeArray);
+    for (int32_t i = 0; i < list.size(); ++i) {
+        ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
+        int id = static_cast<int>(list[i]);
+        m_small_marker_id_param.push_back(id);
+    }
 
     if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("[kuam_visual] m_data_ns_param is missing"); return false; }
     else if (m_maneuver_ns_param == "missing") { ROS_ERROR_STREAM("[kuam_visual] m_maneuver_ns_param is missing"); return false; }
@@ -213,6 +231,8 @@ bool KuamVisualizer::GetParam()
     else if (__isnan(m_landing_standby_alt_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_landing_standby_alt_m_param is NAN"); return false; }
     else if (__isnan(m_small_marker_size_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_small_marker_size_m_param is NAN"); return false; }
     else if (__isnan(m_big_marker_size_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_big_marker_size_m_param is NAN"); return false; }
+    else if (m_small_marker_id_param.empty()) { ROS_ERROR_STREAM("[kuam_visual] m_small_marker_id_param is empty"); return false; }
+    else if (m_big_marker_id_param.empty()) { ROS_ERROR_STREAM("[kuam_visual] m_big_marker_id_param is empty"); return false; }
 
     return true;
 }
@@ -234,9 +254,9 @@ bool KuamVisualizer::InitROS()
     }
 
     m_aruco_visual_sub = 
-        m_nh.subscribe<kuam_msgs::ArucoVisual>(m_data_ns_param + "/aruco_tracking/aruco_visual", 1, boost::bind(&KuamVisualizer::ArucoVisualCallback, this, _1));
+        m_nh.subscribe<kuam_msgs::ArucoVisuals>(m_data_ns_param + "/aruco_tracking/aruco_visuals", 1, boost::bind(&KuamVisualizer::ArucoVisualCallback, this, _1));
     m_aruco_state_sub = 
-        m_nh.subscribe<kuam_msgs::ArucoState>(m_data_ns_param + "/aruco_tracking/target_state", 10, boost::bind(&KuamVisualizer::ArucoStateCallback, this, _1));        
+        m_nh.subscribe<kuam_msgs::ArucoStates>(m_data_ns_param + "/aruco_tracking/target_states", 10, boost::bind(&KuamVisualizer::ArucoStateCallback, this, _1));        
     m_global_waypoints_sub = 
         m_nh.subscribe<kuam_msgs::Waypoints>(m_data_ns_param + "/csv_parser/waypoints", 10, boost::bind(&KuamVisualizer::WaypointsCallback, this, _1));
     m_setpoint_sub = 
@@ -301,91 +321,95 @@ bool KuamVisualizer::InitMarkers()
     m_setpoints_markers.resize((int)SETPOINT::ItemNum);
 
     //// target aruco marker
-    for (int method = (int)EstimatingMethod::WOF; method < (int)EstimatingMethod::ItemNum; method++){
-        MetaMarkers target_marker;
-        // Without filter. GREEN
-        target_marker.trajectory.ns = "target/trajectory";
-        target_marker.trajectory.type = visualization_msgs::Marker::LINE_STRIP;
-        target_marker.trajectory.action = visualization_msgs::Marker::ADD;
-        target_marker.trajectory.scale.x = 0.05;
-        target_marker.trajectory.pose.orientation.w = 1.0;
-        target_marker.trajectory.pose.orientation.x = 0.0;
-        target_marker.trajectory.pose.orientation.y = 0.0;
-        target_marker.trajectory.pose.orientation.z = 0.0;
-        target_marker.trajectory.lifetime = ros::Duration(0.3);
-        target_marker.is_trajectory_add = false;
+    for (int target = 0; target < (m_big_marker_id_param.size() + m_small_marker_id_param.size()); target++){
+        vector<MetaMarkers> target_markers;
+        for (int method = (int)EstimatingMethod::WOF; method < (int)EstimatingMethod::ItemNum; method++){
+            MetaMarkers target_marker;
+            // Without filter. GREEN
+            target_marker.trajectory.ns = "target" + to_string(target) + "/trajectory";
+            target_marker.trajectory.type = visualization_msgs::Marker::LINE_STRIP;
+            target_marker.trajectory.action = visualization_msgs::Marker::ADD;
+            target_marker.trajectory.scale.x = 0.05;
+            target_marker.trajectory.pose.orientation.w = 1.0;
+            target_marker.trajectory.pose.orientation.x = 0.0;
+            target_marker.trajectory.pose.orientation.y = 0.0;
+            target_marker.trajectory.pose.orientation.z = 0.0;
+            target_marker.trajectory.lifetime = ros::Duration(0.1);
+            target_marker.is_trajectory_add = false;
 
-        target_marker.current_point.ns = "target/current_point";
-        target_marker.current_point.type = visualization_msgs::Marker::SPHERE;
-        target_marker.current_point.action = visualization_msgs::Marker::ADD;
-        target_marker.current_point.scale.x = 0.15;
-        target_marker.current_point.scale.y = 0.15;
-        target_marker.current_point.scale.z = 0.15;
-        target_marker.current_point.pose.orientation.w = 1.0;
-        target_marker.current_point.pose.orientation.x = 0.0;
-        target_marker.current_point.pose.orientation.y = 0.0;
-        target_marker.current_point.pose.orientation.z = 0.0;
-        target_marker.current_point.lifetime = ros::Duration(0.3);
-        target_marker.is_current_point_add = false;
-        
-        target_marker.txt.ns = "target/txt";
-        target_marker.txt.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
-        target_marker.txt.action = visualization_msgs::Marker::ADD;
-        target_marker.txt.scale.z = 0.1;
-        target_marker.txt.pose.orientation.w = 1.0;
-        target_marker.txt.pose.orientation.x = 0.0;
-        target_marker.txt.pose.orientation.y = 0.0;
-        target_marker.txt.pose.orientation.z = 0.0;
-        target_marker.txt.lifetime = ros::Duration(0.3);
-        target_marker.is_txt_add = false;
+            target_marker.current_point.ns = "target" + to_string(target) + "/current_point";
+            target_marker.current_point.type = visualization_msgs::Marker::SPHERE;
+            target_marker.current_point.action = visualization_msgs::Marker::ADD;
+            target_marker.current_point.scale.x = 0.15;
+            target_marker.current_point.scale.y = 0.15;
+            target_marker.current_point.scale.z = 0.15;
+            target_marker.current_point.pose.orientation.w = 1.0;
+            target_marker.current_point.pose.orientation.x = 0.0;
+            target_marker.current_point.pose.orientation.y = 0.0;
+            target_marker.current_point.pose.orientation.z = 0.0;
+            target_marker.current_point.lifetime = ros::Duration(0.1);
+            target_marker.is_current_point_add = false;
+            
+            target_marker.txt.ns = "target" + to_string(target) + "/txt";
+            target_marker.txt.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+            target_marker.txt.action = visualization_msgs::Marker::ADD;
+            target_marker.txt.scale.z = 0.07;
+            target_marker.txt.pose.orientation.w = 1.0;
+            target_marker.txt.pose.orientation.x = 0.0;
+            target_marker.txt.pose.orientation.y = 0.0;
+            target_marker.txt.pose.orientation.z = 0.0;
+            target_marker.txt.lifetime = ros::Duration(0.1);
+            target_marker.is_txt_add = false;
 
-        switch (method){
-            case (int)EstimatingMethod::WOF:
-                GREEN.a = 0.4f;
-                target_marker.trajectory.id = (int)EstimatingMethod::WOF;
-                target_marker.trajectory.color = GREEN;
+            switch (method){
+                case (int)EstimatingMethod::WOF:
+                    GREEN.a = 0.4f;
+                    target_marker.trajectory.id = (int)EstimatingMethod::WOF;
+                    target_marker.trajectory.color = GREEN;
 
-                GREEN.a = 1.0f;
-                target_marker.current_point.id = (int)EstimatingMethod::WOF;
-                target_marker.current_point.color = GREEN;
-                
-                WHITE.a = 1.0f;
-                target_marker.txt.id = (int)EstimatingMethod::WOF;
-                target_marker.txt.color = WHITE;
+                    GREEN.a = 1.0f;
+                    target_marker.current_point.id = (int)EstimatingMethod::WOF;
+                    target_marker.current_point.color = GREEN;
+                    
+                    WHITE.a = 1.0f;
+                    target_marker.txt.id = (int)EstimatingMethod::WOF;
+                    target_marker.txt.color = WHITE;
 
-                break;
-            case (int)EstimatingMethod::MAF:
-                RED.a = 0.4f;
-                target_marker.trajectory.id = (int)EstimatingMethod::MAF;
-                target_marker.trajectory.color = RED;
+                    break;
+                case (int)EstimatingMethod::MAF:
+                    RED.a = 0.4f;
+                    target_marker.trajectory.id = (int)EstimatingMethod::MAF;
+                    target_marker.trajectory.color = RED;
 
-                RED.a = 1.0f;
-                target_marker.current_point.id = (int)EstimatingMethod::MAF;
-                target_marker.current_point.color = RED;
-                
-                WHITE.a = 1.0f;
-                target_marker.txt.id = (int)EstimatingMethod::MAF;
-                target_marker.txt.color = WHITE;
+                    RED.a = 1.0f;
+                    target_marker.current_point.id = (int)EstimatingMethod::MAF;
+                    target_marker.current_point.color = RED;
+                    
+                    WHITE.a = 1.0f;
+                    target_marker.txt.id = (int)EstimatingMethod::MAF;
+                    target_marker.txt.color = WHITE;
 
-                break;
-            case (int)EstimatingMethod::EMAF:
-                YELLOW.a = 0.4f;
-                target_marker.trajectory.id = (int)EstimatingMethod::EMAF;
-                target_marker.trajectory.color = YELLOW;
+                    break;
+                case (int)EstimatingMethod::EMAF:
+                    YELLOW.a = 0.4f;
+                    target_marker.trajectory.id = (int)EstimatingMethod::EMAF;
+                    target_marker.trajectory.color = YELLOW;
 
-                YELLOW.a = 1.0f;
-                target_marker.current_point.id = (int)EstimatingMethod::EMAF;
-                target_marker.current_point.color = YELLOW;
-                
-                WHITE.a = 1.0f;
-                target_marker.txt.id = (int)EstimatingMethod::EMAF;
-                target_marker.txt.color = WHITE;
+                    YELLOW.a = 1.0f;
+                    target_marker.current_point.id = (int)EstimatingMethod::EMAF;
+                    target_marker.current_point.color = YELLOW;
+                    
+                    WHITE.a = 1.0f;
+                    target_marker.txt.id = (int)EstimatingMethod::EMAF;
+                    target_marker.txt.color = WHITE;
 
-                break;
-            default:
-                break;
+                    break;
+                default:
+                    break;
+            }
+            target_markers.push_back(target_marker);
         }
-        m_target_markers.push_back(target_marker);
+        m_targets_markers.push_back(target_markers);
     }
 
     //// ego pose
@@ -432,70 +456,84 @@ void KuamVisualizer::HomePositionCallback(const mavros_msgs::HomePosition::Const
     }
 }
 
-void KuamVisualizer::ArucoVisualCallback(const kuam_msgs::ArucoVisual::ConstPtr &aruco_msg_ptr)
+void KuamVisualizer::ArucoVisualCallback(const kuam_msgs::ArucoVisuals::ConstPtr &aruco_msg_ptr)
 {
     geometry_msgs::Point pos;
     geometry_msgs::Point origin;
 
-    if (aruco_msg_ptr->is_detected){
-        for (int method = (int)EstimatingMethod::WOF; method < (int)EstimatingMethod::ItemNum; method++){
-            if (aruco_msg_ptr->is_compare_mode || (method == aruco_msg_ptr->esti_method)){
-                // current_point
-                pos = aruco_msg_ptr->poses[method].position;
+    unsigned int marker = 0;
+    for (auto ac_visual : aruco_msg_ptr->aruco_visuals){
+        if (ac_visual.is_detected){
+            for (int method = (int)EstimatingMethod::WOF; method < (int)EstimatingMethod::ItemNum; method++){
+                if (ac_visual.is_compare_mode || (method == ac_visual.esti_method)){
+                    // current_point
+                    pos = ac_visual.poses[method].position;
 
-                m_target_markers[method].current_point.header.frame_id = aruco_msg_ptr->header.frame_id;
-                m_target_markers[method].current_point.header.stamp = ros::Time(0);
+                    m_targets_markers[marker][method].current_point.header.frame_id = ac_visual.header.frame_id;
+                    m_targets_markers[marker][method].current_point.header.stamp = ros::Time(0);
 
-                m_target_markers[method].current_point.pose.position = pos;
-                m_target_markers[method].is_current_point_add = true;
+                    m_targets_markers[marker][method].current_point.pose.position = pos;
+                    m_targets_markers[marker][method].is_current_point_add = true;
 
-                // txt
-                m_target_markers[method].txt.header.frame_id = aruco_msg_ptr->header.frame_id;;
-                m_target_markers[method].txt.header.stamp = ros::Time(0);
+                    // txt
+                    m_targets_markers[marker][method].txt.header.frame_id = ac_visual.header.frame_id;;
+                    m_targets_markers[marker][method].txt.header.stamp = ros::Time(0);
 
-                m_target_markers[method].txt.pose.position = pos;
-                m_target_markers[method].txt.pose.position.z += 0.2;
-                m_target_markers[method].txt.text = "dist: " + m_utils.ToString(m_utils.Distance3D(origin, pos)) + " [m]";
-                m_target_markers[method].is_txt_add = true;
+                    m_targets_markers[marker][method].txt.pose.position = pos;
+                    m_targets_markers[marker][method].txt.pose.position.z += 0.2;
+                    m_targets_markers[marker][method].txt.text = "dist: " + m_utils.ToString(m_utils.Distance3D(origin, pos)) + " [m]";
+                    m_targets_markers[marker][method].is_txt_add = true;
+                }
             }
         }
+        marker++;
     }
 
-    for (int method = (int)EstimatingMethod::WOF; method < (int)EstimatingMethod::ItemNum; method++){
-        m_target_markers[method].self.markers.clear();
-        if (m_target_markers[method].is_current_point_add) m_target_markers[method].self.markers.push_back(m_target_markers[method].current_point);
-        if (m_target_markers[method].is_txt_add) m_target_markers[method].self.markers.push_back(m_target_markers[method].txt);
-        m_target_markers[method].is_current_point_add = m_target_markers[method].is_txt_add = false;
+    marker = 0;
+    for (auto ac_visual : aruco_msg_ptr->aruco_visuals){
+        for (int method = (int)EstimatingMethod::WOF; method < (int)EstimatingMethod::ItemNum; method++){
+            m_targets_markers[marker][method].self.markers.clear();
+            if (m_targets_markers[marker][method].is_current_point_add) m_targets_markers[marker][method].self.markers.push_back(m_targets_markers[marker][method].current_point);
+            if (m_targets_markers[marker][method].is_txt_add) m_targets_markers[marker][method].self.markers.push_back(m_targets_markers[marker][method].txt);
+            m_targets_markers[marker][method].is_current_point_add = m_targets_markers[marker][method].is_txt_add = false;
+        }
+        marker++;
     }
     
     visualization_msgs::MarkerArray visualization_markers;
-    for (int method = (int)EstimatingMethod::WOF; method < (int)EstimatingMethod::ItemNum; method++){
-        visualization_markers.markers.insert(visualization_markers.markers.end(), 
-                                            m_target_markers[method].self.markers.begin(), m_target_markers[method].self.markers.end());
+    marker = 0;
+    for (auto ac_visual : aruco_msg_ptr->aruco_visuals){
+        for (int method = (int)EstimatingMethod::WOF; method < (int)EstimatingMethod::ItemNum; method++){
+            visualization_markers.markers.insert(visualization_markers.markers.end(), 
+                                                m_targets_markers[marker][method].self.markers.begin(), m_targets_markers[marker][method].self.markers.end());
+        }
+        marker++;
     }
 
     m_aruco_pub.publish(visualization_markers);
 }
 
-void KuamVisualizer::ArucoStateCallback(const kuam_msgs::ArucoState::ConstPtr &aruco_msg_ptr)
+void KuamVisualizer::ArucoStateCallback(const kuam_msgs::ArucoStates::ConstPtr &aruco_msg_ptr)
 {
-    if (aruco_msg_ptr->is_detected){
-        geometry_msgs::TransformStamped transformStamped;
-        geometry_msgs::Pose transformed_pose;
-        try{
-            transformStamped = 
-                    m_tfBuffer.lookupTransform("base_link", aruco_msg_ptr->header.frame_id, ros::Time(0));
-                    tf2::doTransform(aruco_msg_ptr->pose, transformed_pose, transformStamped);
+    for (auto ac_state : aruco_msg_ptr->aruco_states){
+        if (ac_state.is_detected){
+            geometry_msgs::TransformStamped transformStamped;
+            geometry_msgs::Pose transformed_pose;
+            try{
+                transformStamped = 
+                        m_tfBuffer.lookupTransform("base_link", ac_state.header.frame_id, ros::Time(0));
+                        tf2::doTransform(ac_state.pose, transformed_pose, transformStamped);
+                }
+            catch (tf2::TransformException &ex) {
+                ROS_WARN("%s", ex.what());
+                ros::Duration(1.0).sleep();
             }
-        catch (tf2::TransformException &ex) {
-            ROS_WARN("%s", ex.what());
-            ros::Duration(1.0).sleep();
-        }
-        transformed_pose;
-        if (m_utils.IsValid(transformed_pose)){
-            std_msgs::Float32 msg;
-            msg.data = abs(transformed_pose.position.z);
-            m_target_height_pub.publish(msg);
+            transformed_pose;
+            if (m_utils.IsValid(transformed_pose)){
+                std_msgs::Float32 msg;
+                msg.data = abs(transformed_pose.position.z);
+                m_target_height_pub.publish(msg);
+            }
         }
     }
 }

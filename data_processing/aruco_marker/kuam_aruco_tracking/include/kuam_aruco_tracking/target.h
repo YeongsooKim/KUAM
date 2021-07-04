@@ -2,30 +2,10 @@
 #define __TARGET_H__
 
 #include <Eigen/Dense>
-
-#include <geometry_msgs/Pose.h>
-#include <geometry_msgs/PoseArray.h>
-#include <geometry_msgs/Twist.h>
+#include <vector>
+#include <chrono>
 
 using namespace std;
-
-
-// Target without filter
-struct State{
-    Eigen::Vector3d position;
-    Eigen::Vector3d prev_position;
-};
-
-struct Target{
-    int id;
-    float marker_size_m;
-    bool is_init;
-
-    bool is_detected;
-    ros::Time last_detected_time;
-
-    vector<State> state;
-};
 
 enum class EstimatingMethod : int
 {
@@ -37,109 +17,85 @@ enum class EstimatingMethod : int
     ItemNum
 };
 
-class ArucoTracking
+class Target
 {
-private:
-    // Node Handler
-	ros::NodeHandle m_nh;
-    ros::NodeHandle m_p_nh;
-    Parser m_parser;
-    Utils m_utils;
-    Target m_target;
-    cv_bridge::CvImagePtr m_cv_ptr;
+    // Target without filter
+    struct State{
+        Eigen::Vector3d position;
+        Eigen::Vector3d prev_position;
+    };
+
+    struct Point{
+        Point() = default;
+        Point(double x, double y, double z) : x(x), y(y), z(z) {}
+        double x;
+        double y;
+        double z;
+    };
+
+    struct Orientation{
+        Orientation() = default;
+        Orientation(double x, double y, double z, double w) : x(x), y(y), z(z), w(w) {}
+        double x;
+        double y;
+        double z;
+        double w;
+    };
 
 public:
-    ArucoTracking();
-    virtual ~ArucoTracking();
+    Target() = default;
+    Target(int id, float marker_size_m, int filter_buf_size, int noise_cnt_th,
+        float noise_dist_th_m, int estimating_method, bool compare_mode);
+    virtual ~Target();
+
+    void UpdateDetection(bool is_detected);
+    void TargetStateEstimating(double p_x=0.0, double p_y=0.0, double p_z=0.0, double q_x=0.0, double q_y=0.0, double q_z=0.0, double q_w=0.0);
+    bool CheckNoise();
 
 private:
-    // Subscriber
-    ros::Subscriber m_image_sub;
+    // Const
+    const int MAF_BUF_SIZE;
+    const int NOISE_CNT_TH;
+    const int ESTIMATING_METHOD;
+    const float NOISE_DIST_TH_M;
+    const bool COMPARE_MODE;
 
-    // Publisher
-    ros::Publisher m_image_pub;
-    ros::Publisher m_tf_list_pub;
-    ros::Publisher m_visual_pub;
-    ros::Publisher m_target_state_pub;
-    ros::Publisher m_target_list_pub;
-    ros::Publisher m_cnt_pub;
-    ros::Publisher m_target_marker_pub;
+    // Flag
+    bool m_is_detected;
+    bool m_is_lost;
+    bool m_is_init_maf;
+    bool m_is_init_emaf;
+    bool m_is_init_check_noise;
 
-    // Timer
-    ros::Timer m_image_timer;
+    // Time
+    chrono::_V2::steady_clock::time_point m_last_detected_time;
+    chrono::_V2::steady_clock::time_point m_last_noise_check_time;
 
-    // Param
-    string m_usb_cam_logging_topic_param;
-    string m_calib_path_param;
-    string m_detector_params_path_param;
-    string m_camera_frame_id_param;
-    bool m_is_eval_param;
-    bool m_compare_mode_param;
-    bool m_using_gazebo_data_param;
-    bool m_using_logging_data_param;
-    int m_dictionaryID_param;
-    vector<int> m_big_marker_id_param;
-    vector<int> m_small_marker_id_param;
-    float m_big_marker_size_m_param;
-    float m_small_marker_size_m_param;
-    int m_filter_buf_size_param;
-    int m_estimating_method_param;
-    float m_noise_dist_th_m_param;
-    float m_noise_cnt_th_param;
-    float m_process_freq_param;
-    int m_marker_cnt_th_param;
+    int m_id;
+    float m_marker_size_m;
+    vector<State> m_state;
+    Orientation m_orientation;
 
-    // Const value
-    const int MARKER_ID_STACK_SIZE;
+    vector<Eigen::Vector3d> m_pos_buf;
+    double m_emaf_w;
+    unsigned int m_noise_cnt;
 
-    // ArUco variable
-    Ptr<aruco::DetectorParameters> m_detector_params;
-    Ptr<aruco::Dictionary> m_dictionary;
-    Mat m_cam_matrix;
-    Mat m_dist_coeffs;
-    id2markersizes m_id_to_markersize_map;
-    vector<bool> m_is_small_id_queue;
-    bool m_fix_small_marker;
-    ros::Time m_last_enough_time;
+private:
+    bool WithoutFilter(const Eigen::Vector3d pos);
+    bool MovingAvgFilter(const Eigen::Vector3d pos);
+    bool ExpMovingAvgFilter(const Eigen::Vector3d pos);
+    float Distance3D(Point point1, Point point2);
 
-    // Time variable
-    ros::Time m_last_detected_time;
-    ros::Time m_last_noise_check_time;
-
-    // Video variable
-    VideoCapture m_input_video;
-    const string OPENCV_WINDOW;
-
-
-    geometry_msgs::PoseArray m_target_pose_list;
-
-private: // Function
-    bool GetParam();
-    bool InitFlag();
-    bool InitROS();
-    bool InitMarker();
-    
-    void ImageCallback(const sensor_msgs::Image::ConstPtr &img_ptr);
-    void ProcessTimerCallback(const ros::TimerEvent& event);
-
-    bool MarkerPoseEstimating(vector<int>& ids, geometry_msgs::Pose& target_pose, bool& is_detected);
-    bool TargetStateEstimating(const vector<int> ids, const geometry_msgs::Pose pose, const bool is_detected);
-
-    bool Convert2CVImg(const sensor_msgs::Image::ConstPtr &img_ptr);
-    bool Camera2World(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, const vector<Vec3d> tvecs, geometry_msgs::Pose& target_pose);
-    void SelectMarkers(vector<vector<Point2f>>& corners, vector<int>& ids);
-
-    bool WithoutFilter(const Eigen::Vector3d pos, State& state);
-    bool MovingAvgFilter(const Eigen::Vector3d pos, State& state);
-    bool ExpMovingAvgFilter(const Eigen::Vector3d pos, State& state);
-    
-    tf2::Vector3 CvVector3d2TfVector3(const Vec3d &vec);
-    tf2::Quaternion CvVector3d2TfQuarternion(const Vec3d &rotation_vector);
-    tf2::Transform CreateTransform(const Vec3d &tvec, const Vec3d &rotation_vector);
-
-    bool IsNoise();
-    bool IsNoise(const geometry_msgs::Pose target_pose);
-    bool HasSmallMarker(const vector<int> ids);
-    void EraseIdnCorner(const vector<int> target_ids, vector<vector<Point2f>>& corners, vector<int>& detected_ids);
+    // Get Set
+public:
+    inline int GetId() { return m_id; }
+    inline bool GetIsDetected() { return m_is_detected; }
+    inline double GetX(int method) { return m_state[method].position.x(); }
+    inline double GetY(int method) { return m_state[method].position.y(); }
+    inline double GetZ(int method) { return m_state[method].position.z(); }
+    inline double GetQX() { return m_orientation.x; }
+    inline double GetQY() { return m_orientation.y; }
+    inline double GetQZ() { return m_orientation.z; }
+    inline double GetQW() { return m_orientation.w; }
 };
 #endif //  __TARGET_H__
