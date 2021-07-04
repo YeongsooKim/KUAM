@@ -225,12 +225,13 @@ class Landing(smach.State, state.Base):
                 self.setpoint.vel.linear.z = self.Z_Vel(self.target_pose.position.z)
 
                 v_yaw = self.YawRate(self.target_pose.orientation)
-                self.setpoint.pose.orientation.x = v_yaw[0]
-                self.setpoint.pose.orientation.y = v_yaw[1]
-                self.setpoint.pose.orientation.z = v_yaw[2]
-                self.setpoint.pose.orientation.w = v_yaw[3]
+                self.setpoint.yaw_rate.orientation.x = v_yaw[0]
+                self.setpoint.yaw_rate.orientation.y = v_yaw[1]
+                self.setpoint.yaw_rate.orientation.z = v_yaw[2]
+                self.setpoint.yaw_rate.orientation.w = v_yaw[3]
 
                 self.setpoint.pose.position = self.target_pose.position
+                self.setpoint.pose.orientation = self.orientation
             else:
                 if self.standby_cnt < len(self.setpoints.poses):
                     self.setpoint.geopose = self.setpoints.poses[self.standby_cnt].pose

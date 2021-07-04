@@ -244,6 +244,7 @@ def SetpointPub():
                 msg.header.stamp = rospy.Time.now()
                 msg.vel = vel
                 msg.pose = setpoint_.pose
+                msg.yaw_rate = setpoint_.yaw_rate
                 msg.is_global = False
             else:
                 msg.header.frame_id = "map"
