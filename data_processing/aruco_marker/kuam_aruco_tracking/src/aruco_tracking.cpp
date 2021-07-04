@@ -82,14 +82,14 @@ bool ArucoTracking::GetParam()
     for (int32_t i = 0; i < list.size(); ++i) {
         ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
         int id = static_cast<int>(list[i]);
-        m_big_marker_id_param.push_back(id);
+        m_big_marker_ids_param.push_back(id);
     }
     m_p_nh.getParam("small_marker_id", list);
     ROS_ASSERT(list.getType() == XmlRpc::XmlRpcValue::TypeArray);
     for (int32_t i = 0; i < list.size(); ++i) {
         ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
         int id = static_cast<int>(list[i]);
-        m_small_marker_id_param.push_back(id);
+        m_small_marker_ids_param.push_back(id);
     }
 
     if (m_calib_path_param == "missing") { ROS_ERROR_STREAM("[aruco_tracking] m_calib_path_param is missing"); return false; }
@@ -105,8 +105,8 @@ bool ArucoTracking::GetParam()
     else if (__isnan(m_noise_cnt_th_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_noise_cnt_th_param is NAN"); return false; }
     else if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_process_freq_param is NAN"); return false; }
     else if (__isnan(m_marker_cnt_th_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_marker_cnt_th_param is NAN"); return false; }
-    else if (m_big_marker_id_param.empty()) { ROS_ERROR_STREAM("[aruco_tracking] m_big_marker_id_param is empty"); return false; }
-    else if (m_small_marker_id_param.empty()) { ROS_ERROR_STREAM("[aruco_tracking] m_small_marker_id_param is empty"); return false; }
+    else if (m_big_marker_ids_param.empty()) { ROS_ERROR_STREAM("[aruco_tracking] m_big_marker_ids_param is empty"); return false; }
+    else if (m_small_marker_ids_param.empty()) { ROS_ERROR_STREAM("[aruco_tracking] m_small_marker_ids_param is empty"); return false; }
 
     return true;
 }
@@ -139,14 +139,14 @@ bool ArucoTracking::InitROS()
 
 bool ArucoTracking::InitMarker()
 {
-    for (auto id : m_big_marker_id_param){
+    for (auto id : m_big_marker_ids_param){
         Target target(id, m_big_marker_size_m_param, m_filter_buf_size_param, m_noise_cnt_th_param, 
             m_noise_dist_th_m_param, m_estimating_method_param, m_compare_mode_param);
         
         m_targets.push_back(target);
         m_marker_ids.push_back(id);
     }
-    for (auto id : m_small_marker_id_param){
+    for (auto id : m_small_marker_ids_param){
         Target target(id, m_small_marker_size_m_param, m_filter_buf_size_param, m_noise_cnt_th_param, 
             m_noise_dist_th_m_param, m_estimating_method_param, m_compare_mode_param);
         
@@ -249,10 +249,12 @@ void ArucoTracking::SelectMarkers(vector<vector<Point2f>>& corners, vector<int>&
     // Remove unused marker
     if (ids.size() > 0){
         if (m_fix_small_marker){
-            EraseIdnCorner(m_big_marker_id_param, ids, corners);
+            EraseIdnCorner(m_big_marker_ids_param, ids, corners);
+            KillMarker(m_big_marker_ids_param);
         }
         else{
-            EraseIdnCorner(m_small_marker_id_param, ids, corners);
+            EraseIdnCorner(m_small_marker_ids_param, ids, corners);
+            KillMarker(m_small_marker_ids_param);
         }
     }
 }
@@ -281,8 +283,8 @@ void ArucoTracking::NoiseFilter(vector<vector<Point2f>>& corners, vector<int>& i
 void ArucoTracking::MarkerUpdate(const vector<int> ids, int2pose int_to_pose)
 {
     vector<int> using_ids;
-    if (m_fix_small_marker) using_ids = m_small_marker_id_param;
-    else using_ids = m_big_marker_id_param;
+    if (m_fix_small_marker) using_ids = m_small_marker_ids_param;
+    else using_ids = m_big_marker_ids_param;
 
     vector<int> detected_ids;
     vector<int> undetected_ids;
@@ -395,8 +397,8 @@ void ArucoTracking::ImagePub(Mat image)
 void ArucoTracking::TargetPub()
 {
     vector<int> using_ids;
-    if (m_fix_small_marker) using_ids = m_small_marker_id_param;
-    else using_ids = m_big_marker_id_param;
+    if (m_fix_small_marker) using_ids = m_small_marker_ids_param;
+    else using_ids = m_big_marker_ids_param;
 
     kuam_msgs::ArucoStates ac_states_msg;
     kuam_msgs::ArucoVisuals ac_visuals_msg;
@@ -503,7 +505,7 @@ tf2::Transform ArucoTracking::CreateTransform(const Vec3d &translation_vector, c
 bool ArucoTracking::HasSmallMarker(const vector<int> ids)
 {
     bool has_small = false;
-    for (auto small_id : m_small_marker_id_param){
+    for (auto small_id : m_small_marker_ids_param){
         if (!has_small){
             for (auto detected_id : ids){
                 if (detected_id == small_id){
@@ -534,6 +536,18 @@ void ArucoTracking::EraseIdnCorner(const vector<int> erase_ids, vector<int>& ids
         for (auto index : indexes){
             corners.erase(corners.begin() + index);
             ids.erase(ids.begin() + index);
+        }
+    }
+}
+
+void ArucoTracking::KillMarker(const vector<int> kill_ids)
+{
+    for (auto id : kill_ids){
+        for (auto& target : m_targets){
+            if (target.GetId() == id){
+                target.SetIsDetected(false);
+                break;
+            }
         }
     }
 }

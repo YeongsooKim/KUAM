@@ -23,7 +23,7 @@
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/NavSatFix.h>
-
+#include <kuam_msgs/Setpoint.h>
 #include "kuam_mission_manager/utils.h"
 
 using namespace std; 
@@ -44,6 +44,7 @@ private:
     ros::Subscriber m_local_pose_sub;
     ros::Subscriber m_home_position_sub;
     ros::Subscriber m_aruco_sub;
+    ros::Subscriber m_setpoint_sub;
 
     // Publisher
     ros::Publisher m_home_position_pub;
@@ -68,10 +69,12 @@ private:
     // Flag
     bool m_base_cb;
     bool m_marker_cb;
+    bool m_setpoint_cb;
 
     nav_msgs::Odometry m_local_pose;
     geometry_msgs::TransformStamped m_base_tf_stamped;
     vector<geometry_msgs::TransformStamped> m_marker_tf_stampeds;
+    geometry_msgs::TransformStamped m_setpoint_tf_stamped;
     geographic_msgs::GeoPoint m_home_position;
     bool m_is_home_set;
 
@@ -91,6 +94,7 @@ private:
     inline void EgoLocalCallback(const nav_msgs::Odometry::ConstPtr &pose_ptr) { m_local_pose = *pose_ptr; }
     void EgoGlobalCallback(const sensor_msgs::NavSatFix::ConstPtr &pos_ptr);
     void MarkerCallback(const tf2_msgs::TFMessage::ConstPtr &marker_ptr);
+    void SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_ptr);
     
     void AddTransform(const string &frame_id, const string &child_id, const geometry_msgs::Transform tf, vector<geometry_msgs::TransformStamped>& vector);
 };

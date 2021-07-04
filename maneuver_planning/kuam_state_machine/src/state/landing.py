@@ -105,7 +105,7 @@ class Landing(smach.State, state.Base):
                     self.transition = 'none'    
 
             # Update virtual border
-            self.UpdateVirtualBorder()
+            # self.UpdateVirtualBorder()
 
             # Update setpoint
             self.UpdateSetpoint()
@@ -229,6 +229,8 @@ class Landing(smach.State, state.Base):
                 self.setpoint.pose.orientation.y = v_yaw[1]
                 self.setpoint.pose.orientation.z = v_yaw[2]
                 self.setpoint.pose.orientation.w = v_yaw[3]
+
+                self.setpoint.pose.position = self.target_pose.position
             else:
                 if self.standby_cnt < len(self.setpoints.poses):
                     self.setpoint.geopose = self.setpoints.poses[self.standby_cnt].pose
@@ -350,39 +352,79 @@ class Landing(smach.State, state.Base):
             return False
 
     def MapTarget(self, pose, id):
+        if id == 0:
+            pose.position.x += 0.25
+            pose.position.y += 0.25
+            return pose
+        if id == 1:
+            pose.position.x += 0.25
+            pose.position.y -= 0.25
+            return pose
         if id == 2:
-            pose.position.x += 0.30
-            pose.position.y -= 0.30
-
+            pose.position.x -= 0.25
+            pose.position.y -= 0.25
             return pose
         if id == 3:
+            pose.position.x -= 0.25
+            pose.position.y += 0.25
             return pose
-
+        if id == 4:
+            pose.position.x += 0.0
+            pose.position.y += 0.2
+            return pose
+        if id == 5:
+            pose.position.x += 0.2
+            pose.position.y += 0.0
+            return pose
+        if id == 6:
+            pose.position.x += 0.0
+            pose.position.y -= 0.2
+            return pose
+        if id == 7:
+            pose.position.x -= 0.2
+            pose.position.y += 0.0
+            return pose
+        if id == 8:
+            pose.position.x += 0.0
+            pose.position.y += 0.0
+            return pose
     '''
     Callback functions
     '''
     def MarkerCB(self, msg):
-        if self.is_start:
-            self.target_id = msg.id
+        if not self.is_start:
+            return
 
-            if msg.is_detected == True:
-                # transform from camera_link to base_link
-                try:
-                    transform = self.tfBuffer.lookup_transform('base_link', msg.header.frame_id, rospy.Time())
-                    p = PoseStamped()
-                    p.header = msg.header
-                    # p.pose = msg.pose
-                    # rospy.logwarn("%f, %f, %f", msg.pose.position.x, msg.pose.position.y, msg.pose.position.z)
-                    p.pose = self.MapTarget(msg.pose, msg.id)
-                    # rospy.logerr("%f, %f, %f", p.pose.position.x, p.pose.position.y, p.pose.position.z)
-                    transformed_pose = tf2_geometry_msgs.do_transform_pose(p, transform)
-                    if self.IsValid(transformed_pose):
-                        self.landing_state.is_detected = True
-                        self.target_pose = transformed_pose.pose
+        target_poses = []
+        for ac_state in msg.aruco_states:
+            if not ac_state.is_detected:
+                continue
 
-                    else:
-                        self.landing_state.is_detected = False
-                except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-                    pass
-        else:
-            pass
+            # transform from camera_link to base_link
+            try:
+                transform = self.tfBuffer.lookup_transform('base_link', ac_state.header.frame_id, rospy.Time())
+                p = PoseStamped()
+                p.header = ac_state.header
+                p.pose = self.MapTarget(ac_state.pose, ac_state.id)
+                transformed_pose = tf2_geometry_msgs.do_transform_pose(p, transform)
+                if self.IsValid(transformed_pose):
+                    target_poses.append(transformed_pose.pose)
+
+                else:
+                    self.landing_state.is_detected = False
+            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+                pass
+        
+        if not len(target_poses) == 0:
+            self.landing_state.is_detected = True
+
+            sum_x = 0.0; sum_y = 0.0; sum_z = 0.0
+            for pose in target_poses:
+                sum_x += pose.position.x
+                sum_y += pose.position.y
+                sum_z += pose.position.z
+
+            self.target_pose.position.x = sum_x/len(target_poses)
+            self.target_pose.position.y = sum_y/len(target_poses)
+            self.target_pose.position.z = sum_z/len(target_poses)
+            self.target_pose.orientation = target_poses[0].orientation

@@ -97,5 +97,6 @@ public:
     inline double GetQY() { return m_orientation.y; }
     inline double GetQZ() { return m_orientation.z; }
     inline double GetQW() { return m_orientation.w; }
+    inline void SetIsDetected(bool is_detected) { m_is_detected = is_detected; }
 };
 #endif //  __TARGET_H__

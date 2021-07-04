@@ -46,6 +46,7 @@ std_msgs::ColorRGBA YELLOW;
 std_msgs::ColorRGBA WHITE;
 std_msgs::ColorRGBA PURPLE;
 std_msgs::ColorRGBA CYAN;
+std_msgs::ColorRGBA ORANGE;
 
 enum class SETPOINT : int{
     GLOBAL,
@@ -127,8 +128,8 @@ private:
     float m_landing_standby_alt_m_param;
     float m_small_marker_size_m_param;
     float m_big_marker_size_m_param;
-    vector<int> m_small_marker_id_param;
-    vector<int> m_big_marker_id_param;
+    vector<int> m_small_marker_ids_param;
+    vector<int> m_big_marker_ids_param;
 
     // Flag
     bool m_is_home_set;
@@ -188,8 +189,8 @@ KuamVisualizer::KuamVisualizer() :
 
     m_setpoints.resize((int)SETPOINT::ItemNum);
 
-    for (auto id : m_big_marker_id_param) m_marker_ids.push_back(id);
-    for (auto id : m_small_marker_id_param) m_marker_ids.push_back(id);
+    for (auto id : m_big_marker_ids_param) m_marker_ids.push_back(id);
+    for (auto id : m_small_marker_ids_param) m_marker_ids.push_back(id);
     InitMarkers();
 }
 
@@ -222,14 +223,14 @@ bool KuamVisualizer::GetParam()
     for (int32_t i = 0; i < list.size(); ++i) {
         ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
         int id = static_cast<int>(list[i]);
-        m_big_marker_id_param.push_back(id);
+        m_big_marker_ids_param.push_back(id);
     }
     m_nh.getParam(m_data_ns_param + "/aruco_tracking/small_marker_id", list);
     ROS_ASSERT(list.getType() == XmlRpc::XmlRpcValue::TypeArray);
     for (int32_t i = 0; i < list.size(); ++i) {
         ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
         int id = static_cast<int>(list[i]);
-        m_small_marker_id_param.push_back(id);
+        m_small_marker_ids_param.push_back(id);
     }
 
     if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("[kuam_visual] m_data_ns_param is missing"); return false; }
@@ -238,8 +239,8 @@ bool KuamVisualizer::GetParam()
     else if (__isnan(m_landing_standby_alt_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_landing_standby_alt_m_param is NAN"); return false; }
     else if (__isnan(m_small_marker_size_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_small_marker_size_m_param is NAN"); return false; }
     else if (__isnan(m_big_marker_size_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_big_marker_size_m_param is NAN"); return false; }
-    else if (m_small_marker_id_param.empty()) { ROS_ERROR_STREAM("[kuam_visual] m_small_marker_id_param is empty"); return false; }
-    else if (m_big_marker_id_param.empty()) { ROS_ERROR_STREAM("[kuam_visual] m_big_marker_id_param is empty"); return false; }
+    else if (m_small_marker_ids_param.empty()) { ROS_ERROR_STREAM("[kuam_visual] m_small_marker_ids_param is empty"); return false; }
+    else if (m_big_marker_ids_param.empty()) { ROS_ERROR_STREAM("[kuam_visual] m_big_marker_ids_param is empty"); return false; }
 
     return true;
 }
@@ -304,8 +305,9 @@ bool KuamVisualizer::InitMarkers()
     BLUE.r = 0.0f;      BLUE.g = 0.0f;      BLUE.b = 1.0f;
     YELLOW.r = 1.0f;    YELLOW.g = 1.0f;    YELLOW.b = 0.0f;
     WHITE.r = 1.0f;     WHITE.g = 1.0f;     WHITE.b = 1.0f;
-    PURPLE.r = 1.0;     PURPLE.g = 0.0;     PURPLE.b = 1.0;
-    CYAN.r = 0.0;       CYAN.g = 1.0;       CYAN.b = 1.0;
+    PURPLE.r = 1.0f;    PURPLE.g = 0.0f;    PURPLE.b = 1.0f;
+    CYAN.r = 0.0f;      CYAN.g = 1.0f;      CYAN.b = 1.0f;
+    ORANGE.r = 255.0/255.0; ORANGE.g = 102.0/255.0; ORANGE.b = 0.0;
 
     //// Global path
     visualization_msgs::Marker path;
@@ -347,9 +349,9 @@ bool KuamVisualizer::InitMarkers()
             target_marker.current_point.ns = "target" + to_string(id) + "/current_point";
             target_marker.current_point.type = visualization_msgs::Marker::SPHERE;
             target_marker.current_point.action = visualization_msgs::Marker::ADD;
-            target_marker.current_point.scale.x = 0.15;
-            target_marker.current_point.scale.y = 0.15;
-            target_marker.current_point.scale.z = 0.15;
+            target_marker.current_point.scale.x = 0.08;
+            target_marker.current_point.scale.y = 0.08;
+            target_marker.current_point.scale.z = 0.08;
             target_marker.current_point.pose.orientation.w = 1.0;
             target_marker.current_point.pose.orientation.x = 0.0;
             target_marker.current_point.pose.orientation.y = 0.0;
@@ -690,10 +692,10 @@ void KuamVisualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpo
 {
     kuam_msgs::Setpoint setpoint = *setpoint_ptr; 
 
+    // Set text marker
     m_text_datum.home_altitude_m = to_string(setpoint.home_altitude_m);
     m_text_datum.setpoint_local_h_m = to_string(setpoint.local_height_m);
 
-    // Set text marker
     if (setpoint.is_global){
         m_text_datum.coverage = "GPS coverage\n";
     }
@@ -786,7 +788,7 @@ void KuamVisualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpo
         }
     }
     else {
-        static geometry_msgs::Point prev_relative_point;
+        static geometry_msgs::Point prev_pos;
         static unsigned int r_cnt = 0;
         bool is_init = false;
         if (prev_coord != setpoint.is_global){
@@ -794,30 +796,8 @@ void KuamVisualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpo
             is_init = true;
         }
 
-        geometry_msgs::Pose p;
-        if ("map" != setpoint.header.frame_id){
-            geometry_msgs::TransformStamped transformStamped;
-            geometry_msgs::Pose transformed_pose;
-            try{
-                transformStamped = 
-                    m_tfBuffer.lookupTransform("map", setpoint.header.frame_id, ros::Time(0));
-                tf2::doTransform(setpoint.pose, transformed_pose, transformStamped);
-            }
-            catch (tf2::TransformException &ex) {
-                ROS_WARN("%s", ex.what());
-                ros::Duration(1.0).sleep();
-            }
-            p = transformed_pose;
-            p.orientation = setpoint.pose.orientation;
-        }
-        else{
-            p = setpoint.pose;
-        }
-
-        float dist = m_utils.Distance3D(p.position, prev_relative_point);
+        float dist = m_utils.Distance3D(m_ego_markers.current_point.pose.position, prev_pos);
         if ((dist > 0.02) || is_init){
-            r_cnt++;
-
             auto x = setpoint.vel.linear.x;
             auto y = setpoint.vel.linear.y;
             auto z = setpoint.vel.linear.z;
@@ -834,11 +814,14 @@ void KuamVisualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpo
             sp_marker.scale.x = size;
             sp_marker.scale.y = 0.05;
             sp_marker.scale.z = 0.05;
-            sp_marker.pose = p;
+            sp_marker.pose.position = m_ego_markers.current_point.pose.position;
+            sp_marker.pose.orientation = setpoint.pose.orientation;
             sp_marker.color = color;
             sp_marker.lifetime = ros::Duration();
             m_setpoints_markers[(int)SETPOINT::RELATIVE].markers.push_back(sp_marker);
-            prev_relative_point = p.position;
+
+            prev_pos = m_ego_markers.current_point.pose.position;
+            r_cnt++;
         }
     }
     
@@ -847,11 +830,49 @@ void KuamVisualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpo
         visualization_markers.markers.insert(visualization_markers.markers.end(), 
                                             m_setpoints_markers[coord].markers.begin(), m_setpoints_markers[coord].markers.end());
     }
+
+    if (!setpoint.is_global){
+        geometry_msgs::Pose p;
+        geometry_msgs::TransformStamped transformStamped;
+        geometry_msgs::Pose transformed_pose;
+        try{
+            transformStamped = 
+                m_tfBuffer.lookupTransform("map", "landing_point", ros::Time(0));
+            tf2::doTransform(p, transformed_pose, transformStamped);
+        }
+        catch (tf2::TransformException &ex) {
+            ROS_WARN("%s", ex.what());
+            ros::Duration(1.0).sleep();
+        }
+
+        visualization_msgs::Marker landing_point;
+        landing_point.header.frame_id = "map";
+        landing_point.header.stamp = ros::Time::now();
+        landing_point.ns = "setpoint/landing_point";
+        landing_point.id = 0;
+        landing_point.type = visualization_msgs::Marker::SPHERE;
+        landing_point.action = visualization_msgs::Marker::ADD;
+        landing_point.scale.x = 0.15;
+        landing_point.scale.y = 0.15;
+        landing_point.scale.z = 0.15;
+        landing_point.pose.position = transformed_pose.position;
+        landing_point.pose.orientation.x = 0.0;
+        landing_point.pose.orientation.y = 0.0;
+        landing_point.pose.orientation.z = 0.0;
+        landing_point.pose.orientation.w = 1.0;
+        landing_point.color = ORANGE;
+        landing_point.color.a = 1.0f;
+        landing_point.lifetime = ros::Duration(0.1);
+        visualization_markers.markers.push_back(landing_point);
+    }
     m_setpoints_pub.publish(visualization_markers);
 }
 
 void KuamVisualizer::EgoGlobalPosCallback(const sensor_msgs::NavSatFix::ConstPtr &ego_ptr)
 {
+    static geometry_msgs::Point prev_pos;
+
+    // Set text marker
     auto ego_global_alt_m = ego_ptr->altitude;
 
     float setpoint_local_alt_m;
@@ -867,16 +888,14 @@ void KuamVisualizer::EgoGlobalPosCallback(const sensor_msgs::NavSatFix::ConstPtr
     float alt_offset_m = ego_global_alt_m - (setpoint_local_alt_m + home_altitude_m);
     m_text_datum.offset_alt_m = to_string(alt_offset_m);
 
-
-    static geometry_msgs::Point prev_pos;
-    
+    // Set ego markers
     auto lat = ego_ptr->latitude;
     auto lon = ego_ptr->longitude;
     auto alt = m_ego_pose.pose.pose.position.z;
     auto p = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
 
     float dist = m_utils.Distance3D(p, prev_pos);
-    // trajectory
+    //// trajectory
     if (dist > 0.02){
         m_ego_markers.trajectory.header.frame_id = "map";
         m_ego_markers.trajectory.header.stamp = ros::Time::now();
@@ -885,7 +904,7 @@ void KuamVisualizer::EgoGlobalPosCallback(const sensor_msgs::NavSatFix::ConstPtr
         prev_pos = p;
     }
 
-    // current_point
+    //// current_point
     m_ego_markers.current_point.header.frame_id = "map";
     m_ego_markers.current_point.header.stamp = ros::Time::now();
     m_ego_markers.current_point.pose.position = p;

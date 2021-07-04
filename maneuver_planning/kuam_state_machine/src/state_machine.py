@@ -21,6 +21,7 @@ from kuam_msgs.msg import Mode
 from kuam_msgs.msg import Task
 from kuam_msgs.msg import Setpoint
 from kuam_msgs.msg import ArucoState
+from kuam_msgs.msg import ArucoStates
 from kuam_msgs.msg import LandingState
 from geographic_msgs.msg import GeoPose
 from geographic_msgs.msg import GeoPath
@@ -239,11 +240,10 @@ def SetpointPub():
             if offb_states_[OffbState[cur_state]].landing_state.is_pass_landing_standby and \
                 (offb_states_[OffbState[cur_state]].landing_state.is_detected or offb_states_[OffbState[cur_state]].using_aruco == False):
 
-                pose = copy.deepcopy(setpoint_.pose)
                 msg.header.frame_id = "base_link"
                 msg.header.stamp = rospy.Time.now()
                 msg.vel = vel
-                msg.pose.orientation = pose.orientation
+                msg.pose = setpoint_.pose
                 msg.is_global = False
             else:
                 msg.header.frame_id = "map"
@@ -440,7 +440,7 @@ if __name__ == '__main__':
     rospy.Subscriber("/mavros/global_position/local", Odometry, EgoLocalPoseCB)
     rospy.Subscriber("/mavros/global_position/global", NavSatFix, EgoGlobalPoseCB)
     rospy.Subscriber("/mavros/local_position/velocity_body", TwistStamped, EgoVelCB)
-    rospy.Subscriber(data_ns + "/aruco_tracking/target_state", ArucoState, offb_states_[OffbState.LANDING].MarkerCB)
+    rospy.Subscriber(data_ns + "/aruco_tracking/target_states", ArucoStates, offb_states_[OffbState.LANDING].MarkerCB)
     rospy.Subscriber(data_ns + "/chat/command", Chat, CommandCB)
     rospy.Subscriber("/mavros/battery", BatteryState, BatteryCB)
 
@@ -499,16 +499,6 @@ if __name__ == '__main__':
         smach.StateMachine.add('OFFBOARD', sm_offb_,
                                 transitions={'emerg':'EMERG',
                                              'manual':'MANUAL'})
-
-        # smach.StateMachine.add('TRANSITION', CBState(TransitionCB), 
-        #                         transitions={'flight':'FLIGHT'})
-        # smach.StateMachine.add('DISARM', CBState(DisarmCB), 
-        #                         transitions={'standby':'STANDBY'})
-        # smach.StateMachine.add('DOCKING', CBState(DockingCB), 
-        #                         transitions={'standby':'STANDBY'})
-        # smach.StateMachine.add('UNDOCKING', CBState(UndockingCB), 
-        #                         transitions={'standby':'STANDBY'})
-    
 
     # Run state machine introspection server for smach viewer
     intro_server = IntrospectionServer('sm_viewer', sm_mode_,'/viewer')

@@ -77,8 +77,8 @@ private:
     int m_dictionaryID_param;
     int m_marker_cnt_th_param;
 
-    vector<int> m_big_marker_id_param;
-    vector<int> m_small_marker_id_param;
+    vector<int> m_big_marker_ids_param;
+    vector<int> m_small_marker_ids_param;
     float m_big_marker_size_m_param;
     float m_small_marker_size_m_param;
     int m_filter_buf_size_param;
@@ -132,6 +132,7 @@ private: // Function
 
     bool HasSmallMarker(const vector<int> ids);
     void EraseIdnCorner(const vector<int> erase_ids, vector<int>& ids, vector<vector<Point2f>>& corners);
+    void KillMarker(const vector<int> kill_ids);
 };
 }
 #endif //  __ARUCO_TRACKING_H__

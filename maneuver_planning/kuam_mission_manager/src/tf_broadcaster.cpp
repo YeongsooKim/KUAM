@@ -31,6 +31,7 @@ void TfBroadcaster::InitFlag()
     m_is_home_set = false;
     m_base_cb = false;
     m_marker_cb = false;
+    m_setpoint_cb = false;
     m_is_exp_param = false;
 }
 
@@ -65,6 +66,7 @@ void TfBroadcaster::InitROS()
 {
     // package, node, topic name
     string nd_name = ros::this_node::getName();
+    string ns_name = ros::this_node::getNamespace();
     
     // Initialize subscriber
     if (!m_is_exp_param){
@@ -81,7 +83,9 @@ void TfBroadcaster::InitROS()
     m_local_pose_sub = m_nh.subscribe<nav_msgs::Odometry>("/mavros/global_position/local", 10, boost::bind(&TfBroadcaster::EgoLocalCallback, this, _1));
     m_ego_global_pos_sub = m_nh.subscribe<sensor_msgs::NavSatFix>("/mavros/global_position/global", 10, boost::bind(&TfBroadcaster::EgoGlobalCallback, this, _1));
     m_aruco_sub = m_nh.subscribe<tf2_msgs::TFMessage>(m_data_ns_param + "/aruco_tracking/tf_list", 10, boost::bind(&TfBroadcaster::MarkerCallback, this, _1));
-
+    m_setpoint_sub = 
+        m_nh.subscribe<kuam_msgs::Setpoint>(ns_name + "/state_machine/setpoint", 10, boost::bind(&TfBroadcaster::SetpointCallback, this, _1));
+    
     // Initialize publisher
     m_home_position_pub = m_nh.advertise<geographic_msgs::GeoPoint>(nd_name + "/home", 1);
 
@@ -187,6 +191,7 @@ void TfBroadcaster::ProcessTimerCallback(const ros::TimerEvent& event)
 {
 	vector<geometry_msgs::TransformStamped> transform_vector;
     if (m_base_cb) { AddTransform(m_base_tf_stamped.header.frame_id, m_base_tf_stamped.child_frame_id, m_base_tf_stamped.transform, transform_vector); m_base_cb = false; }
+    if (m_setpoint_cb) { AddTransform(m_setpoint_tf_stamped.header.frame_id, m_setpoint_tf_stamped.child_frame_id, m_setpoint_tf_stamped.transform, transform_vector); m_setpoint_cb = false; }
     if (m_marker_cb) { 
         for (auto tf : m_marker_tf_stampeds){
             AddTransform(tf.header.frame_id, tf.child_frame_id, tf.transform, transform_vector);  
@@ -237,6 +242,27 @@ void TfBroadcaster::MarkerCallback(const tf2_msgs::TFMessage::ConstPtr &marker_p
         geometry_msgs::TransformStamped tf;
         m_marker_tf_stampeds.push_back(transform);
     }
+}
+
+void TfBroadcaster::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_ptr)
+{
+    if (setpoint_ptr->is_global){
+        return;
+    }
+
+    m_setpoint_cb = true;
+
+    m_setpoint_tf_stamped.header.stamp = ros::Time::now();
+    m_setpoint_tf_stamped.header.frame_id = setpoint_ptr->header.frame_id;
+    m_setpoint_tf_stamped.child_frame_id = "landing_point";
+
+    m_setpoint_tf_stamped.transform.translation.x = setpoint_ptr->pose.position.x;
+    m_setpoint_tf_stamped.transform.translation.y = setpoint_ptr->pose.position.y;
+    m_setpoint_tf_stamped.transform.translation.z = setpoint_ptr->pose.position.z;
+    m_setpoint_tf_stamped.transform.rotation.x = setpoint_ptr->pose.orientation.x;
+    m_setpoint_tf_stamped.transform.rotation.y = setpoint_ptr->pose.orientation.y;
+    m_setpoint_tf_stamped.transform.rotation.z = setpoint_ptr->pose.orientation.z;
+    m_setpoint_tf_stamped.transform.rotation.w = setpoint_ptr->pose.orientation.w;
 }
 
 void TfBroadcaster::AddTransform(const string &frame_id, const string &child_id, const geometry_msgs::Transform tf, vector<geometry_msgs::TransformStamped>& vector)
