@@ -186,10 +186,6 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
     Mat copy_image;
     image.copyTo(copy_image);
     aruco::drawDetectedMarkers(copy_image, corners, ids);
-    // draw results
-    //     for (auto id : ids){
-    //         aruco::drawAxis(copy_image, m_cam_matrix, m_dist_coeffs, rvecs[id], tvecs[id], marker_size_m * 0.5f);
-    //     }
     
     int2pose int_to_pose;
     Camera2World(corners, ids, rvecs, tvecs, int_to_pose);
@@ -253,10 +249,10 @@ void ArucoTracking::SelectMarkers(vector<vector<Point2f>>& corners, vector<int>&
     // Remove unused marker
     if (ids.size() > 0){
         if (m_fix_small_marker){
-            EraseIdnCorner(m_big_marker_id_param, corners, ids);
+            EraseIdnCorner(m_big_marker_id_param, ids, corners);
         }
         else{
-            EraseIdnCorner(m_small_marker_id_param, corners, ids);
+            EraseIdnCorner(m_small_marker_id_param, ids, corners);
         }
     }
 }
@@ -279,7 +275,7 @@ void ArucoTracking::NoiseFilter(vector<vector<Point2f>>& corners, vector<int>& i
         }
     }
 
-    EraseIdnCorner(noises, corners, ids);
+    EraseIdnCorner(noises, ids, corners);
 }
 
 void ArucoTracking::MarkerUpdate(const vector<int> ids, int2pose int_to_pose)
@@ -310,15 +306,15 @@ void ArucoTracking::MarkerUpdate(const vector<int> ids, int2pose int_to_pose)
 
             auto it = int_to_pose.find(id);
             if (it != int_to_pose.end()){
-                auto pos_x = it->second.position.x;
-                auto pos_y = it->second.position.y;
-                auto pos_z = it->second.position.z;
+                auto p_x = it->second.position.x;
+                auto p_y = it->second.position.y;
+                auto p_z = it->second.position.z;
                 auto q_x = it->second.orientation.x;
                 auto q_y = it->second.orientation.y;
                 auto q_z = it->second.orientation.z;
                 auto q_w = it->second.orientation.w;
                 
-                target.TargetStateEstimating(pos_x, pos_y, pos_z, q_x, q_y, q_z, q_w);
+                target.TargetStateEstimating(p_x, p_y, p_z, q_x, q_y, q_z, q_w);
             }
             else{
                 target.TargetStateEstimating();
@@ -520,12 +516,12 @@ bool ArucoTracking::HasSmallMarker(const vector<int> ids)
     return has_small;
 }
 
-void ArucoTracking::EraseIdnCorner(const vector<int> target_ids, vector<vector<Point2f>>& corners, vector<int>& detected_ids)
+void ArucoTracking::EraseIdnCorner(const vector<int> erase_ids, vector<int>& ids, vector<vector<Point2f>>& corners)
 {
     vector<int> indexes;
-    for (auto target_id : target_ids){
-        for (int index = 0; index < detected_ids.size(); index++){
-            if (detected_ids[index] == target_id){
+    for (auto erase_id : erase_ids){
+        for (int index = 0; index < ids.size(); index++){
+            if (ids[index] == erase_id){
                 indexes.push_back(index);
                 break;
             }
@@ -537,7 +533,7 @@ void ArucoTracking::EraseIdnCorner(const vector<int> target_ids, vector<vector<P
 
         for (auto index : indexes){
             corners.erase(corners.begin() + index);
-            detected_ids.erase(detected_ids.begin() + index);
+            ids.erase(ids.begin() + index);
         }
     }
 }

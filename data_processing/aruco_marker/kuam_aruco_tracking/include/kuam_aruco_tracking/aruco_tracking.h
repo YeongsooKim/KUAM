@@ -131,7 +131,7 @@ private: // Function
     tf2::Transform CreateTransform(const Vec3d &tvec, const Vec3d &rotation_vector);
 
     bool HasSmallMarker(const vector<int> ids);
-    void EraseIdnCorner(const vector<int> target_ids, vector<vector<Point2f>>& corners, vector<int>& detected_ids);
+    void EraseIdnCorner(const vector<int> erase_ids, vector<int>& ids, vector<vector<Point2f>>& corners);
 };
 }
 #endif //  __ARUCO_TRACKING_H__
