@@ -173,7 +173,7 @@ class Landing(smach.State, state.Base):
         
         z_scale = pose.position.z + MARGIN
         
-        yaw_rad = self.GetYawRad(pose)
+        yaw_rad = GetYawRad(pose.orientation)
 
         qaut = quaternion_from_euler(0.0, 0.0, yaw_rad)
         cube_marker = Marker()
@@ -353,42 +353,50 @@ class Landing(smach.State, state.Base):
             return False
 
     def MapTarget(self, pose, id):
+        theta_rad = GetYawRad(pose.orientation)
+        big_side = 0.25
+        small_side = 0.2
+
         if id == 0:
-            pose.position.x += 0.25
-            pose.position.y += 0.25
-            return pose
+            x_marker = -big_side
+            y_marker = -big_side
         if id == 1:
-            pose.position.x += 0.25
-            pose.position.y -= 0.25
-            return pose
+            x_marker = +big_side
+            y_marker = -big_side
         if id == 2:
-            pose.position.x -= 0.25
-            pose.position.y -= 0.25
-            return pose
+            x_marker = +big_side
+            y_marker = +big_side
         if id == 3:
-            pose.position.x -= 0.25
-            pose.position.y += 0.25
-            return pose
+            x_marker = -big_side
+            y_marker = +big_side
         if id == 4:
-            pose.position.x += 0.0
-            pose.position.y += 0.2
-            return pose
+            x_marker = -small_side
+            y_marker = 0.0
         if id == 5:
-            pose.position.x += 0.2
-            pose.position.y += 0.0
-            return pose
+            x_marker = 0.0
+            y_marker = -small_side
         if id == 6:
-            pose.position.x += 0.0
-            pose.position.y -= 0.2
-            return pose
+            x_marker = +small_side
+            y_marker = 0.0
         if id == 7:
-            pose.position.x -= 0.2
-            pose.position.y += 0.0
-            return pose
+            x_marker = 0.0
+            y_marker = +small_side
         if id == 8:
-            pose.position.x += 0.0
-            pose.position.y += 0.0
-            return pose
+            x_marker = 0.0
+            y_marker = 0.0
+
+        pose.position.x += self.X_Camera(x_marker, y_marker, theta_rad)
+        pose.position.y += self.Y_Camera(x_marker, y_marker, theta_rad)
+        return pose
+
+    def X_Camera(self, x_marker, y_marker, theta_rad):
+        x_camera = x_marker*cos(theta_rad) + y_marker*sin(theta_rad)
+        return x_camera
+
+    def Y_Camera(self, x_marker, y_marker, theta_rad):
+        y_camera = x_marker*sin(theta_rad) - y_marker*cos(theta_rad)
+        return y_camera
+
     '''
     Callback functions
     '''
