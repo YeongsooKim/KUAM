@@ -402,6 +402,7 @@ if __name__ == '__main__':
     landing_threshold_m = rospy.get_param(nd_name + "/landing_threshold_m")
     landing_standby_alt_m = rospy.get_param(nd_name + "/landing_standby_alt_m")
     standby_dist_th_m = rospy.get_param(nd_name + "/standby_dist_th_m")
+    maf_buf_size = rospy.get_param(nd_name + "/maf_buf_size")
     battery_th_ = rospy.get_param(nd_name + "/battery_th_per")
     alt_offset_m_ = rospy.get_param(nd_name + "/alt_offset_m")
     using_aruco = rospy.get_param(nd_name + "/using_aruco")
@@ -420,7 +421,7 @@ if __name__ == '__main__':
     offb_states_[OffbState.LANDING].landing_threshold_m = landing_threshold_m
     offb_states_[OffbState.LANDING].landing_standby_alt_m = landing_standby_alt_m
     offb_states_[OffbState.LANDING].standby_dist_th_m = standby_dist_th_m
-    offb_states_[OffbState.LANDING].landing_duration_s = landing_duration_s
+    offb_states_[OffbState.LANDING].maf_buf_size = maf_buf_size
     offb_states_[OffbState.LANDING].using_aruco = using_aruco
 
     '''

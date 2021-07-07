@@ -33,12 +33,14 @@ class Landing(smach.State, state.Base):
         self.landing_state.is_detected = False
         self.landing_state.is_land = False
         self.landing_state.is_pass_landing_standby = False
+        self.maf_init = False
         
         # Param
         self.landing_threshold_m = None
         self.landing_standby_alt_m = 5.0
         self.standby_dist_th_m = 1.5
         self.using_aruco = False
+        self.maf_buf_size = 20
 
         # State value
         self.ego_geopose = ego_geopose
@@ -78,6 +80,7 @@ class Landing(smach.State, state.Base):
         self.landing_state.is_land = False
         self.landing_state.is_detected = False
         self.landing_state.is_pass_landing_standby = False
+        self.maf_init = False
 
         # Initialize setpoint
         geopose = self.setpoints.poses[-1].pose
@@ -85,6 +88,8 @@ class Landing(smach.State, state.Base):
         self.landing_standby = geopose.position
         self.orientation = self.ego_geopose.orientation
 
+        # in side the buffer: point, yaw
+        self.maf_buf = [[Point(), 0.0]]*self.maf_buf_size
         self.GenInitTrajectory(self.ego_pose, self.landing_standby)
 
     def Running(self):
@@ -317,6 +322,58 @@ class Landing(smach.State, state.Base):
         y_camera = x_marker*sin(theta_rad) - y_marker*cos(theta_rad)
         return y_camera
 
+    def MovingAverageFilter(self, point, yaw_deg):
+        # Initialize
+        if not self.maf_init:
+            for buf in self.maf_buf:
+                buf[0].x = point.x
+                buf[0].y = point.y
+                buf[0].z = point.z
+                buf[1] = yaw_deg
+
+                self.maf_init = True
+        
+        # Shift
+        for i in range(self.maf_buf_size - 1):
+            self.maf_buf[i][0].x = self.maf_buf[i+1][0].x
+            self.maf_buf[i][0].y = self.maf_buf[i+1][0].y
+            self.maf_buf[i][0].z = self.maf_buf[i+1][0].z
+            self.maf_buf[i][1] = self.maf_buf[i+1][1]
+        self.maf_buf[self.maf_buf_size - 1][0].x = point.x
+        self.maf_buf[self.maf_buf_size - 1][0].y = point.y
+        self.maf_buf[self.maf_buf_size - 1][0].z = point.z
+        self.maf_buf[self.maf_buf_size - 1][1] = yaw_deg
+
+        # Summation
+        sum_p = Point()
+        sum_p.x = 0.0
+        sum_p.y = 0.0
+        sum_p.z = 0.0
+        sum_y = 0.0
+        for buf in self.maf_buf:
+            sum_p.x += buf[0].x
+            sum_p.y += buf[0].y
+            sum_p.z += buf[0].z
+            sum_y += buf[1]
+
+        # Average
+        ma_p = Point()
+        ma_p.x = sum_p.x/self.maf_buf_size
+        ma_p.y = sum_p.y/self.maf_buf_size
+        ma_p.z = sum_p.z/self.maf_buf_size
+        ma_y_deg = sum_y/self.maf_buf_size
+        ma_y_rad = ma_y_deg*pi/180.0
+        q_ma_yaw = quaternion_from_euler(0.0, 0.0, ma_y_rad)
+
+        self.target_pose.position.x = ma_p.x
+        self.target_pose.position.y = ma_p.y
+        self.target_pose.position.z = ma_p.z
+        self.target_pose.orientation.x = q_ma_yaw[0]
+        self.target_pose.orientation.y = q_ma_yaw[1]
+        self.target_pose.orientation.z = q_ma_yaw[2]
+        self.target_pose.orientation.w = q_ma_yaw[3]
+        
+
     '''
     Callback functions
     '''
@@ -354,12 +411,11 @@ class Landing(smach.State, state.Base):
                 sum_z += pose.position.z
                 sum_yaw_deg += GetYawDeg(pose.orientation)
 
-            self.target_pose.position.x = sum_x/len(target_poses)
-            self.target_pose.position.y = sum_y/len(target_poses)
-            self.target_pose.position.z = sum_z/len(target_poses)
-            avg_yaw_rad = (sum_yaw_deg/len(target_poses))*pi/180.0
-            q_avg_yaw = quaternion_from_euler(0.0, 0.0, avg_yaw_rad)
-            self.target_pose.orientation.x = q_avg_yaw[0]
-            self.target_pose.orientation.y = q_avg_yaw[1]
-            self.target_pose.orientation.z = q_avg_yaw[2]
-            self.target_pose.orientation.w = q_avg_yaw[3]
+            average_p = Point()
+
+            average_p.x = sum_x/len(target_poses)
+            average_p.y = sum_y/len(target_poses)
+            average_p.z = sum_z/len(target_poses)
+            avg_yaw_deg = sum_yaw_deg/len(target_poses)
+            
+            self.MovingAverageFilter(average_p, avg_yaw_deg)

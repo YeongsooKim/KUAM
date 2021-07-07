@@ -65,7 +65,7 @@ kuam:
       landing_threshold_m: 0.2 # for distingush kuam control and px4 control during landing 
       landing_standby_alt_m: 3.0 # waiting for detecting marker during landing state
       standby_dist_th_m: 1.5 # checking have reached to landing standby waypoint during landing state
-      virtual_border_max_side_m: 6.0
+      maf_buf_size: 100
       
       # flight
       alt_offset_m: 23.156
@@ -81,7 +81,7 @@ kuam:
 
       exp_camera_height_m: 1.5
       
-      extrinsic_imu_to_camera_x: 0.1257
+      extrinsic_imu_to_camera_x: 0.0
       extrinsic_imu_to_camera_y: 0.0
       extrinsic_imu_to_camera_z: 0.0
       
