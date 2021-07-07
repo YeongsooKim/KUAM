@@ -205,7 +205,7 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
     Camera2World(m_corners, m_ids, m_rvecs, m_tvecs, int_to_pose, tf_msg_list);
 
     vector<Vec3d> s_rvecs, s_tvecs;
-    aruco::estimatePoseSingleMarkers(s_corners, m_small_marker_size_m_param, m_cam_matrix, m_dist_coeffs, m_rvecs, m_tvecs);
+    aruco::estimatePoseSingleMarkers(s_corners, m_small_marker_size_m_param, m_cam_matrix, m_dist_coeffs, s_rvecs, s_tvecs);
     Camera2World(s_corners, s_ids, s_rvecs, s_tvecs, int_to_pose, tf_msg_list);
 
     MarkerUpdate(b_ids, m_ids, s_ids, int_to_pose);
