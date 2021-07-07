@@ -178,6 +178,7 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
 
     Mat image;
     image = m_cv_ptr->image;
+    image = image(Rect(40, 40, 600, 440));
     vector<int> ids;
     vector<vector<Point2f>> corners;
     vector<vector<Point2f>> rejected;
