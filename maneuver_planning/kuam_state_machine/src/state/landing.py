@@ -230,8 +230,7 @@ class Landing(smach.State, state.Base):
                 self.setpoint.yaw_rate.orientation.z = v_yaw[2]
                 self.setpoint.yaw_rate.orientation.w = v_yaw[3]
 
-                self.setpoint.pose.position = self.target_pose.position
-                self.setpoint.pose.orientation = self.orientation
+                self.setpoint.pose = self.target_pose
             else:
                 if self.standby_cnt < len(self.setpoints.poses):
                     self.setpoint.geopose = self.setpoints.poses[self.standby_cnt].pose
@@ -355,8 +354,8 @@ class Landing(smach.State, state.Base):
     def MapTarget(self, pose, id):
         theta_rad = GetYawRad(pose.orientation)
         big_side = 0.25
-        small_side = 0.2
-
+        medium_side = 0.2
+        small_side = 0.1257
         if id == 0:
             x_marker = -big_side
             y_marker = -big_side
@@ -370,20 +369,32 @@ class Landing(smach.State, state.Base):
             x_marker = -big_side
             y_marker = +big_side
         if id == 4:
-            x_marker = -small_side
+            x_marker = -medium_side
             y_marker = 0.0
         if id == 5:
             x_marker = 0.0
-            y_marker = -small_side
+            y_marker = -medium_side
         if id == 6:
-            x_marker = +small_side
+            x_marker = +medium_side
             y_marker = 0.0
         if id == 7:
             x_marker = 0.0
-            y_marker = +small_side
+            y_marker = +medium_side
         if id == 8:
             x_marker = 0.0
             y_marker = 0.0
+        if id == 9:
+            x_marker = -small_side
+            y_marker = 0.0
+        if id == 10:
+            x_marker = 0.0
+            y_marker = -small_side
+        if id == 11:
+            x_marker = +small_side
+            y_marker = 0.0
+        if id == 12:
+            x_marker = 0.0
+            y_marker = +small_side
 
         pose.position.x += self.X_Camera(x_marker, y_marker, theta_rad)
         pose.position.y += self.Y_Camera(x_marker, y_marker, theta_rad)
@@ -427,13 +438,19 @@ class Landing(smach.State, state.Base):
         if not len(target_poses) == 0:
             self.landing_state.is_detected = True
 
-            sum_x = 0.0; sum_y = 0.0; sum_z = 0.0
+            sum_x = 0.0; sum_y = 0.0; sum_z = 0.0; sum_yaw_deg = 0.0
             for pose in target_poses:
                 sum_x += pose.position.x
                 sum_y += pose.position.y
                 sum_z += pose.position.z
+                sum_yaw_deg += GetYawDeg(pose.orientation)
 
             self.target_pose.position.x = sum_x/len(target_poses)
             self.target_pose.position.y = sum_y/len(target_poses)
             self.target_pose.position.z = sum_z/len(target_poses)
-            self.target_pose.orientation = target_poses[0].orientation
+            avg_yaw_rad = (sum_yaw_deg/len(target_poses))*pi/180.0
+            q_avg_yaw = quaternion_from_euler(0.0, 0.0, avg_yaw_rad)
+            self.target_pose.orientation.x = q_avg_yaw[0]
+            self.target_pose.orientation.y = q_avg_yaw[1]
+            self.target_pose.orientation.z = q_avg_yaw[2]
+            self.target_pose.orientation.w = q_avg_yaw[3]

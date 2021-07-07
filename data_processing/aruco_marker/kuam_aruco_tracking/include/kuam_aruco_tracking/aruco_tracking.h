@@ -26,6 +26,7 @@
 #include <tf2/LinearMath/Vector3.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Transform.h>
+#include <tf2_msgs/TFMessage.h>
 
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseArray.h>
@@ -78,8 +79,10 @@ private:
     int m_marker_cnt_th_param;
 
     vector<int> m_big_marker_ids_param;
+    vector<int> m_medium_marker_ids_param;
     vector<int> m_small_marker_ids_param;
     float m_big_marker_size_m_param;
+    float m_medium_marker_size_m_param;
     float m_small_marker_size_m_param;
     int m_filter_buf_size_param;
     int m_estimating_method_param;
@@ -117,12 +120,19 @@ private: // Function
     void ImageCallback(const sensor_msgs::Image::ConstPtr &img_ptr);
     void ProcessTimerCallback(const ros::TimerEvent& event);
 
-    void SelectMarkers(vector<vector<Point2f>>& corners, vector<int>& ids);
-    void NoiseFilter(vector<vector<Point2f>>& corners, vector<int>& ids);
+    void SelectMarkers(vector<vector<Point2f>>& corners, vector<int>& ids,
+                    vector<vector<Point2f>>& s_corners, vector<int>& s_ids,
+                    vector<vector<Point2f>>& m_corners, vector<int>& m_ids,
+                    vector<vector<Point2f>>& b_corners, vector<int>& b_ids);
+    void NoiseFilter(vector<vector<Point2f>>& s_corners, vector<int>& s_ids,
+                    vector<vector<Point2f>>& m_corners, vector<int>& m_ids,
+                    vector<vector<Point2f>>& b_corners, vector<int>& b_ids);
     bool Camera2World(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, 
-        const vector<Vec3d> tvecs, int2pose& int_to_pose);
-    void MarkerUpdate(const vector<int> ids, int2pose int_to_pose);
-    void ImagePub(Mat copy_image);
+        const vector<Vec3d> tvecs, int2pose& int_to_pose, tf2_msgs::TFMessage& tf_msg_list);
+    void MarkerUpdate(const vector<int> b_ids, const vector<int> m_ids, const vector<int> s_ids, int2pose int_to_pose);
+    void ImagePub(Mat image, const vector<vector<Point2f>> s_corners, const vector<int> s_ids,
+                            const vector<vector<Point2f>> m_corners, const vector<int> m_ids,
+                            const vector<vector<Point2f>> b_corners, const vector<int> b_ids);
     void TargetPub();
 
     bool Convert2CVImg(const sensor_msgs::Image::ConstPtr &img_ptr);
@@ -130,6 +140,10 @@ private: // Function
     tf2::Quaternion CvVector3d2TfQuarternion(const Vec3d &rotation_vector);
     tf2::Transform CreateTransform(const Vec3d &tvec, const Vec3d &rotation_vector);
 
+    void GetDetectedId(vector<int>& detected_ids, vector<int>& undetected_ids, const vector<int> src_ids, const vector<int> trg_ids);
+    void GetIdsnCorners(const vector<int> ref_ids, const vector<int> input_ids, const vector<vector<Point2f>> input_corners,
+                            vector<int>& output_ids, vector<vector<Point2f>>& output_corners);
+    void GetNoiseIndexes(vector<int>& noises, const vector<int> ids);
     bool HasSmallMarker(const vector<int> ids);
     void EraseIdnCorner(const vector<int> erase_ids, vector<int>& ids, vector<vector<Point2f>>& corners);
     void KillMarker(const vector<int> kill_ids);

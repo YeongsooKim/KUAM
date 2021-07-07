@@ -127,8 +127,10 @@ private:
     float m_standby_dist_th_m_param;
     float m_landing_standby_alt_m_param;
     float m_small_marker_size_m_param;
+    float m_medium_marker_size_m_param;
     float m_big_marker_size_m_param;
     vector<int> m_small_marker_ids_param;
+    vector<int> m_medium_marker_ids_param;
     vector<int> m_big_marker_ids_param;
 
     // Flag
@@ -180,6 +182,7 @@ KuamVisualizer::KuamVisualizer() :
     m_standby_dist_th_m_param(NAN),
     m_landing_standby_alt_m_param(NAN),
     m_small_marker_size_m_param(NAN),
+    m_medium_marker_size_m_param(NAN),
     m_big_marker_size_m_param(NAN),
     m_tfListener(m_tfBuffer)
 {
@@ -190,6 +193,7 @@ KuamVisualizer::KuamVisualizer() :
     m_setpoints.resize((int)SETPOINT::ItemNum);
 
     for (auto id : m_big_marker_ids_param) m_marker_ids.push_back(id);
+    for (auto id : m_medium_marker_ids_param) m_marker_ids.push_back(id);
     for (auto id : m_small_marker_ids_param) m_marker_ids.push_back(id);
     InitMarkers();
 }
@@ -216,16 +220,25 @@ bool KuamVisualizer::GetParam()
     m_nh.getParam(m_maneuver_ns_param + "/state_machine/standby_dist_th_m", m_standby_dist_th_m_param);
     m_nh.getParam(m_maneuver_ns_param + "/state_machine/landing_standby_alt_m", m_landing_standby_alt_m_param);
     m_nh.getParam(m_data_ns_param + "/aruco_tracking/small_marker_size_m", m_small_marker_size_m_param);
+    m_nh.getParam(m_data_ns_param + "/aruco_tracking/medium_marker_size_m", m_medium_marker_size_m_param);
     m_nh.getParam(m_data_ns_param + "/aruco_tracking/big_marker_size_m", m_big_marker_size_m_param);
     XmlRpc::XmlRpcValue list;
-    m_nh.getParam(m_data_ns_param + "/aruco_tracking/big_marker_id", list);
+    m_nh.getParam(m_data_ns_param + "/aruco_tracking/big_marker_ids", list);
     ROS_ASSERT(list.getType() == XmlRpc::XmlRpcValue::TypeArray);
     for (int32_t i = 0; i < list.size(); ++i) {
         ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
         int id = static_cast<int>(list[i]);
         m_big_marker_ids_param.push_back(id);
     }
-    m_nh.getParam(m_data_ns_param + "/aruco_tracking/small_marker_id", list);
+    m_nh.getParam(m_data_ns_param + "/aruco_tracking/medium_marker_ids", list);
+    ROS_ASSERT(list.getType() == XmlRpc::XmlRpcValue::TypeArray);
+    for (int32_t i = 0; i < list.size(); ++i) {
+        ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
+        int id = static_cast<int>(list[i]);
+        m_medium_marker_ids_param.push_back(id);
+    }
+
+    m_nh.getParam(m_data_ns_param + "/aruco_tracking/small_marker_ids", list);
     ROS_ASSERT(list.getType() == XmlRpc::XmlRpcValue::TypeArray);
     for (int32_t i = 0; i < list.size(); ++i) {
         ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
@@ -238,9 +251,11 @@ bool KuamVisualizer::GetParam()
     else if (__isnan(m_standby_dist_th_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_standby_dist_th_m_param is NAN"); return false; }
     else if (__isnan(m_landing_standby_alt_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_landing_standby_alt_m_param is NAN"); return false; }
     else if (__isnan(m_small_marker_size_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_small_marker_size_m_param is NAN"); return false; }
+    else if (__isnan(m_medium_marker_size_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_medium_marker_size_m_param is NAN"); return false; }
     else if (__isnan(m_big_marker_size_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_big_marker_size_m_param is NAN"); return false; }
-    else if (m_small_marker_ids_param.empty()) { ROS_ERROR_STREAM("[kuam_visual] m_small_marker_ids_param is empty"); return false; }
+    else if (m_medium_marker_ids_param.empty()) { ROS_ERROR_STREAM("[kuam_visual] m_medium_marker_ids_param is empty"); return false; }
     else if (m_big_marker_ids_param.empty()) { ROS_ERROR_STREAM("[kuam_visual] m_big_marker_ids_param is empty"); return false; }
+    else if (m_small_marker_ids_param.empty()) { ROS_ERROR_STREAM("[kuam_visual] m_small_marker_ids_param is empty"); return false; }
 
     return true;
 }
@@ -521,6 +536,7 @@ void KuamVisualizer::ArucoVisualCallback(const kuam_msgs::ArucoVisuals::ConstPtr
 
 void KuamVisualizer::ArucoStateCallback(const kuam_msgs::ArucoStates::ConstPtr &aruco_msg_ptr)
 {
+    vector<float> heights;
     for (auto ac_state : aruco_msg_ptr->aruco_states){
         if (ac_state.is_detected){
             geometry_msgs::TransformStamped transformStamped;
@@ -536,12 +552,23 @@ void KuamVisualizer::ArucoStateCallback(const kuam_msgs::ArucoStates::ConstPtr &
             }
             transformed_pose;
             if (m_utils.IsValid(transformed_pose)){
-                std_msgs::Float32 msg;
-                msg.data = abs(transformed_pose.position.z);
-                m_target_height_pub.publish(msg);
+                heights.push_back(abs(transformed_pose.position.z));
             }
         }
     }
+
+    if (heights.empty()){
+        return;
+    }
+
+    float h_sum_m = 0.0;
+    for (auto h : heights){
+        h_sum_m += h;
+    }
+    float h_m = h_sum_m/heights.size();
+    std_msgs::Float32 msg;
+    msg.data = h_m;
+    m_target_height_pub.publish(msg);
 }
 
 void KuamVisualizer::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr)
@@ -660,8 +687,8 @@ void KuamVisualizer::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps
             small_gt_pos.z = 0.0; // ground
             gt_aruco.ns = "gt/small";
             gt_aruco.id = 0;
-            gt_aruco.scale.x = m_small_marker_size_m_param;
-            gt_aruco.scale.y = m_small_marker_size_m_param;
+            gt_aruco.scale.x = m_medium_marker_size_m_param;
+            gt_aruco.scale.y = m_medium_marker_size_m_param;
             gt_aruco.scale.z = 0.01;
             gt_aruco.pose.position = small_gt_pos;
             gt_aruco.color = GREEN;
@@ -670,7 +697,7 @@ void KuamVisualizer::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps
 
             auto big_gt_pos = landing_pos;
             // big_gt_pos.x -= m_big_marker_size_m_param/2.0;
-            // big_gt_pos.y -= (m_big_marker_size_m_param + m_small_marker_size_m_param)/2.0;
+            // big_gt_pos.y -= (m_big_marker_size_m_param + m_medium_marker_size_m_param)/2.0;
             big_gt_pos.z = 0.0;
             gt_aruco.ns = "gt/big";
             gt_aruco.id = 1;
