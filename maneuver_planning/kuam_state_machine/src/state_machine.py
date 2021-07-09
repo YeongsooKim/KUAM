@@ -20,15 +20,12 @@ from kuam_msgs.msg import TransReq
 from kuam_msgs.msg import Mode
 from kuam_msgs.msg import Task
 from kuam_msgs.msg import Setpoint
-from kuam_msgs.msg import ArucoState
 from kuam_msgs.msg import ArucoStates
 from kuam_msgs.msg import LandingState
 from geographic_msgs.msg import GeoPose
 from geographic_msgs.msg import GeoPath
-from geometry_msgs.msg import PoseStamped
-from geometry_msgs.msg import PoseArray
 from geometry_msgs.msg import TwistStamped
-from visualization_msgs.msg import Marker,MarkerArray
+from geometry_msgs.msg import Twist
 
 # State
 from state.standby import *
@@ -309,18 +306,10 @@ def TransRequest():
         trans_req_msg.state = cur_state
         trans_req_pub.publish(trans_req_msg)
 
-def MarkerPub():
-    cur_kuam_mode, cur_state = GetSMStatus()
-
-    if (cur_kuam_mode == "OFFBOARD") and (cur_state == "LANDING"):
-        landing_marker_pub.publish(offb_states_[OffbState[cur_state]].marker_array)
-
 def ProcessCB(timer):
     DoTransition()
     TransRequest()
     SetpointPub()
-    MarkerPub()
-
 
 '''
 Smach callback function
@@ -406,6 +395,9 @@ if __name__ == '__main__':
     battery_th_ = rospy.get_param(nd_name + "/battery_th_per")
     alt_offset_m_ = rospy.get_param(nd_name + "/alt_offset_m")
     using_aruco = rospy.get_param(nd_name + "/using_aruco")
+    big_target_mapping = rospy.get_param(nd_name + "/big_target_mapping")
+    medium_target_mapping = rospy.get_param(nd_name + "/medium_target_mapping")
+    small_target_mapping = rospy.get_param(nd_name + "/small_target_mapping")
 
     for state in offb_states_.values():
         try:
@@ -423,6 +415,9 @@ if __name__ == '__main__':
     offb_states_[OffbState.LANDING].standby_dist_th_m = standby_dist_th_m
     offb_states_[OffbState.LANDING].maf_buf_size = maf_buf_size
     offb_states_[OffbState.LANDING].using_aruco = using_aruco
+    offb_states_[OffbState.LANDING].big_target_mapping = big_target_mapping
+    offb_states_[OffbState.LANDING].medium_target_mapping = medium_target_mapping
+    offb_states_[OffbState.LANDING].small_target_mapping = small_target_mapping
 
     '''
     Initialize ROS
@@ -440,7 +435,6 @@ if __name__ == '__main__':
     # Init publisher
     setpoint_pub = rospy.Publisher(nd_name + '/setpoint', Setpoint, queue_size=10)
     trans_req_pub = rospy.Publisher(nd_name + '/trans_request', TransReq, queue_size=10)
-    landing_marker_pub = rospy.Publisher(nd_name + '/landing_marker', MarkerArray, queue_size=10)
 
     # Init timer
     state_machine_timer = rospy.Timer(rospy.Duration(1/freq_), ProcessCB)

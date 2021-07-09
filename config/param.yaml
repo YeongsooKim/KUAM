@@ -65,8 +65,11 @@ kuam:
       landing_threshold_m: 0.2 # for distingush kuam control and px4 control during landing 
       landing_standby_alt_m: 3.0 # waiting for detecting marker during landing state
       standby_dist_th_m: 1.5 # checking have reached to landing standby waypoint during landing state
-      maf_buf_size: 100
-      
+      maf_buf_size: 20 # Moving average filter apply to average pose of 
+      big_target_mapping: 0.25
+      medium_target_mapping: 0.2
+      small_target_mapping: 0.1257
+
       # flight
       alt_offset_m: 23.156
 

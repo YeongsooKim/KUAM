@@ -99,7 +99,7 @@ void Playload::ProcessTimerCallback(const ros::TimerEvent& event)
                 case (int)State::Flight: FlightRequest(); break;
                 case (int)State::Transition: break;
                 case (int)State::Landing: LandingRequest(); break;
-                default: ROS_ERROR_STREAM("not in case"); break;
+                default: ROS_WARN_STREAM("not in case"); break;
             }
             StateUpdate();
         }

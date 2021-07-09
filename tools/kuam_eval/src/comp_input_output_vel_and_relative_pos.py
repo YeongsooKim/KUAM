@@ -17,7 +17,8 @@ from kuam_msgs.msg import ArucoState
 from kuam_msgs.msg import Setpoint
 from uav_msgs.msg import Chat
 
-Y_AXIS_MARGIN = [0.5, 0.5, 0.5, 0.05, 0.05, 0.05]
+MARGIN_RATIO = 0.3
+Y_AXIS_MARGIN = [0.5, 0.5, 0.5, 10.0, 0.05, 0.05, 0.05, 5.0]
 Y_AXIS_MARGIN2 = [0.5, 0.5]
 BUF_SIZE = 200
 
@@ -27,20 +28,26 @@ class Val(Enum):
     OUTPUT_POS_X = 0
     OUTPUT_POS_Y = 0
     OUTPUT_POS_Z = 0
+    OUTPUT_YAW = 0
     INPUT_VEL_X = 0
     OUTPUT_VEL_X = 1
     INPUT_VEL_Y = 0
     OUTPUT_VEL_Y = 1
     INPUT_VEL_Z = 0
     OUTPUT_VEL_Z = 1
+    INPUT_VEL_Yaw = 0
+    OUTPUT_VEL_YAW = 1
 
 tfBuffer_ = None
 listener_ = None
-target_id_ = 0
+is_detected_ = False
 state_machine_cmd_id_ = 0 # 0: not in cmd / 1: kuam ctrl / 2: px4 ctrl
 input_vel_ = Twist()
 output_vel_ = Twist()
+input_yaw_rate_ = 0.0
+output_yaw_rate_ = 0.0
 target_pos_ = Point()
+target_yaw_ = 0.0
 
 class Plotting:
     def __init__(self):
@@ -74,6 +81,13 @@ class Plotting:
         self.z_ylabel = 'distance [m]'
         self.z_title = "'z' Position"
 
+        self.yaw = [[]]
+        self.yaw_colors = ['purple']
+        self.yaw_labels = ['output yaw']
+        self.yaw_xlabel = 'time [s]'
+        self.yaw_ylabel = 'angle [deg]'
+        self.yaw_title = "'yaw' Angle"
+
         self.vx = [[], []]
         self.vx_colors = ['black', 'red']
         self.vx_labels = ['input vel [m/s]', 'output vel [m/s]']
@@ -95,20 +109,27 @@ class Plotting:
         self.vz_ylabel = 'velocity [m/s]'
         self.vz_title = "'z' Input and Output Velocity"
 
-        self.list_set = [self.x, self.y, self.z, self.vx, self.vy, self.vz]
-        self.color_set = [self.x_colors, self.y_colors, self.z_colors, self.vx_colors, self.vy_colors, self.vz_colors]
-        self.label_set = [self.x_labels, self.y_labels, self.z_labels, self.vx_labels, self.vy_labels, self.vz_labels]
-        self.xlabel_set = [self.x_xlabel, self.y_xlabel, self.z_xlabel, self.vx_xlabel, self.vy_xlabel, self.vz_xlabel]
-        self.ylabel_set = [self.x_ylabel, self.y_ylabel, self.z_ylabel, self.vx_ylabel, self.vy_ylabel, self.vz_ylabel]
-        self.title_set = [self.x_title, self.y_title, self.z_title, self.vx_title, self.vy_title, self.vz_title]
-        self.fig, self.axs = plt.subplots(2, 3, num=1)
+        self.vyaw = [[], []]
+        self.vyaw_colors = ['black', 'purple']
+        self.vyaw_labels = ['input yaw rate [rad/s]', 'output yaw rate [rad/s]']
+        self.vyaw_xlabel = 'time [s]'
+        self.vyaw_ylabel = 'angular velocity [rad/s]'
+        self.vyaw_title = "'yaw' Input and Output Velocity"
+
+        self.list_set = [self.x, self.y, self.z, self.yaw, self.vx, self.vy, self.vz, self.vyaw]
+        self.color_set = [self.x_colors, self.y_colors, self.z_colors, self.yaw_colors, self.vx_colors, self.vy_colors, self.vz_colors, self.vyaw_colors]
+        self.label_set = [self.x_labels, self.y_labels, self.z_labels, self.yaw_labels, self.vx_labels, self.vy_labels, self.vz_labels, self.vyaw_labels]
+        self.xlabel_set = [self.x_xlabel, self.y_xlabel, self.z_xlabel, self.yaw_xlabel, self.vx_xlabel, self.vy_xlabel, self.vz_xlabel, self.vyaw_xlabel]
+        self.ylabel_set = [self.x_ylabel, self.y_ylabel, self.z_ylabel, self.yaw_ylabel, self.vx_ylabel, self.vy_ylabel, self.vz_ylabel, self.vyaw_ylabel]
+        self.title_set = [self.x_title, self.y_title, self.z_title, self.yaw_title, self.vx_title, self.vy_title, self.vz_title, self.vyaw_title]
+        self.fig, self.axs = plt.subplots(2, 4, num=1)
          
         self.target = [[]]
         self.t_colors = ['red']
         self.t_labels = ['target']
         self.t_xlabel = 'time [s]'
-        self.t_ylabel = 'marker id + 1 [ ]'
-        self.t_title = 'Target Marker ID'
+        self.t_ylabel = 'detected: 1, undetected: 0'
+        self.t_title = 'Is Target Detected'
 
         self.cmd = [[]]
         self.c_colors = ['red']
@@ -144,13 +165,13 @@ class Plotting:
 
             self.time_s.append(elapse.to_sec())
 
-            global target_id_
-            self.target[Val.TARGET.value].append(target_id_)
+            global is_detected_
+            self.target[Val.TARGET.value].append(is_detected_)
 
             global state_machine_cmd_id_
             self.cmd[Val.CMD.value].append(state_machine_cmd_id_)
 
-            if not target_id_ == -1:
+            if is_detected_:
                 global input_vel_
                 global output_vel_
                 global target_pos_
@@ -158,6 +179,7 @@ class Plotting:
                 self.x[Val.OUTPUT_POS_X.value].append(target_pos_.x)
                 self.y[Val.OUTPUT_POS_Y.value].append(target_pos_.y)
                 self.z[Val.OUTPUT_POS_Z.value].append(target_pos_.z)
+                self.yaw[Val.OUTPUT_YAW.value].append(target_yaw_)
 
                 self.vx[Val.INPUT_VEL_X.value].append(input_vel_.linear.x)
                 self.vx[Val.OUTPUT_VEL_X.value].append(output_vel_.linear.x)
@@ -165,11 +187,13 @@ class Plotting:
                 self.vy[Val.OUTPUT_VEL_Y.value].append(output_vel_.linear.y)
                 self.vz[Val.INPUT_VEL_Z.value].append(input_vel_.linear.z)
                 self.vz[Val.OUTPUT_VEL_Z.value].append(output_vel_.linear.z)
-
+                self.vyaw[Val.INPUT_VEL_Yaw.value].append(input_yaw_rate_)
+                self.vyaw[Val.OUTPUT_VEL_YAW.value].append(output_yaw_rate_)
             else:
                 self.x[Val.OUTPUT_POS_X.value].append(0.0)
                 self.y[Val.OUTPUT_POS_Y.value].append(0.0)
                 self.z[Val.OUTPUT_POS_Z.value].append(0.0)
+                self.yaw[Val.OUTPUT_YAW.value].append(0.0)
 
                 self.vx[Val.INPUT_VEL_X.value].append(0.0)
                 self.vx[Val.OUTPUT_VEL_X.value].append(0.0)
@@ -177,10 +201,24 @@ class Plotting:
                 self.vy[Val.OUTPUT_VEL_Y.value].append(0.0)
                 self.vz[Val.INPUT_VEL_Z.value].append(0.0)
                 self.vz[Val.OUTPUT_VEL_Z.value].append(0.0)
+                self.vyaw[Val.INPUT_VEL_Yaw.value].append(0.0)
+                self.vyaw[Val.OUTPUT_VEL_YAW.value].append(0.0)
 
     def SetpointCB(self, msg):
         global input_vel_
         input_vel_ = msg.vel
+
+        global target_pos_
+        target_pos_ = msg.pose.position
+
+        global input_yaw_rate_
+        input_yaw_rate_ = GetYawDeg(msg.yaw_rate.orientation)
+
+        global target_yaw_
+        target_yaw_ = GetYawDeg(msg.pose.orientation)
+
+        global is_detected_
+        is_detected_ = msg.landing_state.is_detected
 
         global state_machine_cmd_id_
         if not msg.landing_state.is_pass_landing_standby:
@@ -195,27 +233,8 @@ class Plotting:
         global output_vel_
         output_vel_ = msg.twist
 
-    def TargetMarkerCB(self, msg):
-        global target_id_
-        if msg.is_detected:
-            # transform from camera_link to base_link
-            try:
-                transform = tfBuffer_.lookup_transform('base_link', msg.header.frame_id, rospy.Time())
-
-                p = PoseStamped()
-                p.header = msg.header
-                p.pose = msg.pose
-                transformed_pose = tf2_geometry_msgs.do_transform_pose(p, transform)
-                
-                if self.IsValid(transformed_pose):
-                    target_id_ = msg.id
-
-                    global target_pos_
-                    target_pos_ = transformed_pose.pose.position
-            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-                pass
-        else:
-            target_id_ = -1
+        global output_yaw_rate_
+        output_yaw_rate_ = Rad2Deg(msg.twist.angular.z)
 
     def ChatCB(self, msg):
         cmd = msg.msg
@@ -223,9 +242,7 @@ class Plotting:
             ani.event_source.stop()
             rospy.loginfo("[eval] pause plotting")
         elif cmd == 'play':
-            ani2.event_source.stop()
-            # ani.event_source.start()
-            # ani2.event_source.start()
+            ani.event_source.start()
             rospy.loginfo("[eval] play plotting")
  
     '''
@@ -239,7 +256,7 @@ class Plotting:
         for i in range(len(self.axs)):
             for j in range(len(self.axs[i])):
                 self.axs[i][j].clear()
-                ylim = self.GetLimMinMax(self.list_set[type], Y_AXIS_MARGIN[type])
+                ylim = self.GetLimMinMax(self.list_set[type])
                 self.axs[i][j].set_ylim(ylim[0], ylim[1])
                 
                 for element in range(len(self.list_set[type])):
@@ -255,6 +272,7 @@ class Plotting:
                 self.axs[i][j].legend()  # Add a legend.
 
                 type += 1
+        self.fig.tight_layout()
 
     def PlotInit2(self):
         pass
@@ -263,7 +281,7 @@ class Plotting:
         type = 0
         for ax in self.axs2:
             ax.clear()
-            ylim = self.GetLimMinMax(self.list_set2[type], Y_AXIS_MARGIN2[type])
+            ylim = self.GetLimMinMax(self.list_set2[type])
             ax.set_ylim(ylim[0], ylim[1])
             
             for element in range(len(self.list_set2[type])):
@@ -283,7 +301,7 @@ class Plotting:
     '''
     Util functions
     '''
-    def GetLimMinMax(self, lists, margin):
+    def GetLimMinMax(self, lists):
         ylim = [0, BUF_SIZE - 1]
         lengths = []
         for lst in lists:
@@ -303,6 +321,10 @@ class Plotting:
         for lst in lists:
             if min(lst) < list_min:
                 list_min = min(lst)
+        
+        pos_margin = list_max * MARGIN_RATIO
+        neg_margin = list_min * MARGIN_RATIO
+        margin = (pos_margin - neg_margin)/2.0
 
         ylim = [float(list_min) - margin, float(list_max) + margin]
 
@@ -352,7 +374,6 @@ if __name__ == "__main__":
     tfBuffer_ = tf2_ros.Buffer()
     listener_ = tf2_ros.TransformListener(tfBuffer_)
 
-    target_sub = rospy.Subscriber('/kuam/data/aruco_tracking/target_state', ArucoState, plotting.TargetMarkerCB)
     setpoint_sub = rospy.Subscriber('/kuam/maneuver/state_machine/setpoint', Setpoint, plotting.SetpointCB)
     vel_sub = rospy.Subscriber('/mavros/local_position/velocity_body', TwistStamped, plotting.VelocityCB)
     cmd_sub = rospy.Subscriber("/kuam/data/chat/command", Chat, plotting.ChatCB)
@@ -360,5 +381,5 @@ if __name__ == "__main__":
     process_timer = rospy.Timer(rospy.Duration(1.0/freq), plotting.ProcessCB)
 
     ani = FuncAnimation(plotting.fig, plotting.UdatePlot, init_func=plotting.PlotInit)
-    ani2 = FuncAnimation(plotting.fig2, plotting.UdatePlot2, init_func=plotting.PlotInit2)
+    # ani2 = FuncAnimation(plotting.fig2, plotting.UdatePlot2, init_func=plotting.PlotInit2)
     plt.show(block=True) 

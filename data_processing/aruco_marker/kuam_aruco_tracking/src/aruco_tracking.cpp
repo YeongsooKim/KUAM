@@ -372,6 +372,7 @@ void ArucoTracking::ImagePub(Mat image, const vector<vector<Point2f>> s_corners,
     m_cv_ptr->image = copy_image;
     m_cv_ptr->header.frame_id = m_camera_frame_id_param;
     img_msg = *m_cv_ptr->toImageMsg();
+    m_cv_ptr = nullptr;
     m_image_pub.publish(img_msg); // ros::Publisher pub_img = node.advertise<sensor_msgs::Image>("topic", queuesize);
 }
 

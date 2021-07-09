@@ -454,17 +454,14 @@ bool KuamVisualizer::InitMarkers()
 
     m_ego_markers.current_point.ns = "ego/current_point";
     m_ego_markers.current_point.id = 0;
-    m_ego_markers.current_point.type = visualization_msgs::Marker::SPHERE;
+    m_ego_markers.current_point.type = visualization_msgs::Marker::MESH_RESOURCE;
+    m_ego_markers.current_point.mesh_resource = "package://kuam_visual/meshes/simple_quadcopter/Quadcopter.stl";
     m_ego_markers.current_point.action = visualization_msgs::Marker::ADD;
-    m_ego_markers.current_point.scale.x = 0.15;
-    m_ego_markers.current_point.scale.y = 0.15;
-    m_ego_markers.current_point.scale.z = 0.15;
-    m_ego_markers.current_point.pose.orientation.w = 1.0;
-    m_ego_markers.current_point.pose.orientation.x = 0.0;
-    m_ego_markers.current_point.pose.orientation.y = 0.0;
-    m_ego_markers.current_point.pose.orientation.z = 0.0;
+    m_ego_markers.current_point.scale.x = 0.003;
+    m_ego_markers.current_point.scale.y = 0.003;
+    m_ego_markers.current_point.scale.z = 0.003;
     m_ego_markers.current_point.color = CYAN;
-    m_ego_markers.current_point.color.a = 0.4f;
+    m_ego_markers.current_point.color.a = 0.8f;
     m_ego_markers.current_point.lifetime = ros::Duration();
     m_ego_markers.is_current_point_add = false;
 }
@@ -935,6 +932,7 @@ void KuamVisualizer::EgoGlobalPosCallback(const sensor_msgs::NavSatFix::ConstPtr
     m_ego_markers.current_point.header.frame_id = "map";
     m_ego_markers.current_point.header.stamp = ros::Time::now();
     m_ego_markers.current_point.pose.position = p;
+    m_ego_markers.current_point.pose.orientation = m_ego_pose.pose.pose.orientation;
 
     visualization_msgs::MarkerArray visualization_msg;
     if (m_ego_markers.trajectory.points.size() > 0){

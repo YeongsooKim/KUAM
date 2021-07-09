@@ -10,7 +10,7 @@ tf_broadcaster:
 
   exp_camera_height_m: 1.5
   
-  extrinsic_imu_to_camera_x: 0.1257
+  extrinsic_imu_to_camera_x: 0.0
   extrinsic_imu_to_camera_y: 0.0
   extrinsic_imu_to_camera_z: 0.0
   

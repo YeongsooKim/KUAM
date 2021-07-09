@@ -1,3 +1,4 @@
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 from geographic_msgs.msg import GeoPoint
@@ -23,6 +24,19 @@ def Distance3D(point1, point2):
     
     distance_m = sqrt(pow(delta_x, 2) + pow(delta_y, 2) + pow(delta_z, 2))
     return distance_m
+
+def GetYawRad(orientation):
+    euler = euler_from_quaternion([orientation.x, orientation.y, orientation.z, orientation.w])
+    yaw_rad = euler[2]
+
+    return yaw_rad
+
+def GetYawDeg(orientation):
+    euler = euler_from_quaternion([orientation.x, orientation.y, orientation.z, orientation.w])
+    yaw_rad = euler[2]
+    yaw_deg = yaw_rad*180.0/pi
+
+    return yaw_deg
 
 def Deg2Rad(deg):
     rad = deg*pi/180.0

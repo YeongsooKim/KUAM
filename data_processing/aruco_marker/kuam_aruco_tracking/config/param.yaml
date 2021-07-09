@@ -8,14 +8,16 @@ aruco_tracking:
   marker_cnt_th: 25 # count for fixing target when multi marker detected
   filter_buf_size: 10 # moving average filter buff size
   noise_dist_th_m: 3.0
-  noise_cnt_th: 6 # (3/5)*process_frequency
+  noise_cnt_th: 3 # (3/10)*process_frequency
 
   # aruco marker
   dictionaryID: 0
-  big_marker_ids: [0, 1, 2, 3]
-  big_marker_size_m: 0.2
+  small_marker_ids: [9, 10, 11, 12]
+  small_marker_size_m: 0.04
   medium_marker_ids: [4, 5, 6, 7, 8]
   medium_marker_size_m: 0.06
+  big_marker_ids: [0, 1, 2, 3]
+  big_marker_size_m: 0.2
 
 usb_cam:
   video_device: '/dev/video0'

@@ -12,12 +12,9 @@ import tf2_geometry_msgs
 
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
-from visualization_msgs.msg import Marker,MarkerArray
-from std_msgs.msg import ColorRGBA
 from geometry_msgs.msg import Point
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseStamped
-from geometry_msgs.msg import Twist
 from kuam_msgs.msg import LandingState
 from geographic_msgs.msg import GeoPoseStamped
 
@@ -41,6 +38,9 @@ class Landing(smach.State, state.Base):
         self.standby_dist_th_m = 1.5
         self.using_aruco = False
         self.maf_buf_size = 20
+        self.big_target_mapping = 0.0
+        self.medium_target_mapping = 0.0
+        self.small_target_mapping = 0.0
 
         # State value
         self.ego_geopose = ego_geopose
@@ -58,7 +58,6 @@ class Landing(smach.State, state.Base):
         self.tfBuffer = None
         self.listener = None
 
-        self.marker_array = MarkerArray()
         self.standby_cnt = 0
         self.orientation = None
 
@@ -267,48 +266,45 @@ class Landing(smach.State, state.Base):
 
     def MapTarget(self, pose, id):
         theta_rad = GetYawRad(pose.orientation)
-        big_side = 0.25
-        medium_side = 0.2
-        small_side = 0.1257
         if id == 0:
-            x_marker = -big_side
-            y_marker = -big_side
+            x_marker = -self.big_target_mapping
+            y_marker = -self.big_target_mapping
         if id == 1:
-            x_marker = +big_side
-            y_marker = -big_side
+            x_marker = +self.big_target_mapping
+            y_marker = -self.big_target_mapping
         if id == 2:
-            x_marker = +big_side
-            y_marker = +big_side
+            x_marker = +self.big_target_mapping
+            y_marker = +self.big_target_mapping
         if id == 3:
-            x_marker = -big_side
-            y_marker = +big_side
+            x_marker = -self.big_target_mapping
+            y_marker = +self.big_target_mapping
         if id == 4:
-            x_marker = -medium_side
+            x_marker = -self.medium_target_mapping
             y_marker = 0.0
         if id == 5:
             x_marker = 0.0
-            y_marker = -medium_side
+            y_marker = -self.medium_target_mapping
         if id == 6:
-            x_marker = +medium_side
+            x_marker = +self.medium_target_mapping
             y_marker = 0.0
         if id == 7:
             x_marker = 0.0
-            y_marker = +medium_side
+            y_marker = +self.medium_target_mapping
         if id == 8:
             x_marker = 0.0
             y_marker = 0.0
         if id == 9:
-            x_marker = -small_side
+            x_marker = -self.small_target_mapping
             y_marker = 0.0
         if id == 10:
             x_marker = 0.0
-            y_marker = -small_side
+            y_marker = -self.small_target_mapping
         if id == 11:
-            x_marker = +small_side
+            x_marker = +self.small_target_mapping
             y_marker = 0.0
         if id == 12:
             x_marker = 0.0
-            y_marker = +small_side
+            y_marker = +self.small_target_mapping
 
         pose.position.x += self.X_Camera(x_marker, y_marker, theta_rad)
         pose.position.y += self.Y_Camera(x_marker, y_marker, theta_rad)
@@ -334,15 +330,21 @@ class Landing(smach.State, state.Base):
                 self.maf_init = True
         
         # Shift
-        for i in range(self.maf_buf_size - 1):
-            self.maf_buf[i][0].x = self.maf_buf[i+1][0].x
-            self.maf_buf[i][0].y = self.maf_buf[i+1][0].y
-            self.maf_buf[i][0].z = self.maf_buf[i+1][0].z
-            self.maf_buf[i][1] = self.maf_buf[i+1][1]
-        self.maf_buf[self.maf_buf_size - 1][0].x = point.x
-        self.maf_buf[self.maf_buf_size - 1][0].y = point.y
-        self.maf_buf[self.maf_buf_size - 1][0].z = point.z
-        self.maf_buf[self.maf_buf_size - 1][1] = yaw_deg
+        if self.maf_buf_size != 1:
+            for i in range(self.maf_buf_size - 1):
+                self.maf_buf[i][0].x = self.maf_buf[i+1][0].x
+                self.maf_buf[i][0].y = self.maf_buf[i+1][0].y
+                self.maf_buf[i][0].z = self.maf_buf[i+1][0].z
+                self.maf_buf[i][1] = self.maf_buf[i+1][1]
+            self.maf_buf[self.maf_buf_size - 1][0].x = point.x
+            self.maf_buf[self.maf_buf_size - 1][0].y = point.y
+            self.maf_buf[self.maf_buf_size - 1][0].z = point.z
+            self.maf_buf[self.maf_buf_size - 1][1] = yaw_deg
+        else:
+            self.maf_buf[0][0].x = point.x
+            self.maf_buf[0][0].y = point.y
+            self.maf_buf[0][0].z = point.z
+            self.maf_buf[0][1] = yaw_deg
 
         # Summation
         sum_p = Point()
@@ -361,8 +363,7 @@ class Landing(smach.State, state.Base):
         ma_p.x = sum_p.x/self.maf_buf_size
         ma_p.y = sum_p.y/self.maf_buf_size
         ma_p.z = sum_p.z/self.maf_buf_size
-        ma_y_deg = sum_y/self.maf_buf_size
-        ma_y_rad = ma_y_deg*pi/180.0
+        ma_y_rad = Deg2Rad(sum_y/self.maf_buf_size)
         q_ma_yaw = quaternion_from_euler(0.0, 0.0, ma_y_rad)
 
         self.target_pose.position.x = ma_p.x
