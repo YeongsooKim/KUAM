@@ -244,6 +244,7 @@ def SetpointPub():
                 msg.header.stamp = rospy.Time.now()
                 msg.vel = vel
                 msg.pose = setpoint_.pose
+                msg.yaw_rate = setpoint_.yaw_rate
                 msg.is_global = False
             else:
                 msg.header.frame_id = "map"
@@ -401,13 +402,9 @@ if __name__ == '__main__':
     landing_threshold_m = rospy.get_param(nd_name + "/landing_threshold_m")
     landing_standby_alt_m = rospy.get_param(nd_name + "/landing_standby_alt_m")
     standby_dist_th_m = rospy.get_param(nd_name + "/standby_dist_th_m")
+    maf_buf_size = rospy.get_param(nd_name + "/maf_buf_size")
     battery_th_ = rospy.get_param(nd_name + "/battery_th_per")
-    virtual_border_max_side_m = rospy.get_param(nd_name + "/virtual_border_max_side_m")
-    virtual_border_angle_0_deg = rospy.get_param(nd_name + "/virtual_border_angle_0_deg")
-    virtual_border_angle_1_deg = rospy.get_param(nd_name + "/virtual_border_angle_1_deg")
-    alt_division_m = rospy.get_param(nd_name + "/alt_division_m")
     alt_offset_m_ = rospy.get_param(nd_name + "/alt_offset_m")
-    landing_duration_s = rospy.get_param(nd_name + "/landing_duration_s")
     using_aruco = rospy.get_param(nd_name + "/using_aruco")
 
     for state in offb_states_.values():
@@ -423,12 +420,8 @@ if __name__ == '__main__':
     offb_states_[OffbState.FLIGHT].guidance_dist_th_m = guidance_dist_th_m
     offb_states_[OffbState.LANDING].landing_threshold_m = landing_threshold_m
     offb_states_[OffbState.LANDING].landing_standby_alt_m = landing_standby_alt_m
-    offb_states_[OffbState.LANDING].virtual_border_max_side_m = virtual_border_max_side_m
-    offb_states_[OffbState.LANDING].virtual_border_angle_0_deg = virtual_border_angle_0_deg
-    offb_states_[OffbState.LANDING].virtual_border_angle_1_deg = virtual_border_angle_1_deg
-    offb_states_[OffbState.LANDING].alt_division_m = alt_division_m
     offb_states_[OffbState.LANDING].standby_dist_th_m = standby_dist_th_m
-    offb_states_[OffbState.LANDING].landing_duration_s = landing_duration_s
+    offb_states_[OffbState.LANDING].maf_buf_size = maf_buf_size
     offb_states_[OffbState.LANDING].using_aruco = using_aruco
 
     '''

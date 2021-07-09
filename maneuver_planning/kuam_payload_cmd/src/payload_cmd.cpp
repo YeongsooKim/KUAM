@@ -262,7 +262,7 @@ void Playload::SetpointPub()
         pos_tar.velocity.y = m_setpoint.vel.linear.y;
         pos_tar.velocity.z = m_setpoint.vel.linear.z;
 
-        auto euler = m_utils.Quat2Euler(m_setpoint.pose.orientation);
+        auto euler = m_utils.Quat2Euler(m_setpoint.yaw_rate.orientation);
         auto yaw_rate_rads = euler.y;
         if (__isnan(yaw_rate_rads)){ yaw_rate_rads = 0.0; }
         pos_tar.yaw_rate = yaw_rate_rads;

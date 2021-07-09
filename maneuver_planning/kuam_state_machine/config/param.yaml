@@ -13,12 +13,8 @@ state_machine:
   # landing
   landing_threshold_m: 0.5 # for distingush kuam control and px4 control during landing 
   landing_standby_alt_m: 3.0 # waiting for detecting marker during landing state
-  landing_duration_s: 120
   standby_dist_th_m: 1.5 # checking have reached to landing standby waypoint during landing state
-  virtual_border_max_side_m: 6.0
-  virtual_border_angle_0_deg: 20.0
-  virtual_border_angle_1_deg: 10.0
-  alt_division_m: 10.0
+  maf_buf_size: 20
 
   # flight
   alt_offset_m: 23.156

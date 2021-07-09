@@ -12,10 +12,10 @@ aruco_tracking:
 
   # aruco marker
   dictionaryID: 0
-  big_marker_id: [0, 1, 2, 3]
-  small_marker_id: [4, 5, 6, 7]
+  big_marker_ids: [0, 1, 2, 3]
   big_marker_size_m: 0.2
-  small_marker_size_m: 0.06
+  medium_marker_ids: [4, 5, 6, 7, 8]
+  medium_marker_size_m: 0.06
 
 usb_cam:
   video_device: '/dev/video0'

@@ -1,3 +1,4 @@
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 from geographic_msgs.msg import GeoPoint
@@ -8,6 +9,19 @@ from math import atan2
 from math import sqrt
 
 EARTH_RADIUS_M = 6371e3
+
+def GetYawRad(orientation):
+    euler = euler_from_quaternion([orientation.x, orientation.y, orientation.z, orientation.w])
+    yaw_rad = euler[2]
+
+    return yaw_rad
+
+def GetYawDeg(orientation):
+    euler = euler_from_quaternion([orientation.x, orientation.y, orientation.z, orientation.w])
+    yaw_rad = euler[2]
+    yaw_deg = yaw_rad*180.0/pi
+
+    return yaw_deg
 
 def Distance2D(point1, point2):
     delta_x = point1.x - point2.x

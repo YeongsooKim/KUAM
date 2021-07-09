@@ -33,18 +33,15 @@ class Landing(smach.State, state.Base):
         self.landing_state.is_detected = False
         self.landing_state.is_land = False
         self.landing_state.is_pass_landing_standby = False
+        self.maf_init = False
         
         # Param
         self.landing_threshold_m = None
         self.landing_standby_alt_m = 5.0
-        self.virtual_border_angle_0_deg = 20.0
-        self.virtual_border_angle_1_deg = 10.0
-        self.virtual_border_max_side_m = 6.0
-        self.alt_division_m = 10.0
         self.standby_dist_th_m = 1.5
-        self.landing_duration_s = 80
         self.using_aruco = False
-        
+        self.maf_buf_size = 20
+
         # State value
         self.ego_geopose = ego_geopose
         self.ego_pose = ego_pose
@@ -62,8 +59,6 @@ class Landing(smach.State, state.Base):
         self.listener = None
 
         self.marker_array = MarkerArray()
-        self.vb_angle_deg = [self.virtual_border_angle_0_deg, self.virtual_border_angle_1_deg]
-
         self.standby_cnt = 0
         self.orientation = None
 
@@ -85,6 +80,7 @@ class Landing(smach.State, state.Base):
         self.landing_state.is_land = False
         self.landing_state.is_detected = False
         self.landing_state.is_pass_landing_standby = False
+        self.maf_init = False
 
         # Initialize setpoint
         geopose = self.setpoints.poses[-1].pose
@@ -92,6 +88,8 @@ class Landing(smach.State, state.Base):
         self.landing_standby = geopose.position
         self.orientation = self.ego_geopose.orientation
 
+        # in side the buffer: point, yaw
+        self.maf_buf = [[Point(), 0.0]]*self.maf_buf_size
         self.GenInitTrajectory(self.ego_pose, self.landing_standby)
 
     def Running(self):
@@ -103,9 +101,6 @@ class Landing(smach.State, state.Base):
                     break
                 else:
                     self.transition = 'none'    
-
-            # Update virtual border
-            # self.UpdateVirtualBorder()
 
             # Update setpoint
             self.UpdateSetpoint()
@@ -155,62 +150,21 @@ class Landing(smach.State, state.Base):
             self.setpoints.poses.append(geopose_stamped)
             cnt += 1
 
-    def UpdateVirtualBorder(self):
-        # clear marker_array
-        del self.marker_array.markers[:]
-
-        red = ColorRGBA(1.0, 0.0, 0.0, 1.0)
-        green = ColorRGBA(0.0, 1.0, 0.0, 1.0)
-        blue = ColorRGBA(0.0, 0.0, 1.0, 1.0)
-        pose = self.ego_pose
-
-        # Cube
-        MARGIN = 1.0 # meter
-        cube_centroid = Point()
-        cube_centroid.x = pose.position.x
-        cube_centroid.y = pose.position.y
-        cube_centroid.z = pose.position.z/2
-        
-        z_scale = pose.position.z + MARGIN
-        
-        yaw_rad = self.GetYawRad(pose)
-
-        qaut = quaternion_from_euler(0.0, 0.0, yaw_rad)
-        cube_marker = Marker()
-        cube_marker.ns = "virtual_boder_cube"
-        cube_marker.header.frame_id = "map"
-        cube_marker.type = cube_marker.CUBE
-        cube_marker.action = cube_marker.ADD
-
-        cube_marker.scale.x = self.BorderEdgeSize(pose)
-        cube_marker.scale.y = self.BorderEdgeSize(pose)
-        cube_marker.scale.z = z_scale
-        cube_marker.color = red
-        cube_marker.color.a = 0.4
-        cube_marker.pose.orientation.x = qaut[0]
-        cube_marker.pose.orientation.y = qaut[1]
-        cube_marker.pose.orientation.z = qaut[2]
-        cube_marker.pose.orientation.w = qaut[3]
-        cube_marker.pose.position = cube_centroid
-        self.marker_array.markers.append(cube_marker)
-
-        return self.marker_array
-
     def UpdateLandingState(self):
         if self.landing_threshold_m is None:
-            pass
-        else:
-            if self.using_aruco:
-                if self.landing_state.is_detected:
-                    h = -self.target_pose.position.z
+            return
 
-                    if h < self.landing_threshold_m:
-                        self.landing_state.is_land = True
-            else:
-                h = self.ego_geopose.position.altitude
-                
+        if self.using_aruco:
+            if self.landing_state.is_detected and self.landing_state.is_pass_landing_standby:
+                h = -self.target_pose.position.z
+
                 if h < self.landing_threshold_m:
-                        self.landing_state.is_land = True
+                    self.landing_state.is_land = True
+        else:
+            h = self.ego_geopose.position.altitude
+            
+            if h < self.landing_threshold_m:
+                    self.landing_state.is_land = True
 
     def UpdateSetpoint(self):
         if self.landing_state.is_pass_landing_standby == False:
@@ -225,12 +179,12 @@ class Landing(smach.State, state.Base):
                 self.setpoint.vel.linear.z = self.Z_Vel(self.target_pose.position.z)
 
                 v_yaw = self.YawRate(self.target_pose.orientation)
-                self.setpoint.pose.orientation.x = v_yaw[0]
-                self.setpoint.pose.orientation.y = v_yaw[1]
-                self.setpoint.pose.orientation.z = v_yaw[2]
-                self.setpoint.pose.orientation.w = v_yaw[3]
+                self.setpoint.yaw_rate.orientation.x = v_yaw[0]
+                self.setpoint.yaw_rate.orientation.y = v_yaw[1]
+                self.setpoint.yaw_rate.orientation.z = v_yaw[2]
+                self.setpoint.yaw_rate.orientation.w = v_yaw[3]
 
-                self.setpoint.pose.position = self.target_pose.position
+                self.setpoint.pose = self.target_pose
             else:
                 if self.standby_cnt < len(self.setpoints.poses):
                     self.setpoint.geopose = self.setpoints.poses[self.standby_cnt].pose
@@ -268,46 +222,6 @@ class Landing(smach.State, state.Base):
         if (z>1e+100) or (z<-1e+100):
             return False
         return True
-
-    def BorderEdgeSize(self, pose):
-        h = pose.position.z
-
-        if h > self.alt_division_m:
-            angle = Deg2Rad(self.vb_angle_deg[0])
-        else: 
-            angle = Deg2Rad(self.vb_angle_deg[1])
-
-        edge = 2*h*tan(angle)
-
-        return edge
-
-    def GetYawRad(self, pose):
-        orientation = pose.orientation
-        euler = euler_from_quaternion([orientation.x, orientation.y, orientation.z, orientation.w])
-        yaw_rad = euler[2]
-        # yaw_deg = yaw_rad*180.0/pi
-
-        return yaw_rad
-
-    def X(self, t, init_x, duration):
-        # a = init_x/(duration**2)
-        # x = a*(t - duration)**2
-        a = -1.5*init_x/duration
-        x = a*(t-duration)
-        return x
-
-    def Y(self, t, init_y, duration):
-        # a = init_y/(duration**2)
-        # y = a*(t - duration)**2
-        a = -1.5*init_y/duration
-        y = a*(t-duration)
-        return y
-
-    def Z(self, t, init_z, duration):
-        # z = a (x - last_time)**4  -> (0, init_z), (last_time, 0)
-        a = init_z/duration**4
-        z = a*(t - duration)**4
-        return z
 
     def Z_Vel(self, target):
         err = target
@@ -352,42 +266,114 @@ class Landing(smach.State, state.Base):
             return False
 
     def MapTarget(self, pose, id):
+        theta_rad = GetYawRad(pose.orientation)
+        big_side = 0.25
+        medium_side = 0.2
+        small_side = 0.1257
         if id == 0:
-            pose.position.x += 0.25
-            pose.position.y += 0.25
-            return pose
+            x_marker = -big_side
+            y_marker = -big_side
         if id == 1:
-            pose.position.x += 0.25
-            pose.position.y -= 0.25
-            return pose
+            x_marker = +big_side
+            y_marker = -big_side
         if id == 2:
-            pose.position.x -= 0.25
-            pose.position.y -= 0.25
-            return pose
+            x_marker = +big_side
+            y_marker = +big_side
         if id == 3:
-            pose.position.x -= 0.25
-            pose.position.y += 0.25
-            return pose
+            x_marker = -big_side
+            y_marker = +big_side
         if id == 4:
-            pose.position.x += 0.0
-            pose.position.y += 0.2
-            return pose
+            x_marker = -medium_side
+            y_marker = 0.0
         if id == 5:
-            pose.position.x += 0.2
-            pose.position.y += 0.0
-            return pose
+            x_marker = 0.0
+            y_marker = -medium_side
         if id == 6:
-            pose.position.x += 0.0
-            pose.position.y -= 0.2
-            return pose
+            x_marker = +medium_side
+            y_marker = 0.0
         if id == 7:
-            pose.position.x -= 0.2
-            pose.position.y += 0.0
-            return pose
+            x_marker = 0.0
+            y_marker = +medium_side
         if id == 8:
-            pose.position.x += 0.0
-            pose.position.y += 0.0
-            return pose
+            x_marker = 0.0
+            y_marker = 0.0
+        if id == 9:
+            x_marker = -small_side
+            y_marker = 0.0
+        if id == 10:
+            x_marker = 0.0
+            y_marker = -small_side
+        if id == 11:
+            x_marker = +small_side
+            y_marker = 0.0
+        if id == 12:
+            x_marker = 0.0
+            y_marker = +small_side
+
+        pose.position.x += self.X_Camera(x_marker, y_marker, theta_rad)
+        pose.position.y += self.Y_Camera(x_marker, y_marker, theta_rad)
+        return pose
+
+    def X_Camera(self, x_marker, y_marker, theta_rad):
+        x_camera = x_marker*cos(theta_rad) + y_marker*sin(theta_rad)
+        return x_camera
+
+    def Y_Camera(self, x_marker, y_marker, theta_rad):
+        y_camera = x_marker*sin(theta_rad) - y_marker*cos(theta_rad)
+        return y_camera
+
+    def MovingAverageFilter(self, point, yaw_deg):
+        # Initialize
+        if not self.maf_init:
+            for buf in self.maf_buf:
+                buf[0].x = point.x
+                buf[0].y = point.y
+                buf[0].z = point.z
+                buf[1] = yaw_deg
+
+                self.maf_init = True
+        
+        # Shift
+        for i in range(self.maf_buf_size - 1):
+            self.maf_buf[i][0].x = self.maf_buf[i+1][0].x
+            self.maf_buf[i][0].y = self.maf_buf[i+1][0].y
+            self.maf_buf[i][0].z = self.maf_buf[i+1][0].z
+            self.maf_buf[i][1] = self.maf_buf[i+1][1]
+        self.maf_buf[self.maf_buf_size - 1][0].x = point.x
+        self.maf_buf[self.maf_buf_size - 1][0].y = point.y
+        self.maf_buf[self.maf_buf_size - 1][0].z = point.z
+        self.maf_buf[self.maf_buf_size - 1][1] = yaw_deg
+
+        # Summation
+        sum_p = Point()
+        sum_p.x = 0.0
+        sum_p.y = 0.0
+        sum_p.z = 0.0
+        sum_y = 0.0
+        for buf in self.maf_buf:
+            sum_p.x += buf[0].x
+            sum_p.y += buf[0].y
+            sum_p.z += buf[0].z
+            sum_y += buf[1]
+
+        # Average
+        ma_p = Point()
+        ma_p.x = sum_p.x/self.maf_buf_size
+        ma_p.y = sum_p.y/self.maf_buf_size
+        ma_p.z = sum_p.z/self.maf_buf_size
+        ma_y_deg = sum_y/self.maf_buf_size
+        ma_y_rad = ma_y_deg*pi/180.0
+        q_ma_yaw = quaternion_from_euler(0.0, 0.0, ma_y_rad)
+
+        self.target_pose.position.x = ma_p.x
+        self.target_pose.position.y = ma_p.y
+        self.target_pose.position.z = ma_p.z
+        self.target_pose.orientation.x = q_ma_yaw[0]
+        self.target_pose.orientation.y = q_ma_yaw[1]
+        self.target_pose.orientation.z = q_ma_yaw[2]
+        self.target_pose.orientation.w = q_ma_yaw[3]
+        
+
     '''
     Callback functions
     '''
@@ -418,13 +404,18 @@ class Landing(smach.State, state.Base):
         if not len(target_poses) == 0:
             self.landing_state.is_detected = True
 
-            sum_x = 0.0; sum_y = 0.0; sum_z = 0.0
+            sum_x = 0.0; sum_y = 0.0; sum_z = 0.0; sum_yaw_deg = 0.0
             for pose in target_poses:
                 sum_x += pose.position.x
                 sum_y += pose.position.y
                 sum_z += pose.position.z
+                sum_yaw_deg += GetYawDeg(pose.orientation)
 
-            self.target_pose.position.x = sum_x/len(target_poses)
-            self.target_pose.position.y = sum_y/len(target_poses)
-            self.target_pose.position.z = sum_z/len(target_poses)
-            self.target_pose.orientation = target_poses[0].orientation
+            average_p = Point()
+
+            average_p.x = sum_x/len(target_poses)
+            average_p.y = sum_y/len(target_poses)
+            average_p.z = sum_z/len(target_poses)
+            avg_yaw_deg = sum_yaw_deg/len(target_poses)
+            
+            self.MovingAverageFilter(average_p, avg_yaw_deg)
