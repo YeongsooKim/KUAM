@@ -37,7 +37,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: camera
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -82,7 +82,14 @@ Visualization Manager:
           Marker Topic: /kuam/visual/kuam_visual/aruco_markerarray
           Name: aruco_marker_markers
           Namespaces:
-            {}
+            target0/current_point: true
+            target0/txt: true
+            target1/current_point: true
+            target1/txt: true
+            target2/current_point: true
+            target2/txt: true
+            target3/current_point: true
+            target3/txt: true
           Queue Size: 100
           Value: false
         - Class: rviz/MarkerArray
@@ -114,7 +121,8 @@ Visualization Manager:
           Marker Topic: /kuam/visual/kuam_visual/gt_markerarray
           Name: ground_truth_marker
           Namespaces:
-            {}
+            gt/big: true
+            gt/small: true
           Queue Size: 100
           Value: false
       Enabled: true
@@ -136,6 +144,14 @@ Visualization Manager:
               Value: false
             map_ned:
               Value: false
+            marker0:
+              Value: true
+            marker1:
+              Value: true
+            marker2:
+              Value: true
+            marker3:
+              Value: true
             odom:
               Value: false
             odom_ned:
@@ -151,6 +167,15 @@ Visualization Manager:
                 base_link_frd:
                   {}
                 camera_link:
+                  marker0:
+                    {}
+                  marker1:
+                    {}
+                  marker2:
+                    {}
+                  marker3:
+                    {}
+                landing_point:
                   {}
               map_ned:
                 odom:

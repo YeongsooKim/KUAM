@@ -6,13 +6,12 @@
 	</group>
 
     <!-- namespace -->
-    <rosparam command="load" file="$(find config)/param.yaml" />
+    <!-- <rosparam command="load" file="$(find config)/param.yaml" />
 
     <group ns="/kuam/visual">
 		<node pkg="kuam_visual" type="kuam_visual_node" name="kuam_visual" />
 	</group>
 
-	<!-- <param name="robot_description" command="$(find xacro)/xacro $(arg model)" /> -->
 	<param name="robot_description" textfile="$(find kuam_visual)/urdf/simple_quad.urdf"/>
 
 	<arg name="model" default="$(find kuam_visual)/urdf/simple_quad.urdf"/>

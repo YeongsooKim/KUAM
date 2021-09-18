@@ -13,7 +13,7 @@ usb_cam:
   io_method: 'mmap'
   image_width: 640
   image_height: 480
-  framerate: 10
+  framerate: 30
 
   autoexposure: true
   exposure: 100
