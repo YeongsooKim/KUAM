@@ -18,8 +18,6 @@ from kuam_msgs.msg import Setpoint
 from uav_msgs.msg import Chat
 
 MARGIN_RATIO = 0.3
-Y_AXIS_MARGIN = [0.5, 0.5, 0.5, 10.0, 0.05, 0.05, 0.05, 5.0]
-Y_AXIS_MARGIN2 = [0.5, 0.5]
 BUF_SIZE = 200
 
 class Val(Enum):
@@ -35,8 +33,8 @@ class Val(Enum):
     OUTPUT_VEL_Y = 1
     INPUT_VEL_Z = 0
     OUTPUT_VEL_Z = 1
-    INPUT_VEL_Yaw = 0
-    OUTPUT_VEL_YAW = 1
+    INPUT_YAW_RATE = 0
+    OUTPUT_YAW_RATE = 1
 
 tfBuffer_ = None
 listener_ = None
@@ -93,28 +91,28 @@ class Plotting:
         self.vx_labels = ['input vel [m/s]', 'output vel [m/s]']
         self.vx_xlabel = 'time [s]'
         self.vx_ylabel = 'velocity [m/s]'
-        self.vx_title = "'x' Input and Output Velocity"
+        self.vx_title = "Input and Output X Velocity"
 
         self.vy = [[], []]
         self.vy_colors = ['black', 'green']
         self.vy_labels = ['input vel [m/s]', 'output vel [m/s]']
         self.vy_xlabel = 'time [s]'
         self.vy_ylabel = 'velocity [m/s]'
-        self.vy_title = "'y' Input and Output Velocity"
+        self.vy_title = "Input and Output Y Velocity"
 
         self.vz = [[], []]
         self.vz_colors = ['black', 'blue']
         self.vz_labels = ['input vel [m/s]', 'output vel [m/s]']
         self.vz_xlabel = 'time [s]'
         self.vz_ylabel = 'velocity [m/s]'
-        self.vz_title = "'z' Input and Output Velocity"
+        self.vz_title = "Input and Output Z Velocity"
 
         self.vyaw = [[], []]
         self.vyaw_colors = ['black', 'purple']
-        self.vyaw_labels = ['input yaw rate [rad/s]', 'output yaw rate [rad/s]']
+        self.vyaw_labels = ['input yaw rate [deg/s]', 'output yaw rate [deg/s]']
         self.vyaw_xlabel = 'time [s]'
-        self.vyaw_ylabel = 'angular velocity [rad/s]'
-        self.vyaw_title = "'yaw' Input and Output Velocity"
+        self.vyaw_ylabel = 'angular velocity [deg/s]'
+        self.vyaw_title = 'Input and Output Yaw Rate'
 
         self.list_set = [self.x, self.y, self.z, self.yaw, self.vx, self.vy, self.vz, self.vyaw]
         self.color_set = [self.x_colors, self.y_colors, self.z_colors, self.yaw_colors, self.vx_colors, self.vy_colors, self.vz_colors, self.vyaw_colors]
@@ -187,8 +185,8 @@ class Plotting:
                 self.vy[Val.OUTPUT_VEL_Y.value].append(output_vel_.linear.y)
                 self.vz[Val.INPUT_VEL_Z.value].append(input_vel_.linear.z)
                 self.vz[Val.OUTPUT_VEL_Z.value].append(output_vel_.linear.z)
-                self.vyaw[Val.INPUT_VEL_Yaw.value].append(input_yaw_rate_)
-                self.vyaw[Val.OUTPUT_VEL_YAW.value].append(output_yaw_rate_)
+                self.vyaw[Val.INPUT_YAW_RATE.value].append(input_yaw_rate_)
+                self.vyaw[Val.OUTPUT_YAW_RATE.value].append(output_yaw_rate_)
             else:
                 self.x[Val.OUTPUT_POS_X.value].append(0.0)
                 self.y[Val.OUTPUT_POS_Y.value].append(0.0)
@@ -201,8 +199,8 @@ class Plotting:
                 self.vy[Val.OUTPUT_VEL_Y.value].append(0.0)
                 self.vz[Val.INPUT_VEL_Z.value].append(0.0)
                 self.vz[Val.OUTPUT_VEL_Z.value].append(0.0)
-                self.vyaw[Val.INPUT_VEL_Yaw.value].append(0.0)
-                self.vyaw[Val.OUTPUT_VEL_YAW.value].append(0.0)
+                self.vyaw[Val.INPUT_YAW_RATE.value].append(0.0)
+                self.vyaw[Val.OUTPUT_YAW_RATE.value].append(0.0)
 
     def SetpointCB(self, msg):
         global input_vel_

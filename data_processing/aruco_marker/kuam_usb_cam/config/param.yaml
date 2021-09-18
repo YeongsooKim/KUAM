@@ -8,18 +8,18 @@ usb_cam:
   pixel_format: 'yuyv'
 
   autofocus: false
-  focus: 51
+  focus: -1
 
   io_method: 'mmap'
   image_width: 640
   image_height: 480
   framerate: 10
 
-  autoexposure: false
+  autoexposure: true
   exposure: 100
-  gain: 10
+  gain: -1 
 
-  auto_white_balance: false
+  auto_white_balance: true
   white_balance: -1
 
   camera_frame_id: 'camera_link'

@@ -253,9 +253,6 @@ bool KuamVisualizer::GetParam()
     else if (__isnan(m_small_marker_size_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_small_marker_size_m_param is NAN"); return false; }
     else if (__isnan(m_medium_marker_size_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_medium_marker_size_m_param is NAN"); return false; }
     else if (__isnan(m_big_marker_size_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_big_marker_size_m_param is NAN"); return false; }
-    else if (m_medium_marker_ids_param.empty()) { ROS_ERROR_STREAM("[kuam_visual] m_medium_marker_ids_param is empty"); return false; }
-    else if (m_big_marker_ids_param.empty()) { ROS_ERROR_STREAM("[kuam_visual] m_big_marker_ids_param is empty"); return false; }
-    else if (m_small_marker_ids_param.empty()) { ROS_ERROR_STREAM("[kuam_visual] m_small_marker_ids_param is empty"); return false; }
 
     return true;
 }
@@ -482,7 +479,6 @@ void KuamVisualizer::ArucoVisualCallback(const kuam_msgs::ArucoVisuals::ConstPtr
 {
     geometry_msgs::Point pos;
     geometry_msgs::Point origin;
-
     for (auto ac_visual : aruco_msg_ptr->aruco_visuals){
         if (!ac_visual.is_detected){
             continue;

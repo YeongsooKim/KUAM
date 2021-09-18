@@ -6,9 +6,9 @@
 	</group>
 
     <!-- Select only one data type -->
-    <arg name="using_gazebo_data" default="true" />
+    <arg name="using_gazebo_data" default="false" />
     <arg name="using_logging_data" default="false" />
-    <arg name="using_device_data" default="false" />
+    <arg name="using_device_data" default="true" />
 
     <!-- Aruco lib param -->
     <arg name="detector_params_path" default="$(find kuam_aruco_tracking)/config/detector_params.yml" />

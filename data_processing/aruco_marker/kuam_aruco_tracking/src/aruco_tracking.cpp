@@ -113,8 +113,6 @@ bool ArucoTracking::GetParam()
     else if (__isnan(m_noise_cnt_th_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_noise_cnt_th_param is NAN"); return false; }
     else if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_process_freq_param is NAN"); return false; }
     else if (__isnan(m_marker_cnt_th_param)) { ROS_ERROR_STREAM("[aruco_tracking] m_marker_cnt_th_param is NAN"); return false; }
-    else if (m_big_marker_ids_param.empty()) { ROS_ERROR_STREAM("[aruco_tracking] m_big_marker_ids_param is empty"); return false; }
-    else if (m_medium_marker_ids_param.empty()) { ROS_ERROR_STREAM("[aruco_tracking] m_medium_marker_ids_param is empty"); return false; }
 
     return true;
 }

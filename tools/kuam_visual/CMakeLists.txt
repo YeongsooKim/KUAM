@@ -56,3 +56,7 @@ include_directories(
 ## kuam_visual_node
 add_executable(kuam_visual_node src/kuam_visual.cpp src/utils.cpp)
 target_link_libraries(kuam_visual_node ${catkin_LIBRARIES})
+
+## aruco_visual_node
+add_executable(aruco_visual_node src/aruco_visual.cpp src/utils.cpp)
+target_link_libraries(aruco_visual_node ${catkin_LIBRARIES})
