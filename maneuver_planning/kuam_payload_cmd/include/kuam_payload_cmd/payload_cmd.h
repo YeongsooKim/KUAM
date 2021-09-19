@@ -71,7 +71,7 @@ private:
     
     std::string m_cur_sm_state;
     std::string m_prev_sm_state;
-    std::string m_sm_kuam_mode;
+    std::string m_sm_kuam_mode; // state machine kuam mode
     std::string m_px4_mode;
     std::string m_payload_cmd_state;
 
@@ -102,6 +102,7 @@ private: // function
 
     // Request
     void ManualRequest();
+    void AltitudeRequest();
     void EmergRequest();
     void ArmRequest();
     void HoveringRequest();

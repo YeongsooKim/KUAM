@@ -13,6 +13,7 @@ namespace mission{
 
 enum class Mode : int{
     Manual,
+    Altitude,
     Offboard,
     Emerg,
 
@@ -116,6 +117,7 @@ inline string Enum2String(Mode mode)
 {
     switch((int)mode){
         case (int)Mode::Manual: return "manual";
+        case (int)Mode::Altitude: return "altctl";
         case (int)Mode::Offboard: return "offboard";
         case (int)Mode::Emerg: return "emerg";
         default: return "invalid";
