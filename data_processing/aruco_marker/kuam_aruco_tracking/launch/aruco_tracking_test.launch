@@ -1,7 +1,5 @@
 <?xml version="1.0"?>
 <launch>
-    <rosparam command="load" file="$(find kuam_aruco_tracking)/config/param.yaml" />
-
     <!-- Select only one data type -->
     <arg name="using_gazebo_data" default="false" />
     <arg name="using_logging_data" default="false" />
@@ -21,18 +19,15 @@
         <!-- 2. Exponential moving average filter -->
     <arg name="estimating_method" default="2" />
 
-    <node pkg="kuam_aruco_tracking" type="aruco_tracking_node" name="aruco_tracking" cwd="node" output="screen">
-        <param name="calib_path" value="$(arg calib_path)" />
-        <param name="detector_params_path" value="$(arg detector_params_path)" />
-        <param name="estimating_method" value="$(arg estimating_method)" />
-        <param name="using_gazebo_data" value="$(arg using_gazebo_data)" />
-        <param name="using_logging_data" value="$(arg using_logging_data)" />
-        <param name="usb_cam_logging_topic" value="$(arg usb_cam_logging_topic)" />
-    </node>
+    <include file="$(find kuam_aruco_tracking)/launch/aruco_tracking.launch">
+        <arg name="calib_path" value="$(arg calib_path)" />
+        <arg name="detector_params_path" value="$(arg detector_params_path)" />
+        <arg name="estimating_method" value="$(arg estimating_method)" />
+        <arg name="using_gazebo_data" value="$(arg using_gazebo_data)" />
+        <arg name="using_logging_data" value="$(arg using_logging_data)" />
+        <arg name="usb_cam_logging_topic" value="$(arg usb_cam_logging_topic)" />
+    </include>
 
-    <group if="$(arg using_device_data)">
-        <include file="$(find kuam_usb_cam)/launch/usb_cam.launch" />
-    </group>
-
-	<node pkg="kuam_aruco_tracking" type="tf_broadcaster_node" name="tf_broadcaster" output="screen" />
+	<node pkg="kuam_aruco_tracking" type="aruco_visual_node" name="aruco_visual" />
+	<node pkg="rviz" type="rviz" name="rviz" args="-d $(find kuam_aruco_tracking)/rviz/aruco_marker.rviz" required="true" />
 </launch>

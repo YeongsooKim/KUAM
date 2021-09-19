@@ -61,7 +61,7 @@ bool ArucoTracking::GetParam()
     m_p_nh.getParam("usb_cam_logging_topic", m_usb_cam_logging_topic_param);
     m_p_nh.getParam("calib_path", m_calib_path_param);
     m_p_nh.getParam("detector_params_path", m_detector_params_path_param);
-    m_nh.getParam(ns_name + "/usb_cam/camera_frame_id", m_camera_frame_id_param);
+    m_p_nh.getParam("camera_frame_id", m_camera_frame_id_param);
     m_p_nh.getParam("compare_mode", m_compare_mode_param);
     m_p_nh.getParam("using_gazebo_data", m_using_gazebo_data_param);
     m_p_nh.getParam("using_logging_data", m_using_logging_data_param);
@@ -191,7 +191,7 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
     if (s_ids.empty() && m_ids.empty() && b_ids.empty()){
         return;
     }
-  
+
     int2pose int_to_pose;
     tf2_msgs::TFMessage tf_msg_list;
 
@@ -356,7 +356,7 @@ void ArucoTracking::ImagePub(Mat image, const vector<vector<Point2f>> s_corners,
     d_ids.insert(d_ids.end(), b_ids.begin(), b_ids.end());
     d_ids.insert(d_ids.end(), m_ids.begin(), m_ids.end());
     d_ids.insert(d_ids.end(), s_ids.begin(), s_ids.end());
-
+  
     vector<vector<Point2f>> d_corners;
     d_corners.insert(d_corners.end(), b_corners.begin(), b_corners.end());
     d_corners.insert(d_corners.end(), m_corners.begin(), m_corners.end());

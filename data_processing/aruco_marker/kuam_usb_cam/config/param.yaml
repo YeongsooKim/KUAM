@@ -1,26 +1,24 @@
-usb_cam:
-  video_device: '/dev/video0'
-  brightness: 200
-  contrast: 20
-  saturation: 100
-  sharpness: 40
+video_device: '/dev/video0'
+brightness: 200
+contrast: 20
+saturation: 100
+sharpness: 40
 
-  pixel_format: 'yuyv'
+pixel_format: 'yuyv'
 
-  autofocus: false
-  focus: -1
+autofocus: false
+focus: -1
 
-  io_method: 'mmap'
-  image_width: 640
-  image_height: 480
-  framerate: 10
+io_method: 'mmap'
+image_width: 640
+image_height: 480
+framerate: 30
 
-  autoexposure: true
-  exposure: 100
-  gain: -1 
+autoexposure: true
+exposure: 100
+gain: -1 
 
-  auto_white_balance: true
-  white_balance: -1
+auto_white_balance: true
+white_balance: -1
 
-  camera_frame_id: 'camera_link'
-  camera_name: 'usb_cam'
+camera_frame_id: 'camera_link'

@@ -1,6 +1,6 @@
 aruco_tracking:
   process_freq: 10.0
-  
+
   # flag
   compare_mode: false
 
@@ -18,30 +18,17 @@ aruco_tracking:
   medium_marker_size_m: 0.06
   big_marker_ids: [0, 1, 2, 3]
   big_marker_size_m: 0.2
-
-usb_cam:
-  video_device: '/dev/video0'
-  brightness: 200
-  contrast: 20
-  saturation: 100
-  sharpness: 40
-
-  pixel_format: 'yuyv'
-
-  autofocus: false
-  focus: 51
-
-  io_method: 'mmap'
-  image_width: 640
-  image_height: 480
-  framerate: 10
-
-  autoexposure: false
-  exposure: 100
-  gain: 10
-
-  auto_white_balance: false
-  white_balance: -1
-
+  
+  # frame id
   camera_frame_id: 'camera_link'
-  camera_name: 'usb_cam'
+
+tf_broadcaster:
+  process_freq: 50.0
+
+aruco_visual:
+  small_marker_ids: [9, 10, 11, 12]
+  small_marker_size_m: 0.04
+  medium_marker_ids: [4, 5, 6, 7, 8]
+  medium_marker_size_m: 0.06
+  big_marker_ids: [0, 1, 2, 3]
+  big_marker_size_m: 0.2
