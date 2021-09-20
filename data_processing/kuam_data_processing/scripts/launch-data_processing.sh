@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$#" -ne 1 ] && [ "$#" -ne 2 ] && [ "$#" -ne 3 ] && [ "$#" -ne 4 ]; then
+if [ "$#" -ne 1 ] && [ "$#" -ne 2 ] && [ "$#" -ne 3 ] && [ "$#" -ne 4 ] && [ "$#" -ne 6] ; then
     echo "Try 'launch-data_processing.sh -h' for more information."
     exit 0
 else
@@ -73,8 +73,15 @@ elif [ "$4" == "device" ]; then
     device="true"
 fi
 
+rviz="false"
+if [ "$5" == "--rviz" ]; then
+	if [ "$6" == "true" ]; then
+		rviz="true"
+	fi
+fi
+
 if [ $using == "false" ]; then
     roslaunch kuam_data_processing data_processing.launch using_aruco:="$using"
 else
-    roslaunch kuam_data_processing data_processing.launch using_aruco:="$using" using_gazebo_data:="$gazebo" using_logging_data:="$logging" using_device_data:="$device"
+    roslaunch kuam_data_processing data_processing.launch using_aruco:="$using" using_gazebo_data:="$gazebo" using_logging_data:="$logging" using_device_data:="$device" rviz:="$rviz"
 fi

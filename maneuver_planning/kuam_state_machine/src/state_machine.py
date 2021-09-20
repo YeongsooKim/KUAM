@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env python2
 import rospy
 import tf2_ros
 import tf2_geometry_msgs
@@ -59,6 +58,7 @@ class SMMode(Enum):
     MANUAL = 0
     OFFBOARD = 1
     EMERG = 2
+    ALTCTL = 3
 
 
 '''
@@ -73,7 +73,7 @@ State Machines
 '''
 # Create a SMACH state machine
 sm_mode_ = smach.StateMachine(outcomes=['finished'], output_keys=[])
-sm_offb_ = smach.StateMachine(outcomes=['emerg', 'manual'], input_keys=[])
+sm_offb_ = smach.StateMachine(outcomes=['emerg', 'manual', 'altctl'], input_keys=[])
 
 # Init state variable
 ego_geopose_ = GeoPose()
@@ -134,11 +134,11 @@ def ModeCB(msg):
     # mode update
     mode_transitions_ = msg.kuam
     cur_px4_mode_ = msg.px4
-    
+
     # Check state machine mode change
     cur_kuam_mode, cur_state = GetSMStatus()
     if (cur_kuam_mode == 'OFFBOARD') and (cur_state != 'None'):
-        if (mode_transitions_ == 'manual') or (mode_transitions_ == 'emerg'):
+        if (mode_transitions_ == 'manual') or (mode_transitions_ == 'emerg') or (mode_transitions_ == 'altctl'):
             offb_states_[OffbState[cur_state]].transition = mode_transitions_
             prev_mode_transitions_ = mode_transitions_
         else:
@@ -287,13 +287,16 @@ def TransRequest():
         is_request = True
     else:
         if cur_kuam_mode == "MANUAL":
-            if cur_px4_mode_ != "OFFBOARD" and cur_px4_mode_ != "EMERG":
+            if cur_px4_mode_ != "OFFBOARD" and cur_px4_mode_ != "EMERG" and cur_px4_mode_ != "ALTCTL":
+                is_request = True
+        elif cur_kuam_mode == "ALTCTL":
+            if cur_px4_mode_ != "OFFBOARD" and cur_px4_mode_ != "EMERG" and cur_px4_mode_ != "MANUAL":
                 is_request = True
         elif cur_kuam_mode == "OFFBOARD" and cur_state != "None":
-            if cur_px4_mode_ != "MANUAL" and cur_px4_mode_ != "EMERG":
+            if cur_px4_mode_ != "MANUAL" and cur_px4_mode_ != "ALTCTL" and cur_px4_mode_ != "EMERG":
                 is_request = True
         elif cur_kuam_mode == "EMERG":
-            if cur_px4_mode_ != "MANUAL" and cur_px4_mode_ != "OFFBOARD":
+            if cur_px4_mode_ != "MANUAL" and cur_px4_mode_ != "ALTCTL" and cur_px4_mode_ != "OFFBOARD":
                 is_request = True
 
     if is_request:
@@ -315,7 +318,7 @@ def ProcessCB(timer):
 Smach callback function
 '''
 # define state MANUAL
-@smach.cb_interface(input_keys=[], output_keys=[], outcomes=['offboard', 'finished'])
+@smach.cb_interface(input_keys=[], output_keys=[], outcomes=['altctl', 'offboard', 'finished'])
 def ManualCB(userdata):
     ''' 
     Start
@@ -329,7 +332,36 @@ def ManualCB(userdata):
     rate = rospy.Rate(freq_)
     while not rospy.is_shutdown():
         # Break condition
-        if (mode_transitions_ == 'offboard') or (mode_transitions_ == 'finished'):
+        if (mode_transitions_ == 'altctl') or (mode_transitions_ == 'offboard') or (mode_transitions_ == 'finished'):
+            break
+        else:
+            mode_transitions_ = prev_mode_transitions_
+
+        # Update request px4 mode
+        rate.sleep()
+
+    '''
+    Terminate
+    '''
+    prev_mode_transitions_ = mode_transitions_        
+    return mode_transitions_
+
+# define state ALTCTL
+@smach.cb_interface(input_keys=[], output_keys=[], outcomes=['manual', 'offboard', 'finished'])
+def AltitudeCB(userdata):
+    ''' 
+    Start
+    '''
+    global prev_mode_transitions_
+    global mode_transitions_
+
+    '''
+    Running
+    '''
+    rate = rospy.Rate(freq_)
+    while not rospy.is_shutdown():
+        # Break condition
+        if (mode_transitions_ == 'manual') or (mode_transitions_ == 'offboard') or (mode_transitions_ == 'finished'):
             break
         else:
             mode_transitions_ = prev_mode_transitions_
@@ -344,7 +376,7 @@ def ManualCB(userdata):
     return mode_transitions_
 
 # define state EMERG
-@smach.cb_interface(input_keys=[], output_keys=[], outcomes=['manual'])
+@smach.cb_interface(input_keys=[], output_keys=[], outcomes=['manual', 'altctl'])
 def EmergCB(userdata):
     '''
     Start
@@ -374,30 +406,27 @@ def EmergCB(userdata):
 if __name__ == '__main__':
     rospy.init_node('state_machine', disable_signals=False)
     	
-    nd_name = rospy.get_name()
-    ns_name = rospy.get_namespace()
-
     offb_states_[OffbState.LANDING].tfBuffer = tf2_ros.Buffer()
     offb_states_[OffbState.LANDING].listener = tf2_ros.TransformListener(offb_states_[OffbState.LANDING].tfBuffer)
 
     '''
     Initialize Parameters
     '''
-    data_ns = rospy.get_param("/data_ns")
-    freq_ = rospy.get_param(nd_name + "/process_freq")
-    takeoff_alt_m = rospy.get_param(nd_name + "/takeoff_alt_m")
-    reached_dist_th_m = rospy.get_param(nd_name + "/reached_dist_th_m")
-    guidance_dist_th_m = rospy.get_param(nd_name + "/guidance_dist_th_m")
-    landing_threshold_m = rospy.get_param(nd_name + "/landing_threshold_m")
-    landing_standby_alt_m = rospy.get_param(nd_name + "/landing_standby_alt_m")
-    standby_dist_th_m = rospy.get_param(nd_name + "/standby_dist_th_m")
-    maf_buf_size = rospy.get_param(nd_name + "/maf_buf_size")
-    battery_th_ = rospy.get_param(nd_name + "/battery_th_per")
-    alt_offset_m_ = rospy.get_param(nd_name + "/alt_offset_m")
-    using_aruco = rospy.get_param(nd_name + "/using_aruco")
-    big_target_mapping = rospy.get_param(nd_name + "/big_target_mapping")
-    medium_target_mapping = rospy.get_param(nd_name + "/medium_target_mapping")
-    small_target_mapping = rospy.get_param(nd_name + "/small_target_mapping")
+    data_ns = rospy.get_param("~data_ns")
+    freq_ = rospy.get_param("~process_freq")
+    takeoff_alt_m = rospy.get_param("~takeoff_alt_m")
+    reached_dist_th_m = rospy.get_param("~reached_dist_th_m")
+    guidance_dist_th_m = rospy.get_param("~guidance_dist_th_m")
+    landing_threshold_m = rospy.get_param("~landing_threshold_m")
+    landing_standby_alt_m = rospy.get_param("~landing_standby_alt_m")
+    standby_dist_th_m = rospy.get_param("~standby_dist_th_m")
+    maf_buf_size = rospy.get_param("~maf_buf_size")
+    battery_th_ = rospy.get_param("~battery_th_per")
+    alt_offset_m_ = rospy.get_param("~alt_offset_m")
+    using_aruco = rospy.get_param("~using_aruco")
+    big_target_mapping = rospy.get_param("~big_target_mapping")
+    medium_target_mapping = rospy.get_param("~medium_target_mapping")
+    small_target_mapping = rospy.get_param("~small_target_mapping")
 
     for state in offb_states_.values():
         try:
@@ -423,8 +452,8 @@ if __name__ == '__main__':
     Initialize ROS
     '''
     # Init subcriber
-    rospy.Subscriber(ns_name + "mission_manager/task", Task, TaskCB)
-    rospy.Subscriber(ns_name + "mission_manager/mode", Mode, ModeCB)
+    rospy.Subscriber("mission_manager/task", Task, TaskCB)
+    rospy.Subscriber("mission_manager/mode", Mode, ModeCB)
     rospy.Subscriber("/mavros/global_position/local", Odometry, EgoLocalPoseCB)
     rospy.Subscriber("/mavros/global_position/global", NavSatFix, EgoGlobalPoseCB)
     rospy.Subscriber("/mavros/local_position/velocity_body", TwistStamped, EgoVelCB)
@@ -433,8 +462,8 @@ if __name__ == '__main__':
     rospy.Subscriber("/mavros/battery", BatteryState, BatteryCB)
 
     # Init publisher
-    setpoint_pub = rospy.Publisher(nd_name + '/setpoint', Setpoint, queue_size=10)
-    trans_req_pub = rospy.Publisher(nd_name + '/trans_request', TransReq, queue_size=10)
+    setpoint_pub = rospy.Publisher('~setpoint', Setpoint, queue_size=10)
+    trans_req_pub = rospy.Publisher('~trans_request', TransReq, queue_size=10)
 
     # Init timer
     state_machine_timer = rospy.Timer(rospy.Duration(1/freq_), ProcessCB)
@@ -447,44 +476,57 @@ if __name__ == '__main__':
         
         # Add states to the container
         smach.StateMachine.add('MANUAL', CBState(ManualCB),
-                                transitions={'offboard':'OFFBOARD',
+                                transitions={'altctl':'ALTCTL',
+                                             'offboard':'OFFBOARD',
+                                             'finished':'finished'})
+        smach.StateMachine.add('ALTCTL', CBState(AltitudeCB),
+                                transitions={'manual':'MANUAL',
+                                             'offboard':'OFFBOARD',
                                              'finished':'finished'})
         smach.StateMachine.add('EMERG', CBState(EmergCB),
-                                transitions={'manual':'MANUAL'})
+                                transitions={'manual':'MANUAL',
+                                             'altctl':'ALTCTL'})
 
         # Open the container
         with sm_offb_:
 
             # Add states to the container
-            smach.StateMachine.add('STANDBY', offb_states_[OffbState.STANDBY], 
+            smach.StateMachine.add('STANDBY', offb_states_[OffbState.STANDBY],
                                     transitions={'arm':'ARM',
                                                 'emerg':'emerg',
+                                                'altctl':'altctl',
                                                 'manual':'manual'})
-            smach.StateMachine.add('ARM', offb_states_[OffbState.ARM], 
+            smach.StateMachine.add('ARM', offb_states_[OffbState.ARM],
                                     transitions={'disarm':'STANDBY',
                                                 'takeoff':'TAKEOFF',
                                                 'emerg':'emerg',
+                                                'altctl':'altctl',
                                                 'manual':'manual'})
             smach.StateMachine.add('TAKEOFF', offb_states_[OffbState.TAKEOFF], 
                                     transitions={'done':'HOVERING',
                                                 'emerg':'emerg',
+                                                'altctl':'altctl',
                                                 'manual':'manual'})
             smach.StateMachine.add('HOVERING', offb_states_[OffbState.HOVERING], 
                                     transitions={'flight':'FLIGHT',
                                                 'landing':'LANDING',
                                                 'emerg':'emerg',
+                                                'altctl':'altctl',
                                                 'manual':'manual'})
             smach.StateMachine.add('FLIGHT', offb_states_[OffbState.FLIGHT], 
                                     transitions={'done':'HOVERING',
                                                 'emerg':'emerg',
+                                                'altctl':'altctl',
                                                 'manual':'manual'})
             smach.StateMachine.add('LANDING', offb_states_[OffbState.LANDING], 
                                     transitions={'disarm':'STANDBY',
                                                 'emerg':'emerg',
+                                                'altctl':'altctl',
                                                 'manual':'manual'})
 
         smach.StateMachine.add('OFFBOARD', sm_offb_,
                                 transitions={'emerg':'EMERG',
+                                             'altctl':'ALTCTL',
                                              'manual':'MANUAL'})
 
     # Run state machine introspection server for smach viewer

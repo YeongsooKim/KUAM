@@ -1,9 +1,8 @@
-data_ns: ''
-maneuver_ns: ''
-visual_ns: ''
-
 state_machine:
   process_freq: 20.0
+
+  # namespace
+  data_ns: ''
 
   # takeoff
   takeoff_alt_m: 3.0
@@ -19,10 +18,14 @@ state_machine:
   medium_target_mapping: 0.2
   small_target_mapping: 0.1257
 
-
-
   # flight
   alt_offset_m: 23.156
 
   # emerg
   battery_th_per: 0.10
+
+setpoint_tf:
+  process_freq: 50.0
+
+  # namespace
+  data_ns: ''

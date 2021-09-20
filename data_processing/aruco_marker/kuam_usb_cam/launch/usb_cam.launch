@@ -1,9 +1,4 @@
 <launch>
-    <arg name="stand_alone" default="true" />
-    <group if="$(arg stand_alone)">
-      <rosparam command="load" file="$(find kuam_usb_cam)/config/param.yaml" />
-    </group>
-
 <!-- oCam-5CCRO-U-M info -->
 <!-- ioctl: VIDIOC_ENUM_FMT -->
 	<!-- Index       : 0 -->
@@ -70,11 +65,15 @@
     node_.param("camera_frame_id", img_.header.frame_id, std::string("head_camera"));
     node_.param("camera_name", camera_name_, std::string("head_camera"));
     node_.param("camera_info_url", camera_info_url_, std::string("")); -->
-  <group ns="usb_cam">
+  <arg name="camera_name" default="usb_cam" />
+
+  <group ns="$(arg camera_name)">
     <node pkg="image_proc" type="image_proc" name="image_proc" />
+    <rosparam command="load" file="$(find kuam_usb_cam)/config/param.yaml" />
   </group>
 
-	<node pkg="kuam_usb_cam" type="kuam_usb_cam_node" name="usb_cam" output="screen">
+	<node pkg="kuam_usb_cam" type="kuam_usb_cam_node" name="$(arg camera_name)" output="screen">
     <param name="camera_info_url" value="file://$(find kuam_usb_cam)/config/usb_cam.yaml" />
+    <param name="camera_name" value="$(arg camera_name)" />
   </node>
 </launch>

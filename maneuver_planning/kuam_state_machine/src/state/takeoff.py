@@ -13,7 +13,7 @@ class Takeoff(smach.State, state.Base):
     def __init__(self, ego_geopose, ego_pose, ego_vel, setpoint, setpoints):
         smach.State.__init__(self, input_keys=[], 
                                 output_keys=[], 
-                                outcomes=['done', 'emerg', 'manual'])
+                                outcomes=['done', 'emerg', 'manual', 'altctl'])
         state.Base.__init__(self)
         
         # Param
@@ -44,7 +44,8 @@ class Takeoff(smach.State, state.Base):
         rate = rospy.Rate(self.freq)
         while not rospy.is_shutdown():
             if self.transition != 'none':
-                if (self.transition == 'done') or (self.transition == 'emerg') or (self.transition == 'manual'):        
+                if (self.transition == 'done') or (self.transition == 'emerg') or \
+                    (self.transition == 'manual') or (self.transition == 'altctl'):
                     break
                 else:
                     self.transition = 'none'

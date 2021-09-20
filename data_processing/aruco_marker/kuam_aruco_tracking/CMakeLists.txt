@@ -67,6 +67,14 @@ target_link_libraries(aruco_tracking_node
  ${OpenCV_LIBRARIES}
 )
 
+## aruco_visual_node
+add_executable(aruco_visual_node src/hmi/aruco_visual.cpp src/utils.cpp)
+target_link_libraries(aruco_visual_node ${catkin_LIBRARIES})
+
+## kuam_tf_broadcaster_node
+add_executable(aruco_tf_node src/hmi/aruco_tf.cpp src/hmi/aruco_tf_node.cpp src/utils.cpp)
+target_link_libraries(aruco_tf_node ${catkin_LIBRARIES})
+
 ## Install project namespaced headers
 install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}

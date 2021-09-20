@@ -24,7 +24,7 @@
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <kuam_msgs/Setpoint.h>
-#include "kuam_mission_manager/utils.h"
+#include "kuam_state_machine/utils.h"
 
 using namespace std; 
 
@@ -32,6 +32,7 @@ namespace kuam{
 class TfBroadcaster{
 private:
 	ros::NodeHandle m_nh;
+	ros::NodeHandle m_p_nh;
     Utils m_utils;
 
 public:
@@ -40,43 +41,18 @@ public:
 
 private:
     // Subscriber
-    ros::Subscriber m_ego_global_pos_sub;
-    ros::Subscriber m_local_pose_sub;
-    ros::Subscriber m_home_position_sub;
-    ros::Subscriber m_aruco_sub;
     ros::Subscriber m_setpoint_sub;
 
-    // Publisher
-    ros::Publisher m_home_position_pub;
-
     // Timer
-    ros::Timer m_home_position_timer;
     ros::Timer m_tf_broadcaster_timer;
 
     // Param
-    string m_data_ns_param;
-    string m_camera_frame_id_param;
-    bool m_is_finding_home_param;
-    bool m_is_exp_param;
-    bool m_is_real_param;
-    bool m_is_gazebo_param;
     float m_process_freq_param;
-    float m_exp_camera_height_m_param;
-    float m_extrinsic_imu_to_camera_x_param;
-    float m_extrinsic_imu_to_camera_y_param;
-    float m_extrinsic_imu_to_camera_z_param;
 
     // Flag
-    bool m_base_cb;
-    bool m_marker_cb;
     bool m_setpoint_cb;
 
-    nav_msgs::Odometry m_local_pose;
-    geometry_msgs::TransformStamped m_base_tf_stamped;
-    vector<geometry_msgs::TransformStamped> m_marker_tf_stampeds;
     geometry_msgs::TransformStamped m_setpoint_tf_stamped;
-    geographic_msgs::GeoPoint m_home_position;
-    bool m_is_home_set;
 
     tf2_ros::TransformBroadcaster m_tf_broadcaster;
 	vector<geometry_msgs::TransformStamped> m_transforms;
@@ -85,15 +61,9 @@ private:
     void InitFlag();
     bool GetParam();
     void InitROS();
-    void InitStaticTf();
 
-    void HomePositionTimerCallback(const ros::TimerEvent& event);
     void ProcessTimerCallback(const ros::TimerEvent& event);
 
-    void HomePositionCallback(const mavros_msgs::HomePosition::ConstPtr &home_ptr);
-    inline void EgoLocalCallback(const nav_msgs::Odometry::ConstPtr &pose_ptr) { m_local_pose = *pose_ptr; }
-    void EgoGlobalCallback(const sensor_msgs::NavSatFix::ConstPtr &pos_ptr);
-    void MarkerCallback(const tf2_msgs::TFMessage::ConstPtr &marker_ptr);
     void SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_ptr);
     
     void AddTransform(const string &frame_id, const string &child_id, const geometry_msgs::Transform tf, vector<geometry_msgs::TransformStamped>& vector);

@@ -87,6 +87,9 @@ void Playload::ProcessTimerCallback(const ros::TimerEvent& event)
     if (m_sm_kuam_mode == "MANUAL"){
         ManualRequest();
     }
+    else if (m_sm_kuam_mode == "ALTCTL"){
+        AltitudeRequest();
+    }
     else if (m_sm_kuam_mode == "OFFBOARD"){
         if (IsOffboard()){
             switch ((int)String2State(m_cur_sm_state)){
@@ -128,6 +131,22 @@ void Playload::ManualRequest()
     }
 }
 
+void Playload::AltitudeRequest()
+{
+    mavros_msgs::SetMode manual_set_mode;
+    manual_set_mode.request.custom_mode = "ALTCTL";
+
+    if( m_px4_mode != "ALTCTL" && 
+        (ros::Time::now() - m_last_request_time > ros::Duration(5.0))){
+        if(m_set_mode_serv_client.call(manual_set_mode) &&
+            manual_set_mode.response.mode_sent){
+            // m_payload_cmd_state = Enum2String(Mode::Manual);
+            ROS_INFO("IN Altitude enabled");
+        }
+        m_last_request_time = ros::Time::now();
+    }
+}
+
 void Playload::EmergRequest()
 {
     mavros_msgs::SetMode emerg_mode;
@@ -138,7 +157,7 @@ void Playload::EmergRequest()
         if(m_set_mode_serv_client.call(emerg_mode) &&
             emerg_mode.response.mode_sent){
 
-            ROS_INFO("Emergy enabled");
+            ROS_ERROR("Emergy enabled");
         }
         m_last_request_time = ros::Time::now();
     }
@@ -275,6 +294,7 @@ void Playload::PayloadCmdPub()
 {
     uav_msgs::PayloadCmd payload_cmd_msg;
     payload_cmd_msg.mode = m_mavros_status.mode;
+    
     payload_cmd_msg.state = m_payload_cmd_state;
     m_payload_cmd_pub.publish(payload_cmd_msg);
 }
