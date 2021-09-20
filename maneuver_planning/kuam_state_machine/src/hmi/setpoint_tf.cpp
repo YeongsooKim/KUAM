@@ -1,4 +1,4 @@
-#include "kuam_aruco_tracking/tf_broadcaster.h"
+#include "kuam_state_machine/setpoint_tf.h"
 #include <math.h>
 #include <Eigen/Dense>
 
@@ -22,7 +22,7 @@ TfBroadcaster::~TfBroadcaster()
 
 void TfBroadcaster::InitFlag()
 {
-    m_marker_cb = false;
+    m_setpoint_cb = false;
 }
 
 bool TfBroadcaster::GetParam()
@@ -31,7 +31,7 @@ bool TfBroadcaster::GetParam()
 
     m_p_nh.getParam("process_freq", m_process_freq_param);
 
-    if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[tf_broadcaster] m_process_freq_param is NAN"); return false; }
+    if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[setpoint_tf] m_process_freq_param is NAN"); return false; }
 
     return true;
 }
@@ -43,8 +43,9 @@ void TfBroadcaster::InitROS()
     string ns_name = ros::this_node::getNamespace();
     
     // Initialize subscriber
-    m_aruco_sub = m_nh.subscribe<tf2_msgs::TFMessage>(ns_name + "/aruco_tracking/tf_list", 10, boost::bind(&TfBroadcaster::MarkerCallback, this, _1));
-
+    m_setpoint_sub = 
+        m_nh.subscribe<kuam_msgs::Setpoint>("state_machine/setpoint", 10, boost::bind(&TfBroadcaster::SetpointCallback, this, _1));
+    
     // Initialize timer
     m_tf_broadcaster_timer = m_nh.createTimer(ros::Duration(1.0/m_process_freq_param), &TfBroadcaster::ProcessTimerCallback, this);
 }
@@ -52,24 +53,30 @@ void TfBroadcaster::InitROS()
 void TfBroadcaster::ProcessTimerCallback(const ros::TimerEvent& event)
 {
 	vector<geometry_msgs::TransformStamped> transform_vector;
-    if (m_marker_cb) { 
-        for (auto tf : m_marker_tf_stampeds){
-            AddTransform(tf.header.frame_id, tf.child_frame_id, tf.transform, transform_vector);  
-        }
-        m_marker_cb = false;
-    }
+    if (m_setpoint_cb) { AddTransform(m_setpoint_tf_stamped.header.frame_id, m_setpoint_tf_stamped.child_frame_id, m_setpoint_tf_stamped.transform, transform_vector); m_setpoint_cb = false; }
 	
     m_tf_broadcaster.sendTransform(transform_vector);
 }
 
-void TfBroadcaster::MarkerCallback(const tf2_msgs::TFMessage::ConstPtr &marker_ptr)
+void TfBroadcaster::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_ptr)
 {
-    m_marker_tf_stampeds.clear();
-    for (auto transform : marker_ptr->transforms){
-        m_marker_cb = true;
-        geometry_msgs::TransformStamped tf;
-        m_marker_tf_stampeds.push_back(transform);
+    if (setpoint_ptr->is_global){
+        return;
     }
+
+    m_setpoint_cb = true;
+
+    m_setpoint_tf_stamped.header.stamp = ros::Time::now();
+    m_setpoint_tf_stamped.header.frame_id = setpoint_ptr->header.frame_id;
+    m_setpoint_tf_stamped.child_frame_id = "landing_point";
+
+    m_setpoint_tf_stamped.transform.translation.x = setpoint_ptr->pose.position.x;
+    m_setpoint_tf_stamped.transform.translation.y = setpoint_ptr->pose.position.y;
+    m_setpoint_tf_stamped.transform.translation.z = setpoint_ptr->pose.position.z;
+    m_setpoint_tf_stamped.transform.rotation.x = setpoint_ptr->pose.orientation.x;
+    m_setpoint_tf_stamped.transform.rotation.y = setpoint_ptr->pose.orientation.y;
+    m_setpoint_tf_stamped.transform.rotation.z = setpoint_ptr->pose.orientation.z;
+    m_setpoint_tf_stamped.transform.rotation.w = setpoint_ptr->pose.orientation.w;
 }
 
 void TfBroadcaster::AddTransform(const string &frame_id, const string &child_id, const geometry_msgs::Transform tf, vector<geometry_msgs::TransformStamped>& vector)

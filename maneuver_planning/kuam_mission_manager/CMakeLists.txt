@@ -15,10 +15,6 @@ find_package(catkin REQUIRED COMPONENTS
   kuam_msgs
   mavros_msgs
   nav_msgs
-  tf2
-  tf2_ros
-  tf2_sensor_msgs
-  tf2_geometry_msgs
 )
 
 ###################################
@@ -47,14 +43,9 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-## kuam_mission_manager_node
-add_executable(kuam_mission_manager_node src/mission_manager.cpp src/mission_manager_node.cpp src/utils.cpp)
-target_link_libraries(kuam_mission_manager_node ${catkin_LIBRARIES})
-
-## kuam_tf_broadcaster_node
-add_executable(kuam_tf_broadcaster_node src/tf_broadcaster.cpp src/tf_broadcaster_node.cpp src/utils.cpp)
-target_link_libraries(kuam_tf_broadcaster_node ${catkin_LIBRARIES})
-
+## mission_manager_node
+add_executable(mission_manager_node src/mission_manager.cpp src/mission_manager_node.cpp src/utils.cpp)
+target_link_libraries(mission_manager_node ${catkin_LIBRARIES})
 
 ## Install project namespaced headers
 install(DIRECTORY include/${PROJECT_NAME}/

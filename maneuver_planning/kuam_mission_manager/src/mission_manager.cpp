@@ -14,7 +14,9 @@ namespace kuam
 using namespace mission;
 
 Maneuver::Maneuver() :
+    m_p_nh("~"),
     m_process_freq_param(NAN),
+    m_last_request_time(ros::Time::now()),
     m_cur_task(NO_TASK),
     m_kuam_mode("none"),
     m_px4_mode("none"),
@@ -43,8 +45,8 @@ bool Maneuver::GetParam()
 {
     string nd_name = ros::this_node::getName();
 
-    m_nh.getParam(nd_name + "/process_freq", m_process_freq_param);
-    m_nh.getParam("/data_ns", m_data_ns_param);
+    m_p_nh.getParam("process_freq", m_process_freq_param);
+    m_p_nh.getParam("data_ns", m_data_ns_param);
 
     if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("[mission_manager] m_data_ns_param is missing"); return false; }
     else if (__isnan(m_process_freq_param)) { ROS_ERROR_STREAM("[mission_manager] m_process_freq_param is NAN"); return false; }
@@ -53,31 +55,20 @@ bool Maneuver::GetParam()
 
 bool Maneuver::InitROS()
 {
-    // package, node, topic name
-    string nd_name = ros::this_node::getName();
-    string ns_name = ros::this_node::getNamespace();
-
     // Initialize subscriber
     m_home_position_sub = 
         m_nh.subscribe<mavros_msgs::HomePosition>("/mavros/home_position/home", 10, boost::bind(&Maneuver::HomePositionCallback, this, _1));
-
-    ros::Rate rate(10);
-    while (ros::ok() && !m_is_home_set){
-        ros::spinOnce();
-        rate.sleep();
-    }
-
     m_command_sub = 
         m_nh.subscribe<uav_msgs::Chat>(m_data_ns_param + "/chat/command", 10, boost::bind(&Maneuver::ChatterCallback, this, _1));
     m_kuam_waypoints_sub = 
         m_nh.subscribe<kuam_msgs::Waypoints>(m_data_ns_param + "/csv_parser/waypoints", 10, boost::bind(&Maneuver::WaypointsCallback, this, _1));
     m_complete_sub = 
-        m_nh.subscribe<uav_msgs::PayloadCmd>(ns_name + "/payload_cmd/payload_cmd", 10, boost::bind(&Maneuver::PlayloadCmdCallback, this, _1));
+        m_nh.subscribe<uav_msgs::PayloadCmd>("payload_cmd/payload_cmd", 10, boost::bind(&Maneuver::PlayloadCmdCallback, this, _1));
 
     // // Initialize publisher
-    m_tasklist_pub = m_nh.advertise<kuam_msgs::TaskList>(nd_name + "/tasklist", 10);
-    m_task_pub = m_nh.advertise<kuam_msgs::Task>(nd_name + "/task", 10);
-    m_mode_pub = m_nh.advertise<kuam_msgs::Mode>(nd_name + "/mode", 10);
+    m_tasklist_pub = m_p_nh.advertise<kuam_msgs::TaskList>("tasklist", 10);
+    m_task_pub = m_p_nh.advertise<kuam_msgs::Task>("task", 10);
+    m_mode_pub = m_p_nh.advertise<kuam_msgs::Mode>("mode", 10);
 
     // // Initialize timer
     m_mission_timer = m_nh.createTimer(ros::Duration(1.0/m_process_freq_param), &Maneuver::ProcessTimerCallback, this);
@@ -117,7 +108,7 @@ void Maneuver::ChatterCallback(const uav_msgs::Chat::ConstPtr &chat_ptr)
 
 void Maneuver::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr)
 {
-    if (!m_is_init_auto_mission){
+    if (!m_is_init_auto_mission && m_is_home_set){
         m_is_init_auto_mission = true;
         
         // Get missions
@@ -195,6 +186,12 @@ void Maneuver::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr)
         }
 
         m_mssn_wps_map = mssn_wps;
+    }
+    else if (!m_is_home_set && (ros::Time::now() - m_last_request_time > ros::Duration(3.0))){
+        ROS_WARN_STREAM("[mission_manager] Home position requesting ...");
+
+        m_last_request_time = ros::Time::now();
+        return;
     }
 }
 

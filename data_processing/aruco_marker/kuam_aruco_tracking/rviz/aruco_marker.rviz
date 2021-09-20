@@ -6,6 +6,8 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /Image1
+        - /MarkerArray1
       Splitter Ratio: 0.5
     Tree Height: 183
   - Class: rviz/Selection
@@ -54,7 +56,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /aruco_tracking/output_video
+      Image Topic: /kuam/data/aruco_tracking/output_video
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -66,29 +68,31 @@ Visualization Manager:
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /aruco_visual/aruco_markerarray
+      Marker Topic: /kuam/data/aruco_visual/aruco_markerarray
       Name: MarkerArray
       Namespaces:
-        target0/current_point: true
-        target0/txt: true
-        target1/current_point: true
-        target1/txt: true
-        target12/current_point: true
-        target12/txt: true
-        target2/current_point: true
-        target2/txt: true
-        target3/current_point: true
-        target3/txt: true
-        target4/current_point: true
-        target4/txt: true
-        target5/current_point: true
-        target5/txt: true
-        target6/current_point: true
-        target6/txt: true
-        target7/current_point: true
-        target7/txt: true
-        target8/current_point: true
-        target8/txt: true
+        /current_point/target0: true
+        /current_point/target1: true
+        /current_point/target10: true
+        /current_point/target2: true
+        /current_point/target3: true
+        /current_point/target4: true
+        /current_point/target5: true
+        /current_point/target6: true
+        /current_point/target7: true
+        /current_point/target8: true
+        /current_point/target9: true
+        /txt/target0: true
+        /txt/target1: true
+        /txt/target10: true
+        /txt/target2: true
+        /txt/target3: true
+        /txt/target4: true
+        /txt/target5: true
+        /txt/target6: true
+        /txt/target7: true
+        /txt/target8: true
+        /txt/target9: true
       Queue Size: 100
       Value: true
     - Class: rviz/TF
@@ -102,7 +106,9 @@ Visualization Manager:
           Value: true
         marker1:
           Value: true
-        marker12:
+        marker10:
+          Value: true
+        marker11:
           Value: true
         marker2:
           Value: true
@@ -118,6 +124,8 @@ Visualization Manager:
           Value: true
         marker8:
           Value: true
+        marker9:
+          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
@@ -129,7 +137,9 @@ Visualization Manager:
             {}
           marker1:
             {}
-          marker12:
+          marker10:
+            {}
+          marker11:
             {}
           marker2:
             {}
@@ -144,6 +154,8 @@ Visualization Manager:
           marker7:
             {}
           marker8:
+            {}
+          marker9:
             {}
       Update Interval: 0
       Value: true

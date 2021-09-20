@@ -72,8 +72,8 @@ add_executable(aruco_visual_node src/hmi/aruco_visual.cpp src/utils.cpp)
 target_link_libraries(aruco_visual_node ${catkin_LIBRARIES})
 
 ## kuam_tf_broadcaster_node
-add_executable(tf_broadcaster_node src/hmi/tf_broadcaster.cpp src/hmi/tf_broadcaster_node.cpp src/utils.cpp)
-target_link_libraries(tf_broadcaster_node ${catkin_LIBRARIES})
+add_executable(aruco_tf_node src/hmi/aruco_tf.cpp src/hmi/aruco_tf_node.cpp src/utils.cpp)
+target_link_libraries(aruco_tf_node ${catkin_LIBRARIES})
 
 ## Install project namespaced headers
 install(DIRECTORY include/${PROJECT_NAME}/

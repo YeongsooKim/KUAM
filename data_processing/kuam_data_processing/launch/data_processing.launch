@@ -2,22 +2,22 @@
     <!-- - kuam_aruco_tracking - -->
     <arg name="using_aruco" default="true" />
 
-        <!-- Select only one data type -->
+    <!-- Select only one data type -->
     <arg name="using_gazebo_data" default="true" />
     <arg name="using_logging_data" default="false" />
     <arg name="using_device_data" default="false" />
 
-    <arg name="usb_cam_logging_topic" default="/usb_cam/image_rect_color" if="$(arg using_logging_data)"/>
-    <arg name="usb_cam_logging_topic" default="/usb_cam/image_rect_color" unless="$(arg using_logging_data)"/>
+    <!-- rviz -->
+    <arg name="rviz" default="false" />
 
     <group ns="/kuam/data">
         <include file="$(find kuam_csv_parser)/launch/csv_parser.launch" />
 
-        <include file="$(find kuam_aruco_tracking)/launch/aruco_tracking_test.launch" if="$(arg using_aruco)">
+        <include file="$(find kuam_aruco_tracking)/launch/aruco_tracking.launch" if="$(arg using_aruco)">
             <arg name="using_gazebo_data" value="$(arg using_gazebo_data)" />
             <arg name="using_logging_data" value="$(arg using_logging_data)" />
             <arg name="using_device_data" value="$(arg using_device_data)" />
-            <arg name="usb_cam_logging_topic" value="$(arg usb_cam_logging_topic)" />
+            <arg name="rviz" value="$(arg rviz)" />
         </include>
     </group>
 </launch>

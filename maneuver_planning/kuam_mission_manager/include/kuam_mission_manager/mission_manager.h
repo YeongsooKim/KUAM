@@ -32,6 +32,7 @@ class Maneuver
 private:
     // Node Handler
 	ros::NodeHandle m_nh;
+	ros::NodeHandle m_p_nh;
     TaskList m_tasklist;
     Utils m_utils;
     
@@ -68,9 +69,12 @@ private:
     string m_kuam_mode;
     string m_px4_mode;
     string m_cmd_mode;
+
     mssn_geoposes_map m_mssn_wps_map;
     uav_msgs::PayloadCmd m_payload_cmd;
     geographic_msgs::GeoPoint m_home_position;
+    ros::Time m_last_request_time;
+
 
 private: // Function
     bool GetParam();

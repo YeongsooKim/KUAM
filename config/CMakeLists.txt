@@ -33,4 +33,4 @@ project(config)
   # ${catkin_INCLUDE_DIRS}
 # )
 
-## kuam_mission_manager_node
+## mission_manager_node

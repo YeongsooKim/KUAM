@@ -406,30 +406,27 @@ def EmergCB(userdata):
 if __name__ == '__main__':
     rospy.init_node('state_machine', disable_signals=False)
     	
-    nd_name = rospy.get_name()
-    ns_name = rospy.get_namespace()
-
     offb_states_[OffbState.LANDING].tfBuffer = tf2_ros.Buffer()
     offb_states_[OffbState.LANDING].listener = tf2_ros.TransformListener(offb_states_[OffbState.LANDING].tfBuffer)
 
     '''
     Initialize Parameters
     '''
-    data_ns = rospy.get_param("/data_ns")
-    freq_ = rospy.get_param(nd_name + "/process_freq")
-    takeoff_alt_m = rospy.get_param(nd_name + "/takeoff_alt_m")
-    reached_dist_th_m = rospy.get_param(nd_name + "/reached_dist_th_m")
-    guidance_dist_th_m = rospy.get_param(nd_name + "/guidance_dist_th_m")
-    landing_threshold_m = rospy.get_param(nd_name + "/landing_threshold_m")
-    landing_standby_alt_m = rospy.get_param(nd_name + "/landing_standby_alt_m")
-    standby_dist_th_m = rospy.get_param(nd_name + "/standby_dist_th_m")
-    maf_buf_size = rospy.get_param(nd_name + "/maf_buf_size")
-    battery_th_ = rospy.get_param(nd_name + "/battery_th_per")
-    alt_offset_m_ = rospy.get_param(nd_name + "/alt_offset_m")
-    using_aruco = rospy.get_param(nd_name + "/using_aruco")
-    big_target_mapping = rospy.get_param(nd_name + "/big_target_mapping")
-    medium_target_mapping = rospy.get_param(nd_name + "/medium_target_mapping")
-    small_target_mapping = rospy.get_param(nd_name + "/small_target_mapping")
+    data_ns = rospy.get_param("~data_ns")
+    freq_ = rospy.get_param("~process_freq")
+    takeoff_alt_m = rospy.get_param("~takeoff_alt_m")
+    reached_dist_th_m = rospy.get_param("~reached_dist_th_m")
+    guidance_dist_th_m = rospy.get_param("~guidance_dist_th_m")
+    landing_threshold_m = rospy.get_param("~landing_threshold_m")
+    landing_standby_alt_m = rospy.get_param("~landing_standby_alt_m")
+    standby_dist_th_m = rospy.get_param("~standby_dist_th_m")
+    maf_buf_size = rospy.get_param("~maf_buf_size")
+    battery_th_ = rospy.get_param("~battery_th_per")
+    alt_offset_m_ = rospy.get_param("~alt_offset_m")
+    using_aruco = rospy.get_param("~using_aruco")
+    big_target_mapping = rospy.get_param("~big_target_mapping")
+    medium_target_mapping = rospy.get_param("~medium_target_mapping")
+    small_target_mapping = rospy.get_param("~small_target_mapping")
 
     for state in offb_states_.values():
         try:
@@ -455,8 +452,8 @@ if __name__ == '__main__':
     Initialize ROS
     '''
     # Init subcriber
-    rospy.Subscriber(ns_name + "mission_manager/task", Task, TaskCB)
-    rospy.Subscriber(ns_name + "mission_manager/mode", Mode, ModeCB)
+    rospy.Subscriber("mission_manager/task", Task, TaskCB)
+    rospy.Subscriber("mission_manager/mode", Mode, ModeCB)
     rospy.Subscriber("/mavros/global_position/local", Odometry, EgoLocalPoseCB)
     rospy.Subscriber("/mavros/global_position/global", NavSatFix, EgoGlobalPoseCB)
     rospy.Subscriber("/mavros/local_position/velocity_body", TwistStamped, EgoVelCB)
@@ -465,8 +462,8 @@ if __name__ == '__main__':
     rospy.Subscriber("/mavros/battery", BatteryState, BatteryCB)
 
     # Init publisher
-    setpoint_pub = rospy.Publisher(nd_name + '/setpoint', Setpoint, queue_size=10)
-    trans_req_pub = rospy.Publisher(nd_name + '/trans_request', TransReq, queue_size=10)
+    setpoint_pub = rospy.Publisher('~setpoint', Setpoint, queue_size=10)
+    trans_req_pub = rospy.Publisher('~trans_request', TransReq, queue_size=10)
 
     # Init timer
     state_machine_timer = rospy.Timer(rospy.Duration(1/freq_), ProcessCB)

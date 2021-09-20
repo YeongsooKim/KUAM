@@ -1,6 +1,6 @@
-data_ns: ''
-maneuver_ns: ''
-visual_ns: ''
+mission_manager:
+  process_freq: 30.0
+  data_ns: '/kuam/data'
 
 tf_broadcaster:
   process_freq: 50.0
@@ -13,9 +13,3 @@ tf_broadcaster:
   extrinsic_imu_to_camera_x: 0.0
   extrinsic_imu_to_camera_y: 0.0
   extrinsic_imu_to_camera_z: 0.0
-  
-mission_manager:
-  process_freq: 30.0
-
-usb_cam:
-  camera_frame_id: 'camera_link'

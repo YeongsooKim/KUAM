@@ -1,15 +1,18 @@
 <launch>
-    <arg name="stand_alone" default="true" />
-	<group if="$(arg stand_alone)">
-        <rosparam command="load" file="$(find kuam_state_machine)/config/param.yaml" />
-	</group>
+	<rosparam command="load" file="$(find kuam_state_machine)/config/param.yaml" />
 	
-	<arg name="output" default="screen"/>
-
 	<!-- Do Not Input 0.0 -->
 	<arg name="using_aruco" default="False" />
 
-	<node pkg="kuam_state_machine" type="state_machine.py" name="state_machine" output="$(arg output)">
+	<arg name="rviz" default="false" />
+
+	<node pkg="kuam_state_machine" type="state_machine.py" name="state_machine" output="screen">
 		<param name="using_aruco" value="$(arg using_aruco)" />
 	</node>
+
+	<node pkg="kuam_state_machine" type="setpoint_tf_node" name="setpoint_tf" output="screen" />
+
+    <group if="$(arg rviz)">
+		<node pkg="kuam_state_machine" type="setpoint_visual_node" name="setpoint_visual" output="screen" />
+	</group>
 </launch>

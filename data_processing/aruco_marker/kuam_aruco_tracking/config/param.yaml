@@ -22,7 +22,7 @@ aruco_tracking:
   # frame id
   camera_frame_id: 'camera_link'
 
-tf_broadcaster:
+aruco_tf:
   process_freq: 50.0
 
 aruco_visual:

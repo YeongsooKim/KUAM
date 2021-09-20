@@ -1,10 +1,5 @@
 <launch>
-    <arg name="stand_alone" default="true" />
-	<group if="$(arg stand_alone)">
-        <rosparam command="load" file="$(find kuam_mission_manager)/config/param.yaml" />
-	</group>
+	<rosparam command="load" file="$(find kuam_mission_manager)/config/param.yaml" />
 
-	<arg name="output" default="screen"/>
-
-	<node pkg="kuam_mission_manager" type="kuam_mission_manager_node" name="mission_manager" output="$(arg output)" />
+	<node pkg="kuam_mission_manager" type="mission_manager_node" name="mission_manager" output="screen" />
 </launch>
