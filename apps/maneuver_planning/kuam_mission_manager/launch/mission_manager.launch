@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+	<rosparam command="load" file="$(find kuam_mission_manager)/config/param.yaml" />
+
+    <!-- rviz -->
+    <arg name="rviz" default="false" />
+
+	<!-- nodes -->
+	<node pkg="kuam_mission_manager" type="mission_manager_node" name="mission_manager" output="screen" />
+    <node pkg="kuam_mission_manager" type="mission_manager_visual_node" name="mission_manager_visual" />
+
+    <group if="$(arg rviz)">
+        <node pkg="rviz" type="rviz" name="rviz" args="-d $(find kuam_mission_manager)/rviz/mission_manager.rviz" required="true" />
+    </group>
+</launch>

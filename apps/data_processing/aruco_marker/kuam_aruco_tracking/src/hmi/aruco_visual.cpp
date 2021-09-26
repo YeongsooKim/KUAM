@@ -9,7 +9,7 @@
 #include "tf2_ros/transform_listener.h" // tf::quaternion
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
-#include <kuam_visual/utils.h>
+#include <kuam_aruco_tracking/utils.h>
 #include <kuam_aruco_tracking/target.h>
 #include <kuam_msgs/ArucoVisual.h>
 #include <kuam_msgs/ArucoVisuals.h>
@@ -52,6 +52,7 @@ class Visualizer
 private:
     // Node Handler
 	ros::NodeHandle m_nh;
+	ros::NodeHandle m_p_nh;
     Utils m_utils;
 
 public:
@@ -66,7 +67,7 @@ private:
     ros::Publisher m_aruco_pub;
 
     // Param
-    string m_data_ns_param;
+    string m_err_param;
     float m_small_marker_size_m_param;
     float m_medium_marker_size_m_param;
     float m_big_marker_size_m_param;
@@ -92,13 +93,10 @@ private: // Function
 
 
 Visualizer::Visualizer() :
-    m_data_ns_param("missing"),
-    m_small_marker_size_m_param(NAN),
-    m_medium_marker_size_m_param(NAN),
-    m_big_marker_size_m_param(NAN)
+    m_p_nh("~")
 {
     InitFlag();
-    if (!GetParam()) ROS_ERROR_STREAM("[kuam_visual] Fail GetParam");
+    if (!GetParam()) ROS_ERROR("[aruco_visual] Fail GetParam %s", m_err_param.c_str());
     InitROS();
 
     for (auto id : m_big_marker_ids_param) m_marker_ids.push_back(id);
@@ -121,19 +119,18 @@ bool Visualizer::GetParam()
 {
     string nd_name = ros::this_node::getName();
 
-    m_nh.getParam("/data_ns", m_data_ns_param);
-    m_nh.getParam(m_data_ns_param + "/aruco_tracking/small_marker_size_m", m_small_marker_size_m_param);
-    m_nh.getParam(m_data_ns_param + "/aruco_tracking/medium_marker_size_m", m_medium_marker_size_m_param);
-    m_nh.getParam(m_data_ns_param + "/aruco_tracking/big_marker_size_m", m_big_marker_size_m_param);
+    if (!m_p_nh.getParam("small_marker_size_m", m_small_marker_size_m_param)) { m_err_param = "small_marker_size_m"; return false; }
+    if (!m_p_nh.getParam("medium_marker_size_m", m_medium_marker_size_m_param)) { m_err_param = "medium_marker_size_m"; return false; }
+    if (!m_p_nh.getParam("big_marker_size_m", m_big_marker_size_m_param)) { m_err_param = "big_marker_size_m"; return false; }
     XmlRpc::XmlRpcValue list;
-    m_nh.getParam(m_data_ns_param + "/aruco_tracking/big_marker_ids", list);
+    if (!m_p_nh.getParam("big_marker_ids", list)) { m_err_param = "big_marker_ids"; return false; }
     ROS_ASSERT(list.getType() == XmlRpc::XmlRpcValue::TypeArray);
     for (int32_t i = 0; i < list.size(); ++i) {
         ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
         int id = static_cast<int>(list[i]);
         m_big_marker_ids_param.push_back(id);
     }
-    m_nh.getParam(m_data_ns_param + "/aruco_tracking/medium_marker_ids", list);
+    if (!m_p_nh.getParam("medium_marker_ids", list)) { m_err_param = "medium_marker_ids"; return false; }
     ROS_ASSERT(list.getType() == XmlRpc::XmlRpcValue::TypeArray);
     for (int32_t i = 0; i < list.size(); ++i) {
         ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
@@ -141,18 +138,13 @@ bool Visualizer::GetParam()
         m_medium_marker_ids_param.push_back(id);
     }
 
-    m_nh.getParam(m_data_ns_param + "/aruco_tracking/small_marker_ids", list);
+    if (!m_p_nh.getParam("small_marker_ids", list)) { m_err_param = "small_marker_ids"; return false; }
     ROS_ASSERT(list.getType() == XmlRpc::XmlRpcValue::TypeArray);
     for (int32_t i = 0; i < list.size(); ++i) {
         ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
         int id = static_cast<int>(list[i]);
         m_small_marker_ids_param.push_back(id);
     }
-
-    if (m_data_ns_param == "missing") { ROS_ERROR_STREAM("[kuam_visual] m_data_ns_param is missing"); return false; }
-    else if (__isnan(m_small_marker_size_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_small_marker_size_m_param is NAN"); return false; }
-    else if (__isnan(m_medium_marker_size_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_medium_marker_size_m_param is NAN"); return false; }
-    else if (__isnan(m_big_marker_size_m_param)) { ROS_ERROR_STREAM("[kuam_visual] m_big_marker_size_m_param is NAN"); return false; }
 
     return true;
 }
@@ -161,9 +153,10 @@ bool Visualizer::InitROS()
 {
     // package, node, topic name
     string nd_name = ros::this_node::getName();
+    string ns_name = ros::this_node::getNamespace();
 
     m_aruco_visual_sub = 
-        m_nh.subscribe<kuam_msgs::ArucoVisuals>("/aruco_tracking/aruco_visuals", 1, boost::bind(&Visualizer::ArucoVisualCallback, this, _1));
+        m_p_nh.subscribe<kuam_msgs::ArucoVisuals>(ns_name + "/aruco_tracking/aruco_visuals", 1, boost::bind(&Visualizer::ArucoVisualCallback, this, _1));
 
     // Initialize publisher
     m_aruco_pub = m_nh.advertise<visualization_msgs::MarkerArray>(nd_name + "/aruco_markerarray", 10);
