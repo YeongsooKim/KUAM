@@ -1,7 +1,4 @@
 <launch>
-    <!-- namespace -->
-    <!-- <rosparam command="load" file="$(find config)/param.yaml" /> -->
-
     <!-- tf_broadcaster -->
     	<!-- Must select only one -->
 	<arg name="is_exp" default="false" />

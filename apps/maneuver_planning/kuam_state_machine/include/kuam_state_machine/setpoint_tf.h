@@ -1,5 +1,5 @@
-#ifndef __TF_BROADCASTER_H__
-#define __TF_BROADCASTER_H__
+#ifndef __SETPOINT_TF_H__
+#define __SETPOINT_TF_H__
 
 
 #include "ros/ros.h"
@@ -71,4 +71,4 @@ private:
 };
 }
 
-#endif // __TF_BROADCASTER_H__
+#endif // __SETPOINT_TF_H__

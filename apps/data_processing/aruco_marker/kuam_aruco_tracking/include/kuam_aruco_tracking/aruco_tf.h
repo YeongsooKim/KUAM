@@ -1,5 +1,5 @@
-#ifndef __TF_BROADCASTER_H__
-#define __TF_BROADCASTER_H__
+#ifndef __ARUCO_TF_H__
+#define __ARUCO_TF_H__
 
 
 #include "ros/ros.h"
@@ -63,4 +63,4 @@ private:
 };
 }
 
-#endif // __TF_BROADCASTER_H__
+#endif // __ARUCO_TF_H__

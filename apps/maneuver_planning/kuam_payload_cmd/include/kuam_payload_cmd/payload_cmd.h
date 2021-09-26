@@ -35,6 +35,7 @@ class Playload
 private:
     // Node Handler
 	ros::NodeHandle m_nh;
+	ros::NodeHandle m_p_nh;
     Utils m_utils;
 
 public:
@@ -46,6 +47,7 @@ private:
     ros::Subscriber m_mavros_state_sub;
     ros::Subscriber m_setpoint_sub;
     ros::Subscriber m_trans_req_sub;
+    ros::Subscriber m_command_sub;
 
     // Publisher
     ros::Publisher m_local_pos_tar_pub;
@@ -59,9 +61,9 @@ private:
     ros::Timer m_timer;
 
     // Param
+    string m_err_param;
     float m_process_freq_param;
-    std::string m_maneuver_ns_param;
-    bool m_is_debug_mode_param;
+    std::string m_data_ns_param;
 
     // Flag
     
@@ -80,6 +82,8 @@ private:
 	tf2_ros::Buffer m_tfBuffer;
 	tf2_ros::TransformListener m_tfListener;
 
+    std::string m_test_msg;
+
 private: // function
     // Initialization fucntion
     bool GetParam();
@@ -91,6 +95,7 @@ private: // function
     void ProcessTimerCallback(const ros::TimerEvent& event);
 
     // Callback functions
+    void ChatterCallback(const uav_msgs::Chat::ConstPtr &chat_ptr);
     inline void MavrosStateCallback(const mavros_msgs::State::ConstPtr &state_ptr) { m_mavros_status = *state_ptr; }
     inline void SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_ptr) { m_setpoint = *setpoint_ptr; }
     inline void TransReqCallback(const kuam_msgs::TransReq::ConstPtr &trans_req_ptr) { 

@@ -25,9 +25,10 @@
         <include file="$(find px4)/launch/mavros_posix_sitl.launch"/>
     </group>
 
-    <group ns="/kuam/maneuver">
-        <node pkg="kuam_payload_cmd" type="payload_cmd_node" name="payload_cmd" output="screen">
+    <!-- <group ns="/kuam/maneuver"> -->
+        <!-- <node pkg="kuam_payload_cmd" type="payload_cmd_node" name="payload_cmd" output="screen">
             <param name="process_freq" value="$(arg process_freq)" />
-        </node>
-    </group>
+            <param name="data_ns" value="/kuam/data" />
+        </node> -->
+    <!-- </group> -->
 </launch>

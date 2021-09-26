@@ -2,7 +2,7 @@ state_machine:
   process_freq: 20.0
 
   # namespace
-  data_ns: '/kuam/data'
+  data_ns: ''
 
   # takeoff
   takeoff_alt_m: 3.0
@@ -10,7 +10,7 @@ state_machine:
   guidance_dist_th_m: 0.7 # checking have reached to next waypoint during flight mode
 
   # landing
-  landing_threshold_m: 0.2 # for distingush kuam control and px4 control during landing 
+  landing_threshold_m: 0.2 # for distinguish kuam control and px4 control during landing 
   landing_standby_alt_m: 3.0 # waiting for detecting marker during landing state
   standby_dist_th_m: 1.5 # checking have reached to landing standby waypoint during landing state
   maf_buf_size: 20 # Moving average filter apply to average pose of 

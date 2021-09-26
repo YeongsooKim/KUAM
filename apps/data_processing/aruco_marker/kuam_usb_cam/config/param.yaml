@@ -4,15 +4,15 @@ contrast: 20
 saturation: 100
 sharpness: 40
 
-pixel_format: 'yuyv'
+pixel_format: 'mjpeg'
 
 autofocus: false
 focus: -1
 
-  io_method: 'mmap'
-  image_width: 640
-  image_height: 480
-  framerate: 30
+io_method: 'mmap'
+image_width: 640
+image_height: 480
+framerate: 30
 
 autoexposure: true
 exposure: 100

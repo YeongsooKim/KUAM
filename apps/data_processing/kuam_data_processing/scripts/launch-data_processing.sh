@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$#" -ne 1 ] && [ "$#" -ne 2 ] && [ "$#" -ne 3 ] && [ "$#" -ne 4 ] && [ "$#" -ne 6] ; then
+if [ "$#" -ne 1 ] && [ "$#" -ne 2 ] && [ "$#" -ne 3 ] && [ "$#" -ne 4 ] && [ "$#" -ne 6 ]; then
     echo "Try 'launch-data_processing.sh -h' for more information."
     exit 0
 else
