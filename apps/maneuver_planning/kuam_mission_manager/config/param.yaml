@@ -1,0 +1,12 @@
+mission_manager:
+  process_freq: 30.0
+  data_ns: '/kuam/data'
+
+mission_manager_visual:
+  process_freq: 5.0
+  data_ns: '/kuam/data'
+
+  width: 250.0
+  height: 250.0
+  left: 10.0
+  top: 450.0
