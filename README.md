@@ -1,5 +1,3 @@
-# KUAM
-
 # python3 환경설정
 ## Error: dynamic module does not define module export function (PyInit__tf2)
 ### 1. Upgrade geometry2 to python3
