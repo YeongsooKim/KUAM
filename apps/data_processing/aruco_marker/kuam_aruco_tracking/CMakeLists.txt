@@ -59,7 +59,15 @@ include_directories(
 )
 
 ## aruco_tracking_node
-add_executable(aruco_tracking_node src/aruco_tracking_node.cpp src/aruco_tracking.cpp src/parser.cpp src/utils.cpp src/target.cpp)
+add_executable(aruco_tracking_node 
+  src/aruco_tracking_node.cpp 
+  src/aruco_tracking.cpp 
+  src/parser.cpp 
+  src/target.cpp
+  src/utils/util_marker.cpp
+  src/utils/util_setpoint.cpp
+)
+
 add_dependencies(aruco_tracking_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(aruco_tracking_node
  ${catkin_LIBRARIES}
@@ -68,11 +76,11 @@ target_link_libraries(aruco_tracking_node
 )
 
 ## aruco_visual_node
-add_executable(aruco_visual_node src/hmi/aruco_visual.cpp src/utils.cpp)
+add_executable(aruco_visual_node src/hmi/aruco_visual.cpp src/utils/util_geometry.cpp)
 target_link_libraries(aruco_visual_node ${catkin_LIBRARIES})
 
-## kuam_tf_broadcaster_node
-add_executable(aruco_tf_node src/hmi/aruco_tf.cpp src/utils.cpp)
+## aruco_tf_node
+add_executable(aruco_tf_node src/hmi/aruco_tf.cpp)
 target_link_libraries(aruco_tf_node ${catkin_LIBRARIES})
 
 ## Install project namespaced headers

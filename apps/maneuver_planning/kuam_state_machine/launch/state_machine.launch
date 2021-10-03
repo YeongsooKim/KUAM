@@ -1,17 +1,28 @@
 <launch>
 	<rosparam command="load" file="$(find kuam_state_machine)/config/param.yaml" />
+
+    <!-- namespace -->
+	<arg name="data_ns" default="" />
 	
 	<!-- Do Not Input 0.0 -->
-	<arg name="using_aruco" default="False" />
+	<arg name="using_camera" default="False" />
 
 	<!-- rviz -->
 	<arg name="rviz" default="false" />
 
 	<!-- nodes -->
-	<node pkg="kuam_state_machine" type="state_machine.py" name="state_machine" output="screen">
-		<param name="using_aruco" value="$(arg using_aruco)" />
+	<node pkg="kuam_state_machine" type="state_machine.py" name="state_machine" output="screen" >
+		<param name="using_camera" value="$(arg using_camera)" />
+		<param name="data_ns" value="$(arg data_ns)" />
 	</node>
-	<node pkg="kuam_state_machine" type="setpoint_tf_node" name="setpoint_tf" output="screen" />
-	<node pkg="kuam_state_machine" type="setpoint_visual_node" name="setpoint_visual" output="screen" />
+	<node pkg="kuam_state_machine" type="state_machine_tf_node" name="state_machine_tf" output="screen" >
+		<param name="data_ns" value="$(arg data_ns)" />
+	</node>
+	<node pkg="kuam_state_machine" type="state_machine_visual_node" name="state_machine_visual" output="screen" >
+		<param name="data_ns" value="$(arg data_ns)" />
+	</node>
 	
+    <group if="$(arg rviz)">
+        <node pkg="rviz" type="rviz" name="state_machine_rviz" args="-d $(find kuam_state_machine)/rviz/state_machine.rviz" required="true" />
+    </group>
 </launch>

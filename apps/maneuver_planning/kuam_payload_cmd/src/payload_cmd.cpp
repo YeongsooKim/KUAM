@@ -13,8 +13,7 @@ Playload::Playload() :
     m_p_nh("~"),
     m_tfListener(m_tfBuffer),
     m_last_request_time(ros::Time::now()),
-    m_prev_sm_state("none"),
-    m_test_msg("none")
+    m_chat_cmd_mode("none")
 {
     InitFlag();
     if (!GetParam()) ROS_ERROR("[payload_cmd] Fail GetParam %s", m_err_param.c_str());
@@ -44,25 +43,20 @@ bool Playload::GetParam()
 
 bool Playload::InitROS()
 {
-    // package, node, topic name
-    string nd_name = ros::this_node::getName();
-    string ns_name = ros::this_node::getNamespace();
-
     // Initialize subscriber
     m_mavros_state_sub = m_nh.subscribe<mavros_msgs::State>("/mavros/state", 10, boost::bind(&Playload::MavrosStateCallback, this, _1));
-    m_setpoint_sub = m_nh.subscribe<kuam_msgs::Setpoint>(ns_name + "/state_machine/setpoint", 10, boost::bind(&Playload::SetpointCallback, this, _1));
-    m_trans_req_sub = m_nh.subscribe<kuam_msgs::TransReq>(ns_name + "/state_machine/trans_request", 10, boost::bind(&Playload::TransReqCallback, this, _1));
-    m_command_sub = 
-        m_nh.subscribe<uav_msgs::Chat>(m_data_ns_param + "/chat/command", 10, boost::bind(&Playload::ChatterCallback, this, _1));
+    m_setpoint_sub = m_nh.subscribe<kuam_msgs::Setpoint>("state_machine/setpoint", 10, boost::bind(&Playload::SetpointCallback, this, _1));
+    m_command_sub = m_nh.subscribe<uav_msgs::Chat>(m_data_ns_param + "/chat/command", 10, boost::bind(&Playload::ChatterCallback, this, _1));
 
     // Initialize publisher
     m_global_pose_pub = m_nh.advertise<geographic_msgs::GeoPoseStamped>("/mavros/setpoint_position/global", 10);
     m_local_pos_tar_pub = m_nh.advertise<mavros_msgs::PositionTarget>("/mavros/setpoint_raw/local", 10);
-    m_payload_cmd_pub = m_nh.advertise<uav_msgs::PayloadCmd>(nd_name + "/payload_cmd", 1000);
+    m_payload_cmd_pub = m_p_nh.advertise<uav_msgs::PayloadCmd>("payload_cmd", 1000);
 
     // Initialize service client
     m_arming_serv_client = m_nh.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
     m_set_mode_serv_client = m_nh.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
+    m_landing_request_service = m_p_nh.advertiseService("land_request", &Playload::LandRequestSrv, this);
     
     // Time callback
     m_timer = m_nh.createTimer(ros::Duration(1.0/m_process_freq_param), &Playload::ProcessTimerCallback, this);
@@ -84,82 +78,90 @@ bool Playload::InitClient()
     return true;
 }
 
+
 void Playload::ProcessTimerCallback(const ros::TimerEvent& event)
 {
-    // if (m_sm_kuam_mode == "MANUAL"){
-    //     ManualRequest();
-    // }
-    // else if (m_sm_kuam_mode == "ALTCTL"){
-    //     AltitudeRequest();
-    // }
-    // else if (m_sm_kuam_mode == "OFFBOARD"){
-    //     if (IsOffboard()){
-    //         switch ((int)String2State(m_cur_sm_state)){
-    //             case (int)State::Standby: m_payload_cmd_state = Enum2String(State::Standby); break;
-    //             case (int)State::Takeoff: TakeoffRequest(); break;
-    //             case (int)State::Arm: ArmRequest(); break;
-    //             case (int)State::Hovering: HoveringRequest(); break;
-    //             case (int)State::Docking: break;
-    //             case (int)State::Undocking: break;
-    //             case (int)State::Flight: FlightRequest(); break;
-    //             case (int)State::Transition: break;
-    //             case (int)State::Landing: LandingRequest(); break;
-    //             default: ROS_WARN_STREAM("not in case"); break;
-    //         }
-    //         StateUpdate();
-    //     }
-    // }
-    // else if (m_sm_kuam_mode == "EMERG"){
-    //     EmergRequest();
-    // }
-    // if (m_test_msg == "offboard"){
-    //     m_test_msg = "none";
-    //     mavros_msgs::SetMode offb_set_mode;
-    //     offb_set_mode.request.custom_mode = "OFFBOARD";
+    if (m_chat_cmd_mode == "manual"){
+        m_chat_cmd_mode = "none";
+        ManualRequest();
+    }
+    else if (m_chat_cmd_mode == "altctl"){
+        m_chat_cmd_mode = "none";
+        AltitudeRequest();
+    }
+    else if (m_chat_cmd_mode == "offboard"){
+        m_chat_cmd_mode = "none";
+        OffboardRequest();
+    }
+    else if (m_chat_cmd_mode == "emergy"){
+        m_chat_cmd_mode = "none";
+        EmergRequest();
+    }
+    else if (m_chat_cmd_mode == "land"){
+        m_chat_cmd_mode = "none";
+        LandRequest();
+    }
 
-    //     if( m_px4_mode != "OFFBOARD" && 
-    //         (ros::Time::now() - m_last_request_time > ros::Duration(5.0))){
-    //         if(m_set_mode_serv_client.call(offb_set_mode) &&
-    //             offb_set_mode.response.mode_sent){
-    //             ROS_INFO("Offboard enabled");
-    //         }
-    //         m_last_request_time = ros::Time::now();
-    //     }
-    // }
-    // else if (m_test_msg == "arm"){
-    //     m_test_msg = "none";
-    //     ArmRequest();
-    // }
-    // else if (m_test_msg == "takeoff"){
-    //     m_test_msg = "none";
-    //     TakeoffRequest();
-    // }
-    // else if (m_test_msg == "flight"){
-    //     m_setpoint.vel.linear.x = 50.0;
-    //     m_setpoint.vel.linear.y = 50.0;
-    //     m_setpoint.vel.linear.z = 50.0;
-    // }
+    if (m_chat_cmd_mode == "arm"){
+        m_chat_cmd_mode = "none";
+        ArmRequest();
+    }
     
-    // SetpointPub();
-    // PayloadCmdPub();
+    SetpointPub();
+    PayloadCmdPub();
 }
 
 void Playload::ChatterCallback(const uav_msgs::Chat::ConstPtr &chat_ptr)
 {
-    m_test_msg = chat_ptr->msg;
-
+    m_chat_cmd_mode = chat_ptr->msg;
+    string msg = Ascii2Lower(chat_ptr->msg);
+    if (IsMode(msg)){
+        m_chat_cmd_mode = msg;
+    }
 }
 
+bool Playload::LandRequestSrv(kuam_msgs::LandRequest::Request &req, kuam_msgs::LandRequest::Response &res)
+{
+    if (req.land_request){
+        ROS_WARN_STREAM("Enter LandRequestSrv");
+        LandRequest();
+
+        ros::Rate rate(m_process_freq_param);
+        while(m_mavros_status.armed){
+
+            ros::spinOnce();
+            rate.sleep();
+        }
+        ROS_WARN_STREAM("Complete LandRequestSrv");
+        res.is_complete = true;
+    }
+
+    return true;
+}
+
+
+void Playload::ArmRequest()
+{
+    mavros_msgs::CommandBool arm_cmd;
+    arm_cmd.request.value = true;
+
+    if(!m_mavros_status.armed){
+        if( m_arming_serv_client.call(arm_cmd) && arm_cmd.response.success){
+
+            ROS_INFO("Vehicle armed");
+        }
+        m_last_request_time = ros::Time::now();
+    }
+}
 
 void Playload::ManualRequest()
 {
     mavros_msgs::SetMode manual_set_mode;
     manual_set_mode.request.custom_mode = "MANUAL";
 
-    if( m_px4_mode != "MANUAL"){
+    if( m_mavros_status.mode != "MANUAL"){
         if(m_set_mode_serv_client.call(manual_set_mode) &&
             manual_set_mode.response.mode_sent){
-            // m_payload_cmd_state = Enum2String(Mode::Manual);
             ROS_INFO("Manual enabled");
         }
         m_last_request_time = ros::Time::now();
@@ -171,42 +173,21 @@ void Playload::AltitudeRequest()
     mavros_msgs::SetMode altitude_set_mode;
     altitude_set_mode.request.custom_mode = "ALTCTL";
 
-    if( m_px4_mode != "ALTCTL"){
+    if( m_mavros_status.mode != "ALTCTL"){
         if(m_set_mode_serv_client.call(altitude_set_mode) &&
             altitude_set_mode.response.mode_sent){
-            // m_payload_cmd_state = Enum2String(Mode::Manual);
             ROS_INFO("Altitude enabled");
         }
         m_last_request_time = ros::Time::now();
     }
 }
 
-void Playload::EmergRequest()
-{
-    mavros_msgs::SetMode emerg_mode;
-    emerg_mode.request.custom_mode = "AUTO.RTL";
-
-    if( m_px4_mode != "AUTO.RTL"){
-        if(m_set_mode_serv_client.call(emerg_mode) &&
-            emerg_mode.response.mode_sent){
-
-            ROS_ERROR("Emergy enabled");
-        }
-        m_last_request_time = ros::Time::now();
-    }
-}
-
-bool Playload::IsOffboard()
+bool Playload::OffboardRequest()
 {
     mavros_msgs::SetMode offb_set_mode;
     offb_set_mode.request.custom_mode = "OFFBOARD";
 
-    bool request = true;
-    if (m_cur_sm_state == "LANDING" && m_px4_mode == "AUTO.LAND"){
-        request = false;
-    }
-
-    if( m_px4_mode != "OFFBOARD" && request){
+    if( m_mavros_status.mode != "OFFBOARD"){
         if(m_set_mode_serv_client.call(offb_set_mode) &&
             offb_set_mode.response.mode_sent){
             ROS_INFO("Offboard enabled");
@@ -217,76 +198,33 @@ bool Playload::IsOffboard()
     return true;
 }
 
-void Playload::ArmRequest()
+void Playload::LandRequest()
 {
-    mavros_msgs::CommandBool arm_cmd;
-    arm_cmd.request.value = true;
+    mavros_msgs::SetMode landing_mode;
+    landing_mode.request.custom_mode = "AUTO.LAND";
 
-    if(!m_mavros_status.armed){
-        if( m_arming_serv_client.call(arm_cmd) && arm_cmd.response.success){
-
-            m_payload_cmd_state = Enum2String(Trans::Arm);
-            ROS_INFO("Vehicle armed");
+    if (m_mavros_status.mode != "AUTO.LAND" && m_mavros_status.armed){
+        if(m_set_mode_serv_client.call(landing_mode) &&
+            landing_mode.response.mode_sent){
+            ROS_INFO("Land enabled");
         }
         m_last_request_time = ros::Time::now();
     }
 }
 
-void Playload::HoveringRequest()
+void Playload::EmergRequest()
 {
-    if (m_prev_sm_state == Enum2String(State::Takeoff)) m_payload_cmd_state = "TakeoffHovering";
-    else if (m_prev_sm_state == Enum2String(State::Flight)) m_payload_cmd_state = "FlightHovering";
-}
+    mavros_msgs::SetMode emerg_mode;
+    emerg_mode.request.custom_mode = "AUTO.RTL";
 
+    if( m_mavros_status.mode != "AUTO.RTL"){
+        if(m_set_mode_serv_client.call(emerg_mode) &&
+            emerg_mode.response.mode_sent){
 
-void Playload::TakeoffRequest()
-{
-    // m_payload_cmd_state = Enum2String(State::Takeoff);
-
-    mavros_msgs::SetMode takeoff_set_mode;
-    takeoff_set_mode.request.custom_mode = "AUTO.TAKEOFF";
-
-    if( m_mavros_status.mode != "AUTO.TAKEOFF"){
-        if(m_set_mode_serv_client.call(takeoff_set_mode) &&
-            takeoff_set_mode.response.mode_sent){
-            ROS_INFO("Takeoff enabled");
+            ROS_ERROR("Emergy enabled");
         }
         m_last_request_time = ros::Time::now();
     }
-}
-
-void Playload::LandingRequest()
-{
-    if (m_setpoint.landing_state.is_land){
-        mavros_msgs::SetMode landing_mode;
-        landing_mode.request.custom_mode = "AUTO.LAND";
-
-        if (m_mavros_status.mode != "AUTO.LAND" && m_mavros_status.armed && 
-            (ros::Time::now() - m_last_request_time > ros::Duration(5.0))){
-            if(m_set_mode_serv_client.call(landing_mode) &&
-                landing_mode.response.mode_sent){
-
-                ROS_INFO("Land enabled");
-                m_payload_cmd_state = Enum2String(Trans::Landing);
-            }
-            m_last_request_time = ros::Time::now();
-        }
-        else if (!m_mavros_status.armed){
-            m_payload_cmd_state = Enum2String(Trans::Disarm);
-        }
-    }
-}
-
-void Playload::StateUpdate()
-{ 
-    if (m_prev_sm_state != m_cur_sm_state){
-        m_prev_sm_state = Ascii2Lower(m_cur_sm_state);
-    }
-}
-
-void Playload::FlightRequest()
-{
-    m_payload_cmd_state = Enum2String(State::Flight);
 }
 
 
@@ -333,11 +271,30 @@ void Playload::SetpointPub()
 
 void Playload::PayloadCmdPub()
 {
-    uav_msgs::PayloadCmd payload_cmd_msg;
-    payload_cmd_msg.mode = m_mavros_status.mode;
-    
-    payload_cmd_msg.state = m_payload_cmd_state;
-    m_payload_cmd_pub.publish(payload_cmd_msg);
+    static string prev_mode = "none";
+    if (prev_mode != m_mavros_status.mode){
+        ROS_WARN("PX4: %s, armed: False", m_mavros_status.mode.c_str());
 
-    ROS_WARN("KUAM: %s, PX4: %s", m_sm_kuam_mode.c_str(), m_mavros_status.mode.c_str());
+        uav_msgs::PayloadCmd payload_cmd_msg;
+        payload_cmd_msg.mode = m_mavros_status.mode;
+        m_payload_cmd_pub.publish(payload_cmd_msg);
+
+        prev_mode = m_mavros_status.mode;
+    }
+}
+
+bool Playload::IsMode(string input)
+{
+    string str = "invalid";
+    for (int item = (int)Mode::Manual; item < (int)Mode::ItemNum; item++){
+        Mode mode = static_cast<Mode>(item);
+
+        string convert = Enum2String(mode);
+        if (input == convert){
+            str = convert;
+            break;
+        }
+    }
+    if (str != "invalid") return true;
+    else return false;
 }

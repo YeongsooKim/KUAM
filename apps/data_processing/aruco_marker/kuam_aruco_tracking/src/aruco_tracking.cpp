@@ -16,7 +16,8 @@ namespace kuam{
     
 ArucoTracking::ArucoTracking() :
     m_p_nh("~"),
-    MARKER_ID_QUEUE_SIZE(30)
+    MARKER_ID_QUEUE_SIZE(30),
+    m_tfListener(m_tfBuffer)
 {
     InitFlag();
     if (!GetParam()) ROS_ERROR("[aruco_tracking] Fail GetParam %s", m_err_param.c_str());
@@ -60,6 +61,9 @@ bool ArucoTracking::GetParam()
     if (!m_p_nh.getParam("noise_cnt_th", m_noise_cnt_th_param))  { m_err_param = "noise_cnt_th"; return false; }
     if (!m_p_nh.getParam("process_freq", m_process_freq_param))  { m_err_param = "process_freq"; return false; }
     if (!m_p_nh.getParam("marker_cnt_th", m_marker_cnt_th_param))  { m_err_param = "marker_cnt_th"; return false; }
+    if (!m_p_nh.getParam("big_marker_trans", m_big_marker_trans_param))  { m_err_param = "big_marker_trans"; return false; }
+    if (!m_p_nh.getParam("medium_marker_trans", m_medium_marker_trans_param))  { m_err_param = "medium_marker_trans"; return false; }
+    if (!m_p_nh.getParam("small_marker_trans", m_small_marker_trans_param))  { m_err_param = "small_marker_trans"; return false; }
 
     XmlRpc::XmlRpcValue list;
     if (!m_p_nh.getParam("big_marker_ids", list))  { m_err_param = "big_marker_ids"; return false; }
@@ -139,6 +143,8 @@ bool ArucoTracking::InitMarker()
     }
 }
 
+
+
 void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
 {
     if (m_cv_ptr == nullptr){
@@ -187,7 +193,7 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
 
 void ArucoTracking::ImageCallback(const sensor_msgs::Image::ConstPtr &img_ptr)
 {
-    if(!Convert2CVImg(img_ptr)) ROS_ERROR("[aruco_tracking] Fail to convert sensor_msgs to cv_image");
+    if(!m_util_marker.Convert2CVImg(img_ptr, m_cv_ptr)) ROS_ERROR("[aruco_tracking] Fail to convert sensor_msgs to cv_image");
 }
 
 void ArucoTracking::SelectMarkers(vector<vector<Point2f>>& corners, vector<int>& ids,
@@ -199,14 +205,14 @@ void ArucoTracking::SelectMarkers(vector<vector<Point2f>>& corners, vector<int>&
         return;
     }
     
-    GetIdsnCorners(m_big_marker_ids_param, ids, corners, b_ids, b_corners);
-    EraseIdnCorner(b_ids, ids, corners);
+    m_util_marker.GetIdsnCorners(m_big_marker_ids_param, ids, corners, b_ids, b_corners);
+    m_util_marker.EraseIdnCorner(b_ids, ids, corners);
 
-    GetIdsnCorners(m_medium_marker_ids_param, ids, corners, m_ids, m_corners);
-    EraseIdnCorner(m_ids, ids, corners);
+    m_util_marker.GetIdsnCorners(m_medium_marker_ids_param, ids, corners, m_ids, m_corners);
+    m_util_marker.EraseIdnCorner(m_ids, ids, corners);
     
-    GetIdsnCorners(m_small_marker_ids_param, ids, corners, s_ids, s_corners);
-    EraseIdnCorner(s_ids, ids, corners);
+    m_util_marker.GetIdsnCorners(m_small_marker_ids_param, ids, corners, s_ids, s_corners);
+    m_util_marker.EraseIdnCorner(s_ids, ids, corners);
 }
 
 void ArucoTracking::NoiseFilter(vector<vector<Point2f>>& s_corners, vector<int>& s_ids,
@@ -214,25 +220,25 @@ void ArucoTracking::NoiseFilter(vector<vector<Point2f>>& s_corners, vector<int>&
                                 vector<vector<Point2f>>& b_corners, vector<int>& b_ids)
 {
     vector<int> b_noises;
-    GetNoiseIndexes(b_noises, b_ids);
-    EraseIdnCorner(b_noises, b_ids, b_corners);
+    m_util_marker.GetNoiseIndexes(b_noises, b_ids, m_targets);
+    m_util_marker.EraseIdnCorner(b_noises, b_ids, b_corners);
 
     vector<int> m_noises;
-    GetNoiseIndexes(m_noises, m_ids);
-    EraseIdnCorner(m_noises, m_ids, m_corners);
+    m_util_marker.GetNoiseIndexes(m_noises, m_ids, m_targets);
+    m_util_marker.EraseIdnCorner(m_noises, m_ids, m_corners);
 
     vector<int> s_noises;
-    GetNoiseIndexes(s_noises, s_ids);
-    EraseIdnCorner(s_noises, s_ids, s_corners);
+    m_util_marker.GetNoiseIndexes(s_noises, s_ids, m_targets);
+    m_util_marker.EraseIdnCorner(s_noises, s_ids, s_corners);
 }
 
 void ArucoTracking::MarkerUpdate(const vector<int> b_ids, const vector<int> m_ids, const vector<int> s_ids, int2pose int_to_pose)
 {
     vector<int> detected_ids;
     vector<int> undetected_ids;
-    GetDetectedId(detected_ids, undetected_ids, b_ids, m_big_marker_ids_param);
-    GetDetectedId(detected_ids, undetected_ids, m_ids, m_medium_marker_ids_param);
-    GetDetectedId(detected_ids, undetected_ids, s_ids, m_small_marker_ids_param);
+    m_util_marker.GetDetectedId(detected_ids, undetected_ids, b_ids, m_big_marker_ids_param);
+    m_util_marker.GetDetectedId(detected_ids, undetected_ids, m_ids, m_medium_marker_ids_param);
+    m_util_marker.GetDetectedId(detected_ids, undetected_ids, s_ids, m_small_marker_ids_param);
 
     for (auto id : detected_ids){
         for (auto& target : m_targets){
@@ -291,7 +297,7 @@ bool ArucoTracking::Camera2World(const vector<vector<Point2f>> corners, const ve
 
         auto translation_vector = tvecs[i];
         auto rotation_vector = rvecs[i];
-        auto transform = CreateTransform(translation_vector, rotation_vector);
+        auto transform = m_util_marker.CreateTransform(translation_vector, rotation_vector);
         stringstream ss;
         string marker_tf_prefix = "marker";
         ss << marker_tf_prefix << ids[i];
@@ -350,6 +356,15 @@ void ArucoTracking::TargetPub()
     kuam_msgs::ArucoStates ac_states_msg;
     kuam_msgs::ArucoVisuals ac_visuals_msg;
 
+    ac_states_msg.header.frame_id = m_camera_frame_id_param;
+    ac_states_msg.header.stamp = ros::Time::now();
+
+    // Insert used id
+    for (auto id : m_big_marker_ids_param) ac_states_msg.used_big_markers_id.push_back(id);
+    for (auto id : m_medium_marker_ids_param) ac_states_msg.used_medium_markers_id.push_back(id);
+    for (auto id : m_small_marker_ids_param) ac_states_msg.used_small_markers_id.push_back(id);
+
+    // Insert each detected aruco marker
     for (auto target : m_targets){
         kuam_msgs::ArucoState ac_state_msg;
         ac_state_msg.header.frame_id = m_camera_frame_id_param;
@@ -357,6 +372,7 @@ void ArucoTracking::TargetPub()
         ac_state_msg.id = target.GetId();
 
         if (target.GetIsDetected()){
+            ac_states_msg.is_detected = true;
             ac_state_msg.is_detected = true;
             
             ac_state_msg.pose.position.x = target.GetX(m_estimating_method_param);
@@ -395,145 +411,24 @@ void ArucoTracking::TargetPub()
         }
         ac_visuals_msg.aruco_visuals.push_back(aruco_visual_msg);
     }
+
+    // Set target pose
+    if (ac_states_msg.is_detected){
+        vector<geometry_msgs::Pose> poses;
+        for (auto ac_state : ac_states_msg.aruco_states){
+            if (ac_state.is_detected){
+                geometry_msgs::Pose p;
+                p = ac_state.pose;
+
+                m_util_setpoint.Translate(p, ac_state.id, m_big_marker_trans_param, m_medium_marker_trans_param, m_small_marker_trans_param);
+                poses.push_back(p);
+            }
+        }
+
+        ac_states_msg.target_pose = m_util_setpoint.GetSetpoint(poses);
+    }
+
     m_target_state_pub.publish(ac_states_msg);
     m_visual_pub.publish(ac_visuals_msg);
-}
-
-bool ArucoTracking::Convert2CVImg(const sensor_msgs::Image::ConstPtr &img_ptr)
-{
-    try {
-        m_cv_ptr = cv_bridge::toCvCopy(img_ptr, sensor_msgs::image_encodings::BGR8);
-        return true;
-    }
-    catch (cv_bridge::Exception& e) {
-        ROS_ERROR("[aruco_tracking] cv_bridge exception: %s", e.what());
-        return false;
-    }
-}
-
-tf2::Vector3 ArucoTracking::CvVector3d2TfVector3(const Vec3d &vec) 
-{
-    return {vec[0], vec[1], vec[2]};
-}
-
-tf2::Quaternion ArucoTracking::CvVector3d2TfQuarternion(const Vec3d &rotation_vector) 
-{
-    Mat rotation_matrix;
-    auto ax = rotation_vector[0], ay = rotation_vector[1], az = rotation_vector[2];
-    auto angle = sqrt(ax * ax + ay * ay + az * az);
-    auto cosa = cos(angle * 0.5);
-    auto sina = sin(angle * 0.5);
-    auto qx = ax * sina / angle;
-    auto qy = ay * sina / angle;
-    auto qz = az * sina / angle;
-    auto qw = cosa;
-
-    tf2::Quaternion q;
-    q.setValue(qx, qy, qz, qw);
-    return q;
-}
-
-tf2::Transform ArucoTracking::CreateTransform(const Vec3d &translation_vector, const Vec3d &rotation_vector) 
-{
-    tf2::Transform transform;
-    transform.setOrigin(CvVector3d2TfVector3(translation_vector));
-    transform.setRotation(CvVector3d2TfQuarternion(rotation_vector));
-    return transform;
-}
-
-void ArucoTracking::GetDetectedId(vector<int>& detected_ids, vector<int>& undetected_ids,
-                    const vector<int> src_ids, const vector<int> trg_ids)
-{
-    for (auto trg_id : trg_ids){
-        auto it = find(src_ids.begin(), src_ids.end(), trg_id);
-        if (it == src_ids.end()){
-            undetected_ids.push_back(trg_id);
-        }
-        else{
-            detected_ids.push_back(trg_id);
-        }
-    }    
-}
-
-void ArucoTracking::GetIdsnCorners(const vector<int> ref_ids, const vector<int> input_ids, const vector<vector<Point2f>> input_corners,
-                            vector<int>& output_ids, vector<vector<Point2f>>& output_corners)
-{
-    for (int index = 0; index < input_ids.size(); index++){
-        auto it = find(ref_ids.begin(), ref_ids.end(), input_ids[index]);
-        if (it == ref_ids.end()){
-            continue;
-        }
-
-        output_corners.push_back(input_corners[index]);
-        output_ids.push_back(input_ids[index]);
-    }
-}
-
-void ArucoTracking::GetNoiseIndexes(vector<int>& noises, const vector<int> ids)
-{
-    for (int index = 0; index < ids.size(); index++){
-        for (auto& target : m_targets){
-            if (target.GetId() != ids[index]){
-                continue;
-            }
-
-            bool is_noise = target.CheckNoise();
-            
-            if (is_noise){
-                noises.push_back(index);
-            }
-            break;
-        }
-    }
-}
-
-bool ArucoTracking::HasSmallMarker(const vector<int> ids)
-{
-    bool has_small = false;
-    for (auto small_id : m_medium_marker_ids_param){
-        if (!has_small){
-            for (auto detected_id : ids){
-                if (detected_id == small_id){
-                    has_small = true;
-                    break;
-                }
-            }
-        }
-    }
-    return has_small;
-}
-
-void ArucoTracking::EraseIdnCorner(const vector<int> erase_ids, vector<int>& ids, vector<vector<Point2f>>& corners)
-{
-    vector<int> indexes;
-    for (auto erase_id : erase_ids){
-        for (int index = 0; index < ids.size(); index++){
-            if (ids[index] == erase_id){
-                indexes.push_back(index);
-                break;
-            }
-        }
-    }
-
-    if (!indexes.empty()){
-        sort(indexes.begin(), indexes.end(), greater<int>());
-
-        for (auto index : indexes){
-            corners.erase(corners.begin() + index);
-            ids.erase(ids.begin() + index);
-        }
-    }
-}
-
-void ArucoTracking::KillMarker(const vector<int> kill_ids)
-{
-    for (auto id : kill_ids){
-        for (auto& target : m_targets){
-            if (target.GetId() == id){
-                target.SetIsDetected(false);
-                break;
-            }
-        }
-    }
 }
 }

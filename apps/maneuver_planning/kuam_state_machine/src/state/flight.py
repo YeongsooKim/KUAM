@@ -1,22 +1,30 @@
-import rospy
-import smach
-import state
-import copy
-from kuam_msgs.msg import Setpoint
-
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
-from utils import *
+import rospy
+import smach
+import copy
 
-class Flight(smach.State, state.Base):
+from .state import Base
+from utils.util_geometry import *
+from utils.util_state import *
+
+from kuam_msgs.msg import Setpoint
+from kuam_msgs.msg import Completion
+
+
+
+class Flight(smach.State, Base):
     def __init__(self, ego_geopose, ego_pose, ego_vel, setpoint, setpoints):
         smach.State.__init__(self, input_keys=[], 
                                 output_keys=[], 
-                                outcomes=['done', 'emerg', 'manual', 'altctl'])
-        state.Base.__init__(self)
+                                outcomes=['done', 'AUTO.RTL', 'MANUAL', 'ALTCTL'])
+        Base.__init__(self)
 
+        # Publisher
+        self.CompletionPub = None
+        
         # Param
         self.reached_dist_th_m = None # defined by ros param
         self.guidance_dist_th_m = None # defined by ros param
@@ -42,12 +50,7 @@ class Flight(smach.State, state.Base):
 
 
     def Start(self):
-        # Initialize setpoint
-        self.is_start = True
-        self.is_last = False
-        self.is_first = True
-        self.dest_geopose = copy.deepcopy(self.setpoints.poses[-1].pose)
-        self.cur_sp_num = 0
+        pass
 
     def Running(self):
         rate = rospy.Rate(self.freq)
@@ -55,17 +58,17 @@ class Flight(smach.State, state.Base):
             # Break condition
             if self.transition != 'none':
                 if (self.transition == 'done') or (self.transition == 'emerg') or \
-                    (self.transition == 'manual') or (self.transition == 'altctl'):
+                    (self.transition == 'MANUAL') or (self.transition == 'ALTCTL'):
                     break
                 else:
                     self.transition = 'none'
 
             # Update setpoint
-            if self.is_last == False:
-                self.UpdateSetpointPose()
-            else:
-                if self.IsReached(self.ego_geopose.position, self.dest_geopose.position, self.reached_dist_th_m):
-                    self.transition = 'done'
+            self.setpoint.geopose = UpdateSetpointPose(self.setpoints.poses, self.ego_geopose, self.guidance_dist_th_m)
+            
+            if IsReached(self.ego_geopose.position, self.setpoints.poses[-1].pose.position, self.reached_dist_th_m):
+                self.transition = 'done'
+                break
 
             rate.sleep()
 
@@ -73,29 +76,11 @@ class Flight(smach.State, state.Base):
         trans = self.transition
         self.transition = 'none'
         self.is_start = False
+
+        msg = Completion()
+        msg.task = "flight"
+        msg.is_complete = not self.is_start
+        msg.geopose = self.setpoints.poses[-1].pose
+        self.CompletionPub(msg)
+        
         return trans
-
-    def UpdateSetpointPose(self):
-        cur_sp_num = self.cur_sp_num
-        cur_geopose = self.setpoints.poses[cur_sp_num].pose
-
-        is_reached = self.IsReached(self.ego_geopose.position, cur_geopose.position, self.guidance_dist_th_m)
-
-        if is_reached or self.is_first:
-            if self.is_first:
-                self.is_first = False
-
-            if (cur_sp_num + 1) < len(self.setpoints.poses):
-                self.cur_sp_num += 1
-                self.is_last = False
-                self.setpoint.geopose = self.setpoints.poses[self.cur_sp_num].pose
-            else:
-                self.is_last = True
-                self.setpoint.geopose = self.dest_geopose
-
-    def IsReached(self, p1, p2, th):
-        dist = DistanceFromLatLonInMeter3D(p1, p2)
-        if (dist < th):
-            return True
-        else: 
-            return False

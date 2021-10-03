@@ -118,16 +118,15 @@ geometry_msgs::Quaternion Utils::GetOrientation(geometry_msgs::Point src_pos, ge
     auto dy = trg_pos.y - src_pos.y;
     auto yaw_rad = atan2(dy, dx);
 
-    tf2::Quaternion tf_q;
-    tf_q.setRPY(0.0, 0.0, yaw_rad);
+    tf2::Quaternion q_tf;
+    q_tf.setRPY(0.0, 0.0, yaw_rad);
+    geometry_msgs::Quaternion q_msg;
+    q_msg.x = q_tf.x();
+    q_msg.y = q_tf.y();
+    q_msg.z = q_tf.z();
+    q_msg.w = q_tf.w();
 
-    geometry_msgs::Quaternion geometry_q;
-    geometry_q.x = tf_q.x();
-    geometry_q.y = tf_q.y();
-    geometry_q.z = tf_q.z();
-    geometry_q.w = tf_q.w();
-
-    return geometry_q;
+    return q_msg;
 }
 
 

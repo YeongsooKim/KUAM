@@ -23,7 +23,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   tf2_sensor_msgs
   tf2_geometry_msgs
-  kuam_mission_manager
+  kuam_state_machine
 )
 
 ###################################
@@ -34,11 +34,11 @@ find_package(catkin REQUIRED COMPONENTS
 ## INCLUDE_DIRS: uncomment this if your package contains header files
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
-## DEPENDS: system dependencies of this project that dependent projects also need
+## DEPENDS: system dependencies of this project that dependent projects akuam_state_machinelso need
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES kuam_payload_cmd
-  CATKIN_DEPENDS geometry_msgs mavros_msgs roscpp std_msgs kuam_msgs uav_msgs nav_msgs kuam_mission_manager
+  CATKIN_DEPENDS geometry_msgs mavros_msgs roscpp std_msgs kuam_msgs uav_msgs nav_msgs 
 )
 
 ###########

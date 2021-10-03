@@ -1,5 +1,5 @@
-#ifndef __UTILS_H__
-#define __UTILS_H__
+#ifndef __PAYLOAD_CMD_UTILS_H__
+#define __PAYLOAD_CMD_UTILS_H__
 #include <geometry_msgs/Quaternion.h>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Pose.h>
@@ -64,4 +64,4 @@ public:
 };
 }
 
-#endif // __UTILS_H__
+#endif // __PAYLOAD_CMD_UTILS_H__

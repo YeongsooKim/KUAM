@@ -1,14 +1,14 @@
 import rospy
 import smach
-import state
+from .state import Base
 import copy
 
-class Standby(smach.State, state.Base):
+class Standby(smach.State, Base):
     def __init__(self, ego_geopose, ego_pose, ego_vel, setpoint, setpoints):
         smach.State.__init__(self, input_keys=[], 
                                 output_keys=[], 
-                                outcomes=['arm', 'emerg', 'manual', 'altctl'])
-        state.Base.__init__(self)
+                                outcomes=['takeoff', 'AUTO.RTL', 'MANUAL', 'ALTCTL'])
+        Base.__init__(self)
         
         # State value
         self.ego_geopose = ego_geopose
@@ -34,8 +34,8 @@ class Standby(smach.State, state.Base):
         while not rospy.is_shutdown():
             # Break condition
             if self.transition != 'none':
-                if (self.transition == 'arm') or (self.transition == 'emerg') or \
-                    (self.transition == 'manual') or (self.transition == 'altctl'):
+                if (self.transition == 'takeoff') or (self.transition == 'AUTO.RTL') or \
+                    (self.transition == 'MANUAL') or (self.transition == 'ALTCTL'):
                     break
                 else:
                     self.transition = 'none'

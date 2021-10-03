@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   kuam_msgs
   mavros_msgs
   nav_msgs
+  kuam_state_machine
 )
 
 ###################################
@@ -28,7 +29,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS roscpp std_msgs uav_msgs kuam_msgs mavros_msgs nav_msgs
+  CATKIN_DEPENDS roscpp std_msgs uav_msgs kuam_msgs mavros_msgs nav_msgs kuam_state_machine
 )
 
 ###########
@@ -50,9 +51,3 @@ target_link_libraries(mission_manager_node ${catkin_LIBRARIES})
 ## mission_manager_visual_node
 add_executable(mission_manager_visual_node src/hmi/mission_manager_visual.cpp)
 target_link_libraries(mission_manager_visual_node ${catkin_LIBRARIES})
-
-## Install project namespaced headers
-install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  FILES_MATCHING PATTERN "*.h"
-  PATTERN ".svn" EXCLUDE)

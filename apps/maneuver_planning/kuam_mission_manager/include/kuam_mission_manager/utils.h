@@ -1,5 +1,5 @@
-#ifndef __UTILS_H__
-#define __UTILS_H__
+#ifndef __MISSION_MANAGER_UTILS_H__
+#define __MISSION_MANAGER_UTILS_H__
 #include <geometry_msgs/Quaternion.h>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Pose.h>
@@ -65,4 +65,4 @@ public:
 };
 }
 
-#endif // __UTILS_H__
+#endif // __MISSION_MANAGER_UTILS_H__

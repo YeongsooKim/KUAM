@@ -9,7 +9,7 @@
 #include "tf2_ros/transform_listener.h" // tf::quaternion
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
-#include <kuam_aruco_tracking/utils.h>
+#include <kuam_aruco_tracking/utils/util_geometry.h>
 #include <kuam_aruco_tracking/target.h>
 #include <kuam_msgs/ArucoVisual.h>
 #include <kuam_msgs/ArucoVisuals.h>
@@ -53,7 +53,7 @@ private:
     // Node Handler
 	ros::NodeHandle m_nh;
 	ros::NodeHandle m_p_nh;
-    Utils m_utils;
+    UtilGeometry m_util_geometry;
 
 public:
     Visualizer();
@@ -62,9 +62,11 @@ public:
 private:
     // Subscriber
     ros::Subscriber m_aruco_visual_sub;
+    ros::Subscriber m_aruco_states_sub;
 
     // Publisher
     ros::Publisher m_aruco_pub;
+    ros::Publisher m_landingpoint_pub;
 
     // Param
     string m_err_param;
@@ -89,6 +91,7 @@ private: // Function
     bool InitMarkers();
     
     void ArucoVisualCallback(const kuam_msgs::ArucoVisuals::ConstPtr &aruco_msg_ptr);
+    void ArucoStatesCallback(const kuam_msgs::ArucoStates::ConstPtr &aruco_msg_ptr);
 };
 
 
@@ -156,10 +159,13 @@ bool Visualizer::InitROS()
     string ns_name = ros::this_node::getNamespace();
 
     m_aruco_visual_sub = 
-        m_p_nh.subscribe<kuam_msgs::ArucoVisuals>(ns_name + "/aruco_tracking/aruco_visuals", 1, boost::bind(&Visualizer::ArucoVisualCallback, this, _1));
+        m_nh.subscribe<kuam_msgs::ArucoVisuals>("/aruco_tracking/aruco_visuals", 1, boost::bind(&Visualizer::ArucoVisualCallback, this, _1));
+    m_aruco_states_sub = 
+        m_nh.subscribe<kuam_msgs::ArucoStates>("/aruco_tracking/target_states", 1, boost::bind(&Visualizer::ArucoStatesCallback, this, _1));
 
     // Initialize publisher
-    m_aruco_pub = m_nh.advertise<visualization_msgs::MarkerArray>(nd_name + "/aruco_markerarray", 10);
+    m_aruco_pub = m_p_nh.advertise<visualization_msgs::MarkerArray>("aruco_markerarray", 10);
+    m_landingpoint_pub = m_p_nh.advertise<visualization_msgs::Marker>("landingpoint_marker", 10);
     
     return true;
 }
@@ -295,7 +301,7 @@ void Visualizer::ArucoVisualCallback(const kuam_msgs::ArucoVisuals::ConstPtr &ar
 
                 m_targets_markers[ac_visual.id][method].txt.pose.position = pos;
                 m_targets_markers[ac_visual.id][method].txt.pose.position.z += 0.2;
-                m_targets_markers[ac_visual.id][method].txt.text = "dist: " + m_utils.ToString(m_utils.Distance3D(origin, pos)) + " [m]";
+                m_targets_markers[ac_visual.id][method].txt.text = "dist: " + m_util_geometry.ToString(m_util_geometry.Distance3D(origin, pos)) + " [m]";
                 m_targets_markers[ac_visual.id][method].is_txt_add = true;
             }
         }
@@ -319,6 +325,26 @@ void Visualizer::ArucoVisualCallback(const kuam_msgs::ArucoVisuals::ConstPtr &ar
     }
 
     m_aruco_pub.publish(visualization_markers);
+}
+
+void Visualizer::ArucoStatesCallback(const kuam_msgs::ArucoStates::ConstPtr &aruco_msg_ptr)
+{
+    visualization_msgs::Marker landing_point;
+    landing_point.header.frame_id = aruco_msg_ptr->header.frame_id;
+    landing_point.header.stamp = ros::Time::now();
+    landing_point.ns = "setpoint/landing_point";
+    landing_point.id = 0;
+    landing_point.type = visualization_msgs::Marker::SPHERE;
+    landing_point.action = visualization_msgs::Marker::ADD;
+    landing_point.scale.x = 0.15;
+    landing_point.scale.y = 0.15;
+    landing_point.scale.z = 0.15;
+    landing_point.pose = aruco_msg_ptr->target_pose;
+    landing_point.color = ORANGE;
+    landing_point.color.a = 1.0f;
+    landing_point.lifetime = ros::Duration(0.1);
+
+    m_landingpoint_pub.publish(landing_point);
 }
 }
 

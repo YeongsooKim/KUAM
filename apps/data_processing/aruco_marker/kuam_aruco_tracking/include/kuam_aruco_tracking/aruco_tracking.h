@@ -19,10 +19,13 @@
 #include <opencv2/videoio/videoio_c.h>
 #include "opencv2/aruco/dictionary.hpp"
 
+#include <kuam_aruco_tracking/utils/util_marker.h>
+#include <kuam_aruco_tracking/utils/util_setpoint.h>
 #include <kuam_aruco_tracking/parser.h>
-#include <kuam_aruco_tracking/utils.h>
 #include <kuam_aruco_tracking/target.h>
 
+#include "tf2_ros/transform_listener.h" // tf::quaternion
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 #include <tf2/LinearMath/Vector3.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Transform.h>
@@ -45,8 +48,10 @@ private:
     // Node Handler
 	ros::NodeHandle m_nh;
     ros::NodeHandle m_p_nh;
+
+    UtilMarker m_util_marker;
+    UtilSetpoint m_util_setpoint;
     Parser m_parser;
-    Utils m_utils;
     vector<Target> m_targets;
     cv_bridge::CvImagePtr m_cv_ptr;
 
@@ -78,6 +83,9 @@ private:
     bool m_using_logging_data_param;
     int m_dictionaryID_param;
     int m_marker_cnt_th_param;
+    float m_big_marker_trans_param;
+    float m_medium_marker_trans_param;
+    float m_small_marker_trans_param;
 
     vector<int> m_big_marker_ids_param;
     vector<int> m_medium_marker_ids_param;
@@ -112,6 +120,9 @@ private:
     VideoCapture m_input_video;
     const string OPENCV_WINDOW;
 
+	tf2_ros::Buffer m_tfBuffer;
+	tf2_ros::TransformListener m_tfListener;
+
 private: // Function
     bool GetParam();
     bool InitFlag();
@@ -135,19 +146,6 @@ private: // Function
                             const vector<vector<Point2f>> m_corners, const vector<int> m_ids,
                             const vector<vector<Point2f>> b_corners, const vector<int> b_ids);
     void TargetPub();
-
-    bool Convert2CVImg(const sensor_msgs::Image::ConstPtr &img_ptr);
-    tf2::Vector3 CvVector3d2TfVector3(const Vec3d &vec);
-    tf2::Quaternion CvVector3d2TfQuarternion(const Vec3d &rotation_vector);
-    tf2::Transform CreateTransform(const Vec3d &tvec, const Vec3d &rotation_vector);
-
-    void GetDetectedId(vector<int>& detected_ids, vector<int>& undetected_ids, const vector<int> src_ids, const vector<int> trg_ids);
-    void GetIdsnCorners(const vector<int> ref_ids, const vector<int> input_ids, const vector<vector<Point2f>> input_corners,
-                            vector<int>& output_ids, vector<vector<Point2f>>& output_corners);
-    void GetNoiseIndexes(vector<int>& noises, const vector<int> ids);
-    bool HasSmallMarker(const vector<int> ids);
-    void EraseIdnCorner(const vector<int> erase_ids, vector<int>& ids, vector<vector<Point2f>>& corners);
-    void KillMarker(const vector<int> kill_ids);
 };
 }
 #endif //  __ARUCO_TRACKING_H__

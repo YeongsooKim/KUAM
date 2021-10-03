@@ -1,10 +1,8 @@
 mission_manager:
   process_freq: 30.0
-  data_ns: ''
 
 mission_manager_visual:
   process_freq: 5.0
-  data_ns: ''
 
   width: 250.0
   height: 250.0

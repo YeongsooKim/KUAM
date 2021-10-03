@@ -1,14 +1,14 @@
 import rospy
 import smach
 import copy
-import state
+from .state import Base
 
-class Hovering(smach.State, state.Base):
+class Hovering(smach.State, Base):
     def __init__(self, ego_geopose, ego_pose, ego_vel, setpoint, setpoints):
         smach.State.__init__(self, input_keys=[], 
                                 output_keys=[], 
-                                outcomes=['flight', 'landing', 'emerg', 'manual', 'altctl'])
-        state.Base.__init__(self)
+                                outcomes=['flight', 'landing', 'AUTO.RTL', 'MANUAL', 'ALTCTL'])
+        Base.__init__(self)
         
         # State value
         self.ego_geopose = ego_geopose
@@ -35,7 +35,7 @@ class Hovering(smach.State, state.Base):
             # Break condition
             if self.transition != 'none':
                 if (self.transition == 'flight') or (self.transition == 'landing') or \
-                    (self.transition == 'emerg') or (self.transition == 'manual') or (self.transition == 'altctl'):
+                    (self.transition == 'AUTO.RTL') or (self.transition == 'MANUAL') or (self.transition == 'ALTCTL'):
                     break
                 else:
                     self.transition = 'none'        

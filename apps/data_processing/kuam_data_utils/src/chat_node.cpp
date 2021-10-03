@@ -49,9 +49,10 @@ int main(int argc, char ** argv)
             is_first = false;
             ROS_INFO_STREAM("/****************************************/");
             ROS_INFO_STREAM("/** command: debugging|rc|offboard|    **/");
-            ROS_INFO_STREAM("/**          manual|emerg|local|       **/");
-            ROS_INFO_STREAM("/**          global_z|local_z|tool|    **/");
-            ROS_INFO_STREAM("/**          global|pause|play          **/");
+            ROS_INFO_STREAM("/**          manual|emergy|local|      **/");
+            ROS_INFO_STREAM("/**          altctl|land|global_z|     **/");
+            ROS_INFO_STREAM("/**          local_z|tool|global|      **/");
+            ROS_INFO_STREAM("/**          pause|play                **/");
             ROS_INFO_STREAM("/**                                    **/");
             ROS_INFO_STREAM("/**          wait|undocking|arm|       **/");
             ROS_INFO_STREAM("/**          hovering|flight|          **/");
@@ -70,7 +71,9 @@ int main(int argc, char ** argv)
             (inputString.compare("rc") == 0) ||
             (inputString.compare("offboard") == 0) ||
             (inputString.compare("manual") == 0) ||
-            (inputString.compare("emerg") == 0) ||
+            (inputString.compare("altctl") == 0) ||
+            (inputString.compare("emergy") == 0) ||
+            (inputString.compare("land") == 0) ||
             (inputString.compare("global") == 0) ||
             (inputString.compare("wait") == 0) ||
             (inputString.compare("undocking") == 0) ||

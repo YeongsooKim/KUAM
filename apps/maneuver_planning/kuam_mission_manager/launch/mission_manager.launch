@@ -2,14 +2,21 @@
 <launch>
 	<rosparam command="load" file="$(find kuam_mission_manager)/config/param.yaml" />
 
+    <!-- namespace -->
+	<arg name="data_ns" default="" />
+
     <!-- rviz -->
     <arg name="rviz" default="false" />
 
 	<!-- nodes -->
-	<node pkg="kuam_mission_manager" type="mission_manager_node" name="mission_manager" output="screen" />
-    <node pkg="kuam_mission_manager" type="mission_manager_visual_node" name="mission_manager_visual" />
+	<node pkg="kuam_mission_manager" type="mission_manager_node" name="mission_manager" output="screen" >
+        <param name="data_ns" value="$(arg data_ns)" />
+    </node>
+    <node pkg="kuam_mission_manager" type="mission_manager_visual_node" name="mission_manager_visual" >
+        <param name="data_ns" value="$(arg data_ns)" />
+    </node>
 
     <group if="$(arg rviz)">
-        <node pkg="rviz" type="rviz" name="rviz" args="-d $(find kuam_mission_manager)/rviz/mission_manager.rviz" required="true" />
+        <node pkg="rviz" type="rviz" name="mission_manager_rviz" args="-d $(find kuam_mission_manager)/rviz/mission_manager.rviz" required="true" />
     </group>
 </launch>

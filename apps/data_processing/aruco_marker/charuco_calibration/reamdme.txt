@@ -36,4 +36,4 @@ Usage: calibrate_camera_charuco [params] outfile
 		Output file with calibrated camera parameters
 
 
-example: rosrun charuco_calibration calibrate_camera_charuco "/home/ys/calib.txt" -dp="/home/ys/kuam_ws/src/KUAM/data_processing/aruco_marker/kuam_aruco_tracking/config/detector_params.yml" -w=5 -h=7 -sl=100 -ml=50 -d=0
+example: rosrun charuco_calibration calibrate_camera_charuco "/home/ys/calib.txt" -dp="/home/ys/kuam_ws/src/KUAM/apps/data_processing/aruco_marker/kuam_aruco_tracking/config/detector_params.yml" -w=5 -h=7 -sl=100 -ml=50 -d=0

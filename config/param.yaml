@@ -24,7 +24,7 @@ kuam:
       # flight
       alt_offset_m: 23.156
 
-      # emerg
+      # emergy
       battery_th_per: 0.10
 
     tf_broadcaster:

@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<launch>
+    <rosparam command="load" file="$(find kuam_global_tf)/config/param.yaml" />
+
+    <!-- namespace -->
+    <arg name="data_ns" default="/kuam/data" />
+    
+    <!-- nodes -->
+    <node pkg="kuam_global_tf" type="global_tf_node" name="global_tf" output="screen">
+        <param name="data_ns" value="$(arg data_ns)" />
+    </node>
+</launch>

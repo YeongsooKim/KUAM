@@ -1,4 +1,7 @@
 <launch>
+    <!-- namespace -->
+	<arg name="data_ns" default="/kuam/data" />
+
     <!-- tf_broadcaster -->
     	<!-- Must select only one -->
 	<arg name="is_exp" default="false" />
@@ -6,10 +9,11 @@
 	<arg name="is_gazebo" default="true" />
 
     <!-- state machine -->
-    <arg name="using_aruco" default="True" />
+    <arg name="using_camera" default="True" />
 
     <group ns="/kuam/maneuver">
         <include file="$(find kuam_mission_manager)/launch/mission_manager.launch">
+            <arg name="data_ns" value="$(arg data_ns)" />
         </include>
 
         <!-- <include file="$(find kuam_mission_manager)/launch/tf_broadcaster.launch">
@@ -20,7 +24,8 @@
         </include> -->
 
         <include file="$(find kuam_state_machine)/launch/state_machine.launch">
-            <arg name="using_aruco" value="$(arg using_aruco)" />
+            <arg name="using_camera" value="$(arg using_camera)" />
+            <arg name="data_ns" value="$(arg data_ns)" />
         </include>
     </group>
 </launch>

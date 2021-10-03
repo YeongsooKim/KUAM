@@ -77,14 +77,9 @@ geometry_msgs::Quaternion Utils::GetOrientation(geometry_msgs::Point src_pos, ge
 
     tf2::Quaternion tf_q;
     tf_q.setRPY(0.0, 0.0, yaw_rad);
+    geometry_msgs::Quaternion msg_q;
 
-    geometry_msgs::Quaternion geometry_q;
-    geometry_q.x = tf_q.x();
-    geometry_q.y = tf_q.y();
-    geometry_q.z = tf_q.z();
-    geometry_q.w = tf_q.w();
-
-    return geometry_q;
+    return msg_q;
 }
 
 geometry_msgs::Point Utils::ConvertToMapFrame(double lat, double lon, double hgt, geographic_msgs::GeoPoint home_position)

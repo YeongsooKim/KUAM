@@ -1,0 +1,3 @@
+string task
+bool is_complete
+geographic_msgs/GeoPose geopose

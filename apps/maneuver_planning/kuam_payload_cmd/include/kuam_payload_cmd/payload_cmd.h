@@ -23,10 +23,10 @@
 #include "uav_msgs/Chat.h"
 #include "uav_msgs/PayloadCmd.h"
 
-#include "kuam_msgs/TransReq.h"
 #include "kuam_msgs/Setpoint.h"
 #include "kuam_msgs/LandingState.h"
-#include "kuam_mission_manager/state_machine.h"
+#include "kuam_msgs/LandRequest.h"
+#include "kuam_state_machine/state_machine.h"
 #include "kuam_payload_cmd/utils.h"
 
 namespace kuam{
@@ -57,6 +57,7 @@ private:
     // ServiceClient
     ros::ServiceClient m_arming_serv_client;
     ros::ServiceClient m_set_mode_serv_client;
+    ros::ServiceServer m_landing_request_service;    
 
     ros::Timer m_timer;
 
@@ -65,24 +66,15 @@ private:
     float m_process_freq_param;
     std::string m_data_ns_param;
 
-    // Flag
     
-    ros::Time m_last_request_time;
-
     mavros_msgs::State m_mavros_status;
-    
-    std::string m_cur_sm_state;
-    std::string m_prev_sm_state;
-    std::string m_sm_kuam_mode; // state machine kuam mode
-    std::string m_px4_mode;
-    std::string m_payload_cmd_state;
-
     kuam_msgs::Setpoint m_setpoint;
+    ros::Time m_last_request_time;
     
 	tf2_ros::Buffer m_tfBuffer;
 	tf2_ros::TransformListener m_tfListener;
 
-    std::string m_test_msg;
+    std::string m_chat_cmd_mode;
 
 private: // function
     // Initialization fucntion
@@ -96,31 +88,23 @@ private: // function
 
     // Callback functions
     void ChatterCallback(const uav_msgs::Chat::ConstPtr &chat_ptr);
+    bool LandRequestSrv(kuam_msgs::LandRequest::Request &req, kuam_msgs::LandRequest::Response &res);
     inline void MavrosStateCallback(const mavros_msgs::State::ConstPtr &state_ptr) { m_mavros_status = *state_ptr; }
     inline void SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_ptr) { m_setpoint = *setpoint_ptr; }
-    inline void TransReqCallback(const kuam_msgs::TransReq::ConstPtr &trans_req_ptr) { 
-        m_sm_kuam_mode = trans_req_ptr->mode.kuam;
-        m_px4_mode = trans_req_ptr->mode.px4;
-        m_cur_sm_state = trans_req_ptr->state; 
-    }
-    
 
     // Request
+    void ArmRequest();
     void ManualRequest();
     void AltitudeRequest();
+    bool OffboardRequest();
+    void LandRequest();
     void EmergRequest();
-    void ArmRequest();
-    void HoveringRequest();
-    void TakeoffRequest();
-    void LandingRequest();
-    void FlightRequest();
 
     // Util functions
-    bool IsOffboard();
     void StateUpdate();
     void SetpointPub();
     void PayloadCmdPub();
-
+    bool IsMode(string input);
 };
 }
 #endif //  __MAVROS_OFFB_H__

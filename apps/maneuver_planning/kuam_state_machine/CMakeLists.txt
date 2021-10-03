@@ -7,8 +7,6 @@ add_compile_options(-std=c++11)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-# find_package(Eigen3 REQUIRED)
-find_package(Eigen3 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   roscpp
@@ -53,16 +51,35 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
   include
-  ${EIGEN3_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
 )
 
 ## mission_manager_node
 
-## setpoint_tf_node
-add_executable(setpoint_tf_node src/hmi/setpoint_tf.cpp src/utils.cpp)
-target_link_libraries(setpoint_tf_node ${catkin_LIBRARIES})
+## state_machine_node
+catkin_install_python(PROGRAMS 
+  src/state_machine.py
+  src/state/flight.py
+  src/state/hovering.py
+  src/state/landing.py
+  src/state/standby.py
+  src/state/state.py
+  src/state/takeoff.py
+  src/utils/util_geometry.py
+  src/utils/util_state.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
-## setpoint_visual
-add_executable(setpoint_visual_node src/hmi/setpoint_visual.cpp src/utils.cpp)
-target_link_libraries(setpoint_visual_node ${catkin_LIBRARIES})
+## state_machine_tf_node
+add_executable(state_machine_tf_node src/hmi/state_machine_tf.cpp src/utils.cpp)
+target_link_libraries(state_machine_tf_node ${catkin_LIBRARIES})
+
+## state_machine_visual
+add_executable(state_machine_visual_node src/hmi/state_machine_visual.cpp src/utils.cpp)
+target_link_libraries(state_machine_visual_node ${catkin_LIBRARIES})
+
+## Install project namespaced headers
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  FILES_MATCHING PATTERN "*.h"
+  PATTERN ".svn" EXCLUDE)

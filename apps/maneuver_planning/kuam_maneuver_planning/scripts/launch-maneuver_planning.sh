@@ -74,7 +74,7 @@ elif [ "$4" == "exp" ]; then
 fi
 
 if [ $using == "false" ]; then
-    roslaunch kuam_maneuver_planning maneuver_planning.launch using_aruco:="$using"
+    roslaunch kuam_maneuver_planning maneuver_planning.launch using_camera:="$using"
 else
-    roslaunch kuam_maneuver_planning maneuver_planning.launch using_aruco:="$using" is_gazebo:="$gazebo" is_real:="$real" is_exp:="$exp"
+    roslaunch kuam_maneuver_planning maneuver_planning.launch using_camera:="$using" is_gazebo:="$gazebo" is_real:="$real" is_exp:="$exp"
 fi

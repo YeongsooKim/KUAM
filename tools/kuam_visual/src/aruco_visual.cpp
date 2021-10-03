@@ -13,8 +13,6 @@
 #include <kuam_aruco_tracking/target.h>
 #include <kuam_msgs/ArucoVisual.h>
 #include <kuam_msgs/ArucoVisuals.h>
-#include <kuam_msgs/ArucoState.h>
-#include <kuam_msgs/ArucoStates.h>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PoseArray.h>

@@ -1,8 +1,13 @@
 <launch>
+    <!-- namespace -->
+    <arg name="maneuver_ns" default="" />
+
     <!-- - kuam_aruco_tracking - -->
     <arg name="using_aruco" default="true" />
-
-    <!-- Select only one data type -->
+	<arg     if="$(arg using_aruco)" name="gps_only" value="false" />
+	<arg unless="$(arg using_aruco)" name="gps_only" value="true" />
+    
+    <!-- select only one data type -->
     <arg name="using_gazebo_data" default="true" />
     <arg name="using_logging_data" default="false" />
     <arg name="using_device_data" default="false" />
@@ -11,7 +16,11 @@
     <arg name="rviz" default="false" />
 
     <group ns="/kuam/data">
-        <include file="$(find kuam_csv_parser)/launch/csv_parser.launch" />
+        <include file="$(find kuam_global_path)/launch/global_path.launch">
+            <arg name="rviz" value="$(arg rviz)" />
+            <arg name="maneuver_ns" value="$(arg maneuver_ns)" />
+            <arg name="gps_only" value="$(arg gps_only)" />
+        </include>
 
         <include file="$(find kuam_aruco_tracking)/launch/aruco_tracking.launch" if="$(arg using_aruco)">
             <arg name="using_gazebo_data" value="$(arg using_gazebo_data)" />

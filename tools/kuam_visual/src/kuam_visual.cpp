@@ -566,146 +566,146 @@ void KuamVisualizer::ArucoStateCallback(const kuam_msgs::ArucoStates::ConstPtr &
 
 void KuamVisualizer::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr)
 {
-    if (!m_is_init_global_path){
-        m_is_init_global_path = true;
+    // if (!m_is_init_global_path){
+    //     m_is_init_global_path = true;
 
-        // Get pose
-        vector<geometry_msgs::Point> points;
-        for (auto wp : wps_ptr->waypoints){
-            auto lat = wp.geopose.position.latitude;
-            auto lon = wp.geopose.position.longitude;
-            auto alt = wp.geopose.position.altitude;
-            auto p = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
-            points.push_back(p);
-        }
+    //     // Get pose
+    //     vector<geometry_msgs::Point> points;
+    //     for (auto wp : wps_ptr->waypoints){
+    //         auto lat = wp.geopose.position.latitude;
+    //         auto lon = wp.geopose.position.longitude;
+    //         auto alt = wp.geopose.position.altitude;
+    //         auto p = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
+    //         points.push_back(p);
+    //     }
 
-        m_global_markers.markers[0].header.stamp = ros::Time::now();
-        m_global_markers.markers[0].points = points;
+    //     m_global_markers.markers[0].header.stamp = ros::Time::now();
+    //     m_global_markers.markers[0].points = points;
 
-        // Allocate orientation
-        vector<geometry_msgs::Pose> poses;
-        for (int i = 0; i < points.size(); i++){
-            geometry_msgs::Pose p;
-            if (points.size() != 1){
-                if (i + 1 < points.size()){
-                    auto orientation = m_utils.GetOrientation(points[i], points[i+1]);
-                    p.orientation = orientation;
-                    p.position = points[i];
-                }
-                else {
-                    p.orientation = poses[i-1].orientation;
-                    p.position = poses[i-1].position;
-                }
-                poses.push_back(p);
-            }
-            else{
-                p.orientation.x = 0.0;
-                p.orientation.y = 0.0;
-                p.orientation.z = 0.0;
-                p.orientation.w = 1.0;
-                p.position = points[i];
-                poses.push_back(p);
-            }
-        }
+    //     // Allocate orientation
+    //     vector<geometry_msgs::Pose> poses;
+    //     for (int i = 0; i < points.size(); i++){
+    //         geometry_msgs::Pose p;
+    //         if (points.size() != 1){
+    //             if (i + 1 < points.size()){
+    //                 auto orientation = m_utils.GetOrientation(points[i], points[i+1]);
+    //                 p.orientation = orientation;
+    //                 p.position = points[i];
+    //             }
+    //             else {
+    //                 p.orientation = poses[i-1].orientation;
+    //                 p.position = poses[i-1].position;
+    //             }
+    //             poses.push_back(p);
+    //         }
+    //         else{
+    //             p.orientation.x = 0.0;
+    //             p.orientation.y = 0.0;
+    //             p.orientation.z = 0.0;
+    //             p.orientation.w = 1.0;
+    //             p.position = points[i];
+    //             poses.push_back(p);
+    //         }
+    //     }
 
-        for (int i = 0; i < poses.size(); i++){
+    //     for (int i = 0; i < poses.size(); i++){
 
-            visualization_msgs::Marker yaw;
-            yaw.header.frame_id = "map";
-            yaw.header.stamp = ros::Time::now();
-            yaw.ns = "global/yaw";
-            yaw.id = i;
-            yaw.type = visualization_msgs::Marker::ARROW;
-            yaw.action = visualization_msgs::Marker::ADD;
-            yaw.scale.x = 0.3;
-            yaw.scale.y = 0.1;
-            yaw.scale.z = 0.1;
-            yaw.pose = poses[i];
-            yaw.color = RED;
-            yaw.color.a = 0.4f;
-            yaw.lifetime = ros::Duration();
-            m_global_markers.markers.push_back(yaw);
-        }
+    //         visualization_msgs::Marker yaw;
+    //         yaw.header.frame_id = "map";
+    //         yaw.header.stamp = ros::Time::now();
+    //         yaw.ns = "global/yaw";
+    //         yaw.id = i;
+    //         yaw.type = visualization_msgs::Marker::ARROW;
+    //         yaw.action = visualization_msgs::Marker::ADD;
+    //         yaw.scale.x = 0.3;
+    //         yaw.scale.y = 0.1;
+    //         yaw.scale.z = 0.1;
+    //         yaw.pose = poses[i];
+    //         yaw.color = RED;
+    //         yaw.color.a = 0.4f;
+    //         yaw.lifetime = ros::Duration();
+    //         m_global_markers.markers.push_back(yaw);
+    //     }
 
-        int ld_index = 0;
-        bool has_landingpoint = false;
-        for (int i = 0; i < wps_ptr->waypoints.size(); i++){
-            if (wps_ptr->waypoints[i].mission == "landing"){
-                ld_index = i;
-                has_landingpoint = true;
-            }
-        }
+    //     int ld_index = 0;
+    //     bool has_landingpoint = false;
+    //     for (int i = 0; i < wps_ptr->waypoints.size(); i++){
+    //         if (wps_ptr->waypoints[i].mission == "landing"){
+    //             ld_index = i;
+    //             has_landingpoint = true;
+    //         }
+    //     }
 
-        if (has_landingpoint){
-            auto geopose = wps_ptr->waypoints[ld_index].geopose;
-            auto lat = geopose.position.latitude;
-            auto lon = geopose.position.longitude;
-            auto alt = m_landing_standby_alt_m_param;
-            auto landing_pos = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
+    //     if (has_landingpoint){
+    //         auto geopose = wps_ptr->waypoints[ld_index].geopose;
+    //         auto lat = geopose.position.latitude;
+    //         auto lon = geopose.position.longitude;
+    //         auto alt = m_landing_standby_alt_m_param;
+    //         auto landing_pos = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
 
-            visualization_msgs::Marker landing_point;
-            landing_point.header.frame_id = "map";
-            landing_point.header.stamp = ros::Time::now();
-            landing_point.ns = "global/landing_point";
-            landing_point.id = 0;
-            landing_point.type = visualization_msgs::Marker::SPHERE;
-            landing_point.action = visualization_msgs::Marker::ADD;
-            landing_point.scale.x = m_standby_dist_th_m_param;
-            landing_point.scale.y = m_standby_dist_th_m_param;
-            landing_point.scale.z = m_standby_dist_th_m_param;
-            landing_point.pose.position = landing_pos;
-            landing_point.pose.orientation.x = 0.0;
-            landing_point.pose.orientation.y = 0.0;
-            landing_point.pose.orientation.z = 0.0;
-            landing_point.pose.orientation.w = 1.0;
-            landing_point.color = GREEN;
-            landing_point.color.a = 0.3f;
-            landing_point.lifetime = ros::Duration();
-            m_global_markers.markers.push_back(landing_point);
+    //         visualization_msgs::Marker landing_point;
+    //         landing_point.header.frame_id = "map";
+    //         landing_point.header.stamp = ros::Time::now();
+    //         landing_point.ns = "global/landing_point";
+    //         landing_point.id = 0;
+    //         landing_point.type = visualization_msgs::Marker::SPHERE;
+    //         landing_point.action = visualization_msgs::Marker::ADD;
+    //         landing_point.scale.x = m_standby_dist_th_m_param;
+    //         landing_point.scale.y = m_standby_dist_th_m_param;
+    //         landing_point.scale.z = m_standby_dist_th_m_param;
+    //         landing_point.pose.position = landing_pos;
+    //         landing_point.pose.orientation.x = 0.0;
+    //         landing_point.pose.orientation.y = 0.0;
+    //         landing_point.pose.orientation.z = 0.0;
+    //         landing_point.pose.orientation.w = 1.0;
+    //         landing_point.color = GREEN;
+    //         landing_point.color.a = 0.3f;
+    //         landing_point.lifetime = ros::Duration();
+    //         m_global_markers.markers.push_back(landing_point);
 
-            //// ground truth
-            visualization_msgs::Marker gt_aruco;
-            gt_aruco.header.frame_id = "map";
-            gt_aruco.type = visualization_msgs::Marker::CUBE;
-            gt_aruco.action = visualization_msgs::Marker::ADD;
-            gt_aruco.pose.orientation.w = 1.0;
-            gt_aruco.pose.orientation.x = 0.0;
-            gt_aruco.pose.orientation.y = 0.0;
-            gt_aruco.pose.orientation.z = 0.0;
-            gt_aruco.lifetime = ros::Duration();
+    //         //// ground truth
+    //         visualization_msgs::Marker gt_aruco;
+    //         gt_aruco.header.frame_id = "map";
+    //         gt_aruco.type = visualization_msgs::Marker::CUBE;
+    //         gt_aruco.action = visualization_msgs::Marker::ADD;
+    //         gt_aruco.pose.orientation.w = 1.0;
+    //         gt_aruco.pose.orientation.x = 0.0;
+    //         gt_aruco.pose.orientation.y = 0.0;
+    //         gt_aruco.pose.orientation.z = 0.0;
+    //         gt_aruco.lifetime = ros::Duration();
 
-            auto small_gt_pos = landing_pos;
-            small_gt_pos.x += 0.30;
-            small_gt_pos.y -= 0.30;
-            small_gt_pos.z = 0.0; // ground
-            gt_aruco.ns = "gt/small";
-            gt_aruco.id = 0;
-            gt_aruco.scale.x = m_medium_marker_size_m_param;
-            gt_aruco.scale.y = m_medium_marker_size_m_param;
-            gt_aruco.scale.z = 0.01;
-            gt_aruco.pose.position = small_gt_pos;
-            gt_aruco.color = GREEN;
-            gt_aruco.color.a = 1.0f;
-            m_gt_markers.markers.push_back(gt_aruco);
+    //         auto small_gt_pos = landing_pos;
+    //         small_gt_pos.x += 0.30;
+    //         small_gt_pos.y -= 0.30;
+    //         small_gt_pos.z = 0.0; // ground
+    //         gt_aruco.ns = "gt/small";
+    //         gt_aruco.id = 0;
+    //         gt_aruco.scale.x = m_medium_marker_size_m_param;
+    //         gt_aruco.scale.y = m_medium_marker_size_m_param;
+    //         gt_aruco.scale.z = 0.01;
+    //         gt_aruco.pose.position = small_gt_pos;
+    //         gt_aruco.color = GREEN;
+    //         gt_aruco.color.a = 1.0f;
+    //         m_gt_markers.markers.push_back(gt_aruco);
 
-            auto big_gt_pos = landing_pos;
-            // big_gt_pos.x -= m_big_marker_size_m_param/2.0;
-            // big_gt_pos.y -= (m_big_marker_size_m_param + m_medium_marker_size_m_param)/2.0;
-            big_gt_pos.z = 0.0;
-            gt_aruco.ns = "gt/big";
-            gt_aruco.id = 1;
-            gt_aruco.scale.x = m_big_marker_size_m_param;
-            gt_aruco.scale.y = m_big_marker_size_m_param;
-            gt_aruco.scale.z = 0.01;
-            gt_aruco.pose.position = big_gt_pos;
-            gt_aruco.color = YELLOW;
-            gt_aruco.color.a = 1.0f;
-            m_gt_markers.markers.push_back(gt_aruco);
-        }
-    }
-    else {
-        m_global_path_pub.publish(m_global_markers);
-    }
+    //         auto big_gt_pos = landing_pos;
+    //         // big_gt_pos.x -= m_big_marker_size_m_param/2.0;
+    //         // big_gt_pos.y -= (m_big_marker_size_m_param + m_medium_marker_size_m_param)/2.0;
+    //         big_gt_pos.z = 0.0;
+    //         gt_aruco.ns = "gt/big";
+    //         gt_aruco.id = 1;
+    //         gt_aruco.scale.x = m_big_marker_size_m_param;
+    //         gt_aruco.scale.y = m_big_marker_size_m_param;
+    //         gt_aruco.scale.z = 0.01;
+    //         gt_aruco.pose.position = big_gt_pos;
+    //         gt_aruco.color = YELLOW;
+    //         gt_aruco.color.a = 1.0f;
+    //         m_gt_markers.markers.push_back(gt_aruco);
+    //     }
+    // }
+    // else {
+    //     m_global_path_pub.publish(m_global_markers);
+    // }
 }
 
 void KuamVisualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_ptr)
@@ -945,7 +945,7 @@ void KuamVisualizer::StateCallback(const kuam_msgs::TransReq::ConstPtr &state_pt
 {
     string state = state_ptr->state + "\n";
     string mode = state_ptr->mode.kuam + "\n";
-    if (mode == "EMERG\n"){
+    if (mode == "EMERGY\n"){
         m_text_datum.cur_mode = (boost::format("<span style=\"color: rgba(%2%, %3%, %4%, %5%)\">%1%</span>")
              % mode % 255.0 % 0.0 % 0.0 % 1.0).str();
     }

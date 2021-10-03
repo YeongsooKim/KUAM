@@ -1,20 +1,25 @@
-import rospy
-import smach
-import state
-import copy
-
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
-from utils import *
+import rospy
+import smach
 
-class Takeoff(smach.State, state.Base):
+from .state import Base
+from utils.util_geometry import *
+
+from kuam_msgs.msg import Completion
+
+
+class Takeoff(smach.State, Base):
     def __init__(self, ego_geopose, ego_pose, ego_vel, setpoint, setpoints):
         smach.State.__init__(self, input_keys=[], 
                                 output_keys=[], 
-                                outcomes=['done', 'emerg', 'manual', 'altctl'])
-        state.Base.__init__(self)
+                                outcomes=['done', 'AUTO.RTL', 'MANUAL', 'ALTCTL'])
+        Base.__init__(self)
+
+        # Publisher
+        self.CompletionPub = None
         
         # Param
         self.takeoff_alt_m = None # defined by ros param
@@ -44,27 +49,36 @@ class Takeoff(smach.State, state.Base):
         rate = rospy.Rate(self.freq)
         while not rospy.is_shutdown():
             if self.transition != 'none':
-                if (self.transition == 'done') or (self.transition == 'emerg') or \
-                    (self.transition == 'manual') or (self.transition == 'altctl'):
+                if (self.transition == 'done') or (self.transition == 'AUTO.RTL') or \
+                    (self.transition == 'MANUAL') or (self.transition == 'ALTCTL'):
                     break
                 else:
                     self.transition = 'none'
 
             if self.IsReached():
                 self.transition = 'done'
+                break
             rate.sleep()
+
 
     def Terminate(self):
         trans = self.transition
         self.transition = 'none'
         self.is_start = False
+
+        msg = Completion()
+        msg.task = "takeoff"
+        msg.is_complete = not self.is_start
+        msg.geopose = self.setpoint.geopose
+        self.CompletionPub(msg)
+
         return trans
 
 
     def IsReached(self):
         dist = DistanceFromLatLonInMeter3D(self.setpoint.geopose.position, self.ego_geopose.position)
 
-        if (dist < self.reached_dist_th_m):
+        if dist < self.reached_dist_th_m:
             return True
         else: 
             return False

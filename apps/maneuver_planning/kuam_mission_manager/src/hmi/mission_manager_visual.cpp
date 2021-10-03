@@ -6,7 +6,6 @@
 #include <boost/format.hpp>
 
 #include <kuam_msgs/TaskList.h>
-#include <kuam_msgs/TransReq.h>
 #include <std_msgs/ColorRGBA.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
@@ -59,11 +58,7 @@ private: // Function
 
 Visualizer::Visualizer() :
     m_p_nh("~"),
-    m_process_freq_param(NAN),
-    m_text_width_param(NAN),
-    m_text_height_param(NAN),
-    m_text_left_param(NAN),
-    m_text_top_param(NAN)
+    m_process_freq_param(NAN)
 {
     InitFlag();
     if (!GetParam()) ROS_ERROR("[mission_manager_visual] Fail GetParam %s", m_err_param.c_str());

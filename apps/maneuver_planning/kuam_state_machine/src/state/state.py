@@ -4,7 +4,7 @@ from geographic_msgs.msg import GeoPose
 from geographic_msgs.msg import GeoPath
 from geometry_msgs.msg import Pose
 
-class Base():
+class Base:
     def __init__(self):
         self.transition = ''
         self.freq = 1.0

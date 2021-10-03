@@ -1,42 +1,41 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+
 import rospy
 import smach
-import state
-import copy
-from utils import *
-from math import pi
-from math import tan
-from math import atan2
-
-import tf2_ros
-import tf2_geometry_msgs
-
+import tf
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
+
+from .state import Base
+from utils.util_geometry import *
+from utils.util_state import *
 
 from geometry_msgs.msg import Point
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseStamped
 from kuam_msgs.msg import LandingState
 from geographic_msgs.msg import GeoPoseStamped
+import tf2_geometry_msgs
 
-class Landing(smach.State, state.Base):
+class Landing(smach.State, Base):
     def __init__(self, ego_geopose, ego_pose, ego_vel, setpoint, setpoints):
         smach.State.__init__(self, input_keys=[], 
                                 output_keys=[], 
-                                outcomes=['disarm', 'emerg', 'manual', 'altctl'])
-        state.Base.__init__(self)
+                                outcomes=['done', 'AUTO.RTL', 'MANUAL', 'ALTCTL'])
+        Base.__init__(self)
         
         # Flag
         self.landing_state = LandingState()
-        self.landing_state.is_detected = False
-        self.landing_state.is_land = False
-        self.landing_state.is_pass_landing_standby = False
-        self.maf_init = False
+        # self.landing_state.is_land = False
         
         # Param
+        self.reached_dist_th_m = None # defined by ros param
+        self.guidance_dist_th_m = None # defined by ros param
         self.landing_threshold_m = None
-        self.landing_standby_alt_m = 5.0
-        self.standby_dist_th_m = 1.5
-        self.using_aruco = False
+        self.using_camera = False
         self.maf_buf_size = 20
         self.big_target_mapping = 0.0
         self.medium_target_mapping = 0.0
@@ -75,38 +74,45 @@ class Landing(smach.State, state.Base):
     '''
     def Start(self):
         self.is_start = True
-        # Initialize flag
-        self.landing_state.is_land = False
-        self.landing_state.is_detected = False
-        self.landing_state.is_pass_landing_standby = False
-        self.maf_init = False
-
+        
+        self.switching_mod2 = False
         # Initialize setpoint
-        geopose = self.setpoints.poses[-1].pose
-        geopose.position.altitude = self.landing_standby_alt_m
-        self.landing_standby = geopose.position
+        # geopose = self.setpoints.poses[-1].pose
+        # geopose.position.altitude = self.landing_standby_alt_m
+        # self.landing_standby = geopose.position
         self.orientation = self.ego_geopose.orientation
 
         # in side the buffer: point, yaw
         self.maf_buf = [[Point(), 0.0]]*self.maf_buf_size
-        self.GenInitTrajectory(self.ego_pose, self.landing_standby)
+        # self.GenInitTrajectory(self.ego_pose, self.landing_standby)
 
     def Running(self):
         rate = rospy.Rate(self.freq)
         while not rospy.is_shutdown():
             # Break condition
             if self.transition != 'none':
-                if (self.transition == 'disarm') or (self.transition == 'emerg') or \
-                    (self.transition == 'manual') or (self.transition == 'altctl'):
+                if (self.transition == 'done') or (self.transition == 'AUTO.RTL') or \
+                    (self.transition == 'MANUAL') or (self.transition == 'ALTCTL'):
                     break
                 else:
                     self.transition = 'none'    
 
-            # Update setpoint
-            self.UpdateSetpoint()
+            # Using camera
+            if self.using_camera:
+                self.CameraLandModeSwitching()
+                self.CameraSetpointUpdate()
 
-            # Update landing state
-            self.UpdateLandingState()
+            # Using GPS only
+            else:
+                self.GPSLandModeSwitching()
+                self.GPSSetpointUpdate()
+            
+
+            # # Update setpoint
+            # self.UpdateSetpoint()
+
+            # # Update landing state
+            # self.UpdateLandingState()
 
             rate.sleep()
 
@@ -115,6 +121,63 @@ class Landing(smach.State, state.Base):
         self.transition = 'none'
         self.is_start = False
         return trans
+
+    '''
+    Camera
+    '''
+    def CameraLandModeSwitching(self):
+        if not self.landing_state.is_detected:
+            self.landing_state.mode = "standby"
+
+        else:
+            if -self.target_pose.position.z < self.landing_threshold_m:
+                self.landing_state.mode = "auto.land"
+                
+            elif self.switching_mod2:
+                self.landing_state.mode = "mode2"
+
+            else:
+                self.landing_state.mode = "mode1"
+
+    def CameraSetpointUpdate(self):
+        if self.landing_state.mode == "mode1":
+            pass
+
+        elif self.landing_state.mode == "mode2":
+            self.setpoint.vel.linear.x = self.XY_Vel(self.target_pose.position.x)
+            self.setpoint.vel.linear.y = self.XY_Vel(self.target_pose.position.y)
+            self.setpoint.vel.linear.z = self.Z_Vel(self.target_pose.position.z)
+
+            v_yaw = self.YawRate(self.target_pose.orientation)
+            self.setpoint.yaw_rate.orientation.x = v_yaw[0]
+            self.setpoint.yaw_rate.orientation.y = v_yaw[1]
+            self.setpoint.yaw_rate.orientation.z = v_yaw[2]
+            self.setpoint.yaw_rate.orientation.w = v_yaw[3]
+
+            self.setpoint.geopose = self.ego_geopose
+
+        elif self.landing_state.mode == "auto.land":
+            self.transition = "done"
+
+        elif self.landing_state.mode == "standby":
+            self.setpoint.geopose = self.setpoints.poses[-1].pose
+    
+    '''
+    GPS
+    '''
+    def GPSLandModeSwitching(self):
+        if self.ego_geopose.position.altitude < self.landing_threshold_m:
+            self.landing_state.mode = "auto.land"
+        else:
+            self.landing_state.mode = "mode1"
+            
+
+    def GPSSetpointUpdate(self):
+        # Update setpoint
+        if self.landing_state.mode == "mode1":
+            self.setpoint.geopose = UpdateSetpointPose(self.setpoints.poses, self.ego_geopose, self.guidance_dist_th_m)
+        elif self.landing_state.mode == "auto.land":
+            self.transition = 'done'
 
 
     '''
@@ -151,29 +214,19 @@ class Landing(smach.State, state.Base):
             cnt += 1
 
     def UpdateLandingState(self):
-        if self.landing_threshold_m is None:
-            return
-
-        if self.using_aruco:
-            if self.landing_state.is_detected and self.landing_state.is_pass_landing_standby:
-                h = -self.target_pose.position.z
-
-                if h < self.landing_threshold_m:
-                    self.landing_state.is_land = True
+        if self.using_camera:
+            if self.landing_state.is_detected:
+                if -self.target_pose.position.z < self.landing_threshold_m:
+                    # self.landing_state.is_land = True
+                    pass
         else:
-            h = self.ego_geopose.position.altitude
-            
-            if h < self.landing_threshold_m:
-                    self.landing_state.is_land = True
+            if self.ego_geopose.position.altitude < self.landing_threshold_m:
+                    # self.landing_state.is_land = True
+                    pass
 
     def UpdateSetpoint(self):
-        if self.landing_state.is_pass_landing_standby == False:
-            if self.IsLandingStandby():
-                self.landing_state.is_pass_landing_standby = True
-        
-        if self.using_aruco:
-
-            if self.landing_state.is_detected and self.landing_state.is_pass_landing_standby:
+        if self.using_camera:
+            if self.landing_state.is_detected:
                 self.setpoint.vel.linear.x = self.XY_Vel(self.target_pose.position.x)
                 self.setpoint.vel.linear.y = self.XY_Vel(self.target_pose.position.y)
                 self.setpoint.vel.linear.z = self.Z_Vel(self.target_pose.position.z)
@@ -185,28 +238,14 @@ class Landing(smach.State, state.Base):
                 self.setpoint.yaw_rate.orientation.w = v_yaw[3]
 
                 self.setpoint.pose = self.target_pose
-            else:
-                if self.standby_cnt < len(self.setpoints.poses):
-                    self.setpoint.geopose = self.setpoints.poses[self.standby_cnt].pose
-                    self.standby_cnt += 1
-                else:
-                    self.setpoint.geopose.position = self.landing_standby
-                    self.setpoint.geopose.orientation = self.orientation
 
         # only gps
         else :
-            if self.landing_state.is_pass_landing_standby:
-                self.setpoint.vel.linear.x = 0.0
-                self.setpoint.vel.linear.y = 0.0
-                self.setpoint.vel.linear.z = -0.3
-                self.setpoint.pose.orientation = self.orientation
-            else:
-                if self.standby_cnt < len(self.setpoints.poses):
-                    self.setpoint.geopose = self.setpoints.poses[self.standby_cnt].pose
-                    self.standby_cnt += 1
-                else:
-                    self.setpoint.geopose.position = self.landing_standby
-                    self.setpoint.geopose.orientation = self.orientation
+            self.setpoint.vel.linear.x = 0.0
+            self.setpoint.vel.linear.y = 0.0
+            self.setpoint.vel.linear.z = -0.3
+            self.setpoint.pose.orientation = self.orientation
+
     '''
     Util functions
     '''
@@ -257,13 +296,6 @@ class Landing(smach.State, state.Base):
 
         vel = quaternion_from_euler(0.0, 0.0, yaw_rate_rad)
         return vel
-
-    def IsLandingStandby(self):
-        dist = DistanceFromLatLonInMeter3D(self.landing_standby, self.ego_geopose.position)
-        if dist < self.standby_dist_th_m:
-            return True
-        else:
-            return False
 
     def MapTarget(self, pose, id):
         theta_rad = GetYawRad(pose.orientation)
@@ -380,44 +412,78 @@ class Landing(smach.State, state.Base):
     Callback functions
     '''
     def MarkerCB(self, msg):
-        if not self.is_start:
-            return
-
-        target_poses = []
-        for ac_state in msg.aruco_states:
-            if not ac_state.is_detected:
-                continue
-
-            # transform from camera_link to base_link
-            try:
-                transform = self.tfBuffer.lookup_transform('base_link', ac_state.header.frame_id, rospy.Time())
-                p = PoseStamped()
-                p.header = ac_state.header
-                p.pose = self.MapTarget(ac_state.pose, ac_state.id)
-                transformed_pose = tf2_geometry_msgs.do_transform_pose(p, transform)
-                if self.IsValid(transformed_pose):
-                    target_poses.append(transformed_pose.pose)
-
-                else:
-                    self.landing_state.is_detected = False
-            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-                pass
-        
-        if not len(target_poses) == 0:
+        if msg.is_detected:
             self.landing_state.is_detected = True
 
-            sum_x = 0.0; sum_y = 0.0; sum_z = 0.0; sum_yaw_deg = 0.0
-            for pose in target_poses:
-                sum_x += pose.position.x
-                sum_y += pose.position.y
-                sum_z += pose.position.z
-                sum_yaw_deg += GetYawDeg(pose.orientation)
+            # find detected marker ids
+            detected_marker_ids = []
+            for aruco in msg.aruco_states:
+                if aruco.is_detected:
+                    detected_marker_ids.append(aruco.id)
 
-            average_p = Point()
+            # compare detected big markers with used big markers, when all big markers are detected, mode switching to mode2
+            self.switching_mod2 = True
+            for id in msg.used_big_markers_id:
+                if id not in detected_marker_ids:
+                    self.switching_mod2 = False
 
-            average_p.x = sum_x/len(target_poses)
-            average_p.y = sum_y/len(target_poses)
-            average_p.z = sum_z/len(target_poses)
-            avg_yaw_deg = sum_yaw_deg/len(target_poses)
+            if not self.switching_mod2:
+                return
+
+            # transform target pose from camera_link to base_link
+            try:
+                transform = self.tfBuffer.lookup_transform('base_link', msg.header.frame_id, rospy.Time())
+                p = PoseStamped()
+                p.header = msg.header
+                p.pose = msg.target_pose
+                transformed_pose = tf2_geometry_msgs.do_transform_pose(p, transform)
+
+                self.target_pose = transformed_pose
+
+            except:
+                rospy.logerr("transform err")
+
+        else:
+            self.landing_state.is_detected = False
+        
+        # if not self.is_start:
+        #     return
+
+        # target_poses = []
+        # for ac_state in msg.aruco_states:
+        #     if not ac_state.is_detected:
+        #         continue
+
+        #     # transform from camera_link to base_link
+        #     try:
+        #         transform = self.tfBuffer.lookup_transform('base_link', ac_state.header.frame_id, rospy.Time())
+        #         p = PoseStamped()
+        #         p.header = ac_state.header
+        #         p.pose = self.MapTarget(ac_state.pose, ac_state.id)
+        #         transformed_pose = tf.do_transform_pose(p, transform)
+        #         if self.IsValid(transformed_pose):
+        #             target_poses.append(transformed_pose.pose)
+
+        #         else:
+        #             self.landing_state.is_detected = False
+        #     except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+        #         pass
+        
+        # if not len(target_poses) == 0:
+        #     self.landing_state.is_detected = True
+
+        #     sum_x = 0.0; sum_y = 0.0; sum_z = 0.0; sum_yaw_deg = 0.0
+        #     for pose in target_poses:
+        #         sum_x += pose.position.x
+        #         sum_y += pose.position.y
+        #         sum_z += pose.position.z
+        #         sum_yaw_deg += GetYawDeg(pose.orientation)
+
+        #     average_p = Point()
+
+        #     average_p.x = sum_x/len(target_poses)
+        #     average_p.y = sum_y/len(target_poses)
+        #     average_p.z = sum_z/len(target_poses)
+        #     avg_yaw_deg = sum_yaw_deg/len(target_poses)
             
-            self.MovingAverageFilter(average_p, avg_yaw_deg)
+        #     self.MovingAverageFilter(average_p, avg_yaw_deg)

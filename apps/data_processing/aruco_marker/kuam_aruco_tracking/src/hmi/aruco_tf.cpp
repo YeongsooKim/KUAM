@@ -26,6 +26,7 @@ ArucoTfBroadcaster::~ArucoTfBroadcaster()
 void ArucoTfBroadcaster::InitFlag()
 {
     m_marker_cb = false;
+    m_setpoint_cb = false;
 }
 
 bool ArucoTfBroadcaster::GetParam()
@@ -40,7 +41,9 @@ bool ArucoTfBroadcaster::GetParam()
 void ArucoTfBroadcaster::InitROS()
 {
     // Initialize subscriber
-    m_aruco_sub = m_nh.subscribe<tf2_msgs::TFMessage>("aruco_tracking/tf_list", 10, boost::bind(&ArucoTfBroadcaster::MarkerCallback, this, _1));
+    m_aruco_tf_sub = m_nh.subscribe<tf2_msgs::TFMessage>("aruco_tracking/tf_list", 10, boost::bind(&ArucoTfBroadcaster::MarkerCallback, this, _1));
+    m_aruco_states_sub = 
+        m_nh.subscribe<kuam_msgs::ArucoStates>("/aruco_tracking/target_states", 1, boost::bind(&ArucoTfBroadcaster::ArucoStatesCallback, this, _1));
 
     // Initialize timer
     m_tf_broadcaster_timer = m_nh.createTimer(ros::Duration(1.0/m_process_freq_param), &ArucoTfBroadcaster::ProcessTimerCallback, this);
@@ -49,6 +52,7 @@ void ArucoTfBroadcaster::InitROS()
 void ArucoTfBroadcaster::ProcessTimerCallback(const ros::TimerEvent& event)
 {
 	vector<geometry_msgs::TransformStamped> transform_vector;
+    if (m_setpoint_cb) { AddTransform(m_setpoint_tf_stamped.header.frame_id, m_setpoint_tf_stamped.child_frame_id, m_setpoint_tf_stamped.transform, transform_vector); m_setpoint_cb = false; }
     if (m_marker_cb) { 
         for (auto tf : m_marker_tf_stampeds){
             AddTransform(tf.header.frame_id, tf.child_frame_id, tf.transform, transform_vector);  
@@ -68,6 +72,25 @@ void ArucoTfBroadcaster::MarkerCallback(const tf2_msgs::TFMessage::ConstPtr &mar
         m_marker_tf_stampeds.push_back(transform);
     }
 }
+
+void ArucoTfBroadcaster::ArucoStatesCallback(const kuam_msgs::ArucoStates::ConstPtr &aruco_msg_ptr)
+{
+    m_setpoint_cb = true;
+
+    m_setpoint_tf_stamped.header.stamp = ros::Time::now();
+    m_setpoint_tf_stamped.header.frame_id = aruco_msg_ptr->header.frame_id;
+    m_setpoint_tf_stamped.child_frame_id = "landing_point";
+
+    m_setpoint_tf_stamped.transform.translation.x = aruco_msg_ptr->target_pose.position.x;
+    m_setpoint_tf_stamped.transform.translation.y = aruco_msg_ptr->target_pose.position.y;
+    m_setpoint_tf_stamped.transform.translation.z = aruco_msg_ptr->target_pose.position.z;
+    m_setpoint_tf_stamped.transform.rotation.x = aruco_msg_ptr->target_pose.orientation.x;
+    m_setpoint_tf_stamped.transform.rotation.y = aruco_msg_ptr->target_pose.orientation.y;
+    m_setpoint_tf_stamped.transform.rotation.z = aruco_msg_ptr->target_pose.orientation.z;
+    m_setpoint_tf_stamped.transform.rotation.w = aruco_msg_ptr->target_pose.orientation.w;
+}
+
+
 
 void ArucoTfBroadcaster::AddTransform(const string &frame_id, const string &child_id, const geometry_msgs::Transform tf, vector<geometry_msgs::TransformStamped>& vector)
 {

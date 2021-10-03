@@ -1,5 +1,8 @@
 <?xml version="1.0"?>
 <launch>
+    <!-- namespace -->
+	<arg name="data_ns" default="/kuam/data" />
+
     <!-- shell script -->
     <arg name="simulation" default="false" />
     <arg name="airsim" default="false" />
@@ -28,7 +31,7 @@
     <!-- <group ns="/kuam/maneuver"> -->
         <!-- <node pkg="kuam_payload_cmd" type="payload_cmd_node" name="payload_cmd" output="screen">
             <param name="process_freq" value="$(arg process_freq)" />
-            <param name="data_ns" value="/kuam/data" />
+            <param name="data_ns" value="$(arg data_ns)" />
         </node> -->
     <!-- </group> -->
 </launch>
