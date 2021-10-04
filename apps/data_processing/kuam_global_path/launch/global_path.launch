@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<launch>
+    <rosparam command="load" file="$(find kuam_global_path)/config/param.yaml" />
+    <!-- namespace -->
+    <arg name="maneuver_ns" default="" />
+
+    <!-- rviz -->
+    <arg name="rviz" default="false" />
+
+    <arg name="gps_only" default="true" />
+
+    <!-- nodes -->
+    <node pkg="kuam_global_path" type="global_path.py" name="global_path" cwd="node" output="screen" >
+        <param name="maneuver_ns" value="$(arg maneuver_ns)" />
+        <param name="gps_only" value="$(arg gps_only)" />
+    </node>
+    <node pkg="kuam_global_path" type="global_path_visual_node" name="global_path_visual" />
+
+    <group if="$(arg rviz)">
+        <node pkg="rviz" type="rviz" name="global_path_rviz" args="-d $(find kuam_global_path)/rviz/global_path.rviz" required="true" />
+    </group>
+</launch>

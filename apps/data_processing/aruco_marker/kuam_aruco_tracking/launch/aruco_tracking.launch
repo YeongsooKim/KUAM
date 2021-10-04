@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<launch>
+    <rosparam command="load" file="$(find kuam_aruco_tracking)/config/param.yaml" />
+
+    <!-- Select only one data type -->
+    <arg name="using_gazebo_data" default="false" />
+    <arg name="using_logging_data" default="false" />
+    <arg name="using_device_data" default="true" />
+
+    <!-- Aruco lib param -->
+    <arg name="detector_params_path" default="$(find kuam_aruco_tracking)/config/detector_params.yml" />
+    <arg name="calib_path" default="$(find kuam_aruco_tracking)/config/calib_sim.txt" unless="$(arg using_device_data)"/>
+    <arg name="calib_path" default="$(find kuam_aruco_tracking)/config/calib.txt" if="$(arg using_device_data)"/>
+
+    <arg name="usb_cam_logging_topic" default="/usb_cam/image_rect_color" if="$(arg using_logging_data)"/>
+    <arg name="usb_cam_logging_topic" default="/usb_cam/image_rect_color" unless="$(arg using_logging_data)"/>
+
+        <!-- Estimating method -->
+        <!-- 0. Without filter -->
+        <!-- 1. Moving average filter -->
+        <!-- 2. Exponential moving average filter -->
+    <arg name="estimating_method" default="2" />
+
+    <!-- rviz -->
+    <arg name="rviz" default="false" />
+
+    <!-- nodes -->
+    <node pkg="kuam_aruco_tracking" type="aruco_tracking_node" name="aruco_tracking" cwd="node" output="screen">
+        <param name="calib_path" value="$(arg calib_path)" />
+        <param name="detector_params_path" value="$(arg detector_params_path)" />
+        <param name="estimating_method" value="$(arg estimating_method)" />
+        <param name="using_gazebo_data" value="$(arg using_gazebo_data)" />
+        <param name="using_logging_data" value="$(arg using_logging_data)" />
+        <param name="usb_cam_logging_topic" value="$(arg usb_cam_logging_topic)" />
+    </node>
+    <node pkg="kuam_aruco_tracking" type="aruco_tf_node" name="aruco_tf" output="screen" />
+    <node pkg="kuam_aruco_tracking" type="aruco_visual_node" name="aruco_visual" />
+    <group if="$(arg using_device_data)">
+        <include file="$(find kuam_usb_cam)/launch/usb_cam.launch" />
+    </group>
+
+    <group if="$(arg rviz)">
+        <node pkg="rviz" type="rviz" name="rviz" args="-d $(find kuam_aruco_tracking)/rviz/aruco_marker.rviz" required="true" />
+    </group>
+</launch>

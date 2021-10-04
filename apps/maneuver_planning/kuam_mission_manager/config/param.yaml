@@ -1,0 +1,10 @@
+mission_manager:
+  process_freq: 30.0
+
+mission_manager_visual:
+  process_freq: 5.0
+
+  width: 350.0
+  height: 250.0
+  left: 10.0
+  top: 250.0

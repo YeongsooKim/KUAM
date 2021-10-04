@@ -1,0 +1,45 @@
+aruco_tracking:
+  process_freq: 10.0
+
+  # flag
+  compare_mode: false
+
+  # threshold
+  marker_cnt_th: 25 # count for fixing target when multi marker detected
+  filter_buf_size: 10 # moving average filter buff size
+  noise_dist_th_m: 3.0
+  noise_cnt_th: 3 # (3/10)*process_frequency
+
+  # aruco marker
+  dictionaryID: 0
+  small_marker_ids: [9, 10, 11, 12]
+  small_marker_size_m: 0.04
+  medium_marker_ids: [4, 5, 6, 7, 8]
+  medium_marker_size_m: 0.06
+  big_marker_ids: [0, 1, 2, 3]
+  big_marker_size_m: 0.2
+  big_marker_trans: 0.25
+  medium_marker_trans: 0.2
+  small_marker_trans: 0.1257
+
+  
+  # frame id
+  camera_frame_id: 'camera_link'
+
+aruco_tf:
+  process_freq: 50.0
+  is_real: true
+  extrinsic_imu_to_camera_x_m: 0.0
+  extrinsic_imu_to_camera_y_m: 0.0
+  extrinsic_imu_to_camera_z_m: 0.0
+  extrinsic_imu_to_camera_r_deg: 0.0
+  extrinsic_imu_to_camera_p_deg: 180.0
+  extrinsic_imu_to_camera_y_deg: 90.0
+
+aruco_visual:
+  small_marker_ids: [9, 10, 11, 12]
+  small_marker_size_m: 0.04
+  medium_marker_ids: [4, 5, 6, 7, 8]
+  medium_marker_size_m: 0.06
+  big_marker_ids: [0, 1, 2, 3]
+  big_marker_size_m: 0.2

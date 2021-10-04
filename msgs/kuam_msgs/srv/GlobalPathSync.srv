@@ -1,0 +1,3 @@
+bool is_init
+---
+int64 sync

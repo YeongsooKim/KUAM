@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- rviz -->
+    <arg name="rviz" default="false" />
+
+    <include file="$(find kuam_global_tf)/launch/global_tf.launch" />
+
+    <group if="$(arg rviz)">
+        <node pkg="rviz" type="rviz" name="tools_rviz" args="-d $(find kuam_tools)/rviz/tools.rviz" required="true" />
+    </group>
+</launch>

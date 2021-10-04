@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+	<rosparam command="load" file="$(find kuam_payload_cmd)/config/param.yaml" />
+
+    <!-- namespace -->
+	<arg name="data_ns" default="/kuam/data" />
+
+    <node pkg="kuam_payload_cmd" type="payload_cmd_node" name="payload_cmd" output="screen">
+        <param name="data_ns" value="$(arg data_ns)" />
+    </node>
+</launch>

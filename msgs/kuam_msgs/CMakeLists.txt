@@ -23,21 +23,27 @@ find_package(Boost REQUIRED COMPONENTS system)
 add_message_files(
   FILES
   ArucoState.msg
+  ArucoStates.msg
   ArucoVisual.msg
-  Waypoint.msg
-  Waypoints.msg
+  ArucoVisuals.msg
+  Completion.msg
+  LandingState.msg
+  Qgc.msg
+  QgcDatum.msg
+  Setpoint.msg
+  Status.msg
   Task.msg
   TaskList.msg
-  Setpoint.msg
-  LandingState.msg
-  Mode.msg
-  TransReq.msg
+  Waypoint.msg
+  Waypoints.msg
 )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-# )
+add_service_files(
+  FILES
+  GlobalPathSync.srv
+  LandRequest.srv
+)
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(

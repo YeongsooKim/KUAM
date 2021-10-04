@@ -1,0 +1,13 @@
+global_path:
+  process_freq: 1.0
+
+  # flag
+  using_fake_gps: false
+
+  # home position
+  latitude: 37.544820
+  longitude: 127.078922
+  altitude: 43.479396
+
+  # smooth
+  smooth_param: 0.5
