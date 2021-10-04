@@ -99,7 +99,7 @@ def GenLandingWaypoints():
         global_path = LandingWaypoints()
         global_path_msg.Modify(global_path)
 
-        rospy.logerr("length: %d", len(global_path.waypoints))
+        rospy.logwarn("length: %d", len(global_path.waypoints))
 
         global start_global_geoposes_gen_
         start_global_geoposes_gen_ = False
@@ -402,6 +402,7 @@ if __name__ == '__main__':
 
     if GlobalPathMsgSync():
         global_path_msg.is_init = True
+        rospy.logwarn("Complete global path sync")
     GenMissions()
 
 

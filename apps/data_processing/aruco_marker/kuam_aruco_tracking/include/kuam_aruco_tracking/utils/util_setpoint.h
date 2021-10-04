@@ -8,9 +8,8 @@
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Quaternion.h>
 
-#include "tf2_ros/transform_listener.h"
-#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
-#include <tf/LinearMath/Quaternion.h> // tf::quaternion
+#include <tf2/LinearMath/Quaternion.h> // tf::quaternion
+#include <tf2/LinearMath/Matrix3x3.h>
 
 using namespace std;
 

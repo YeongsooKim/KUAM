@@ -18,7 +18,6 @@ from uav_msgs.msg import Chat
 from uav_msgs.msg import PayloadCmd
 from kuam_msgs.msg import ArucoStates
 from kuam_msgs.msg import Completion
-from kuam_msgs.msg import LandingState
 from kuam_msgs.msg import Setpoint
 from kuam_msgs.msg import Status
 from kuam_msgs.msg import Task
@@ -103,93 +102,28 @@ def OffbTransition():
 
 def SetpointPub():
     # Publish setpoint
-
     global is_init_gps_alt_
     if not is_init_gps_alt_:
         return
 
     cur_mode, cur_offb_state = GetSMStatus()
     if cur_mode != "OFFBOARD":
-        msg = GetGlobalSetpointMsg(standby_geopose_)
+        msg = GetStandbyMsg(standby_geopose_)
 
     elif cur_mode == "OFFBOARD" and cur_offb_state != "None":
         if cur_offb_state == "LANDING":
             # using gps only
             if not offb_states_[OffbState[cur_offb_state]].using_camera:
-                msg = GetGlobalSetpointMsg(copy.deepcopy(setpoint_.geopose))
+                msg = GetSetpointMsg(copy.deepcopy(setpoint_))
             
             # using gps and camera
             else:
-                # target is detected
-                if offb_states_[OffbState[cur_offb_state]].landing_state.is_detected:
-                    msg = GetLocalSetpointMsg(setpoint_)
-                    rospy.logerr("is_detected true")
-                # target is not detected
-                else:
-                    msg = GetGlobalSetpointMsg(setpoint_.geopose)
-                    rospy.logerr("is_detected false")
-
+                msg = GetSetpointMsg(copy.deepcopy(setpoint_))
         else:
-            msg = GetGlobalSetpointMsg(copy.deepcopy(setpoint_.geopose))
+            msg = GetSetpointMsg(copy.deepcopy(setpoint_))
 
     if msg.geopose.position.latitude != 0 and msg.geopose.position.longitude != 0:
         setpoint_pub.publish(msg)
-
-
-
-
-    # geopose = GeoPose()
-    # vel = Twist()
-
-    # landing_state = LandingState()
-    # if cur_mode == "OFFBOARD" and cur_offb_state != "None":
-    #     geopose = copy.deepcopy(setpoint_.geopose)
-    #     vel = copy.deepcopy(setpoint_.vel)
-    #     if cur_offb_state == "LANDING":
-    #         landing_state = offb_states_[OffbState[cur_offb_state]].landing_state
-    # else:
-    #     global standby_geopose_
-    #     geopose.position = copy.deepcopy(standby_geopose_.position)
-
-    # if is_init_gps_alt_ == True:
-    #     msg = Setpoint()
-    #     global gps_home_alt_m_
-    #     if cur_offb_state == "LANDING":
-    #         is_valid = True
-
-    #         msg.landing_state = landing_state
-    #         if offb_states_[OffbState[cur_offb_state]].landing_state.is_detected or \
-    #                 not offb_states_[OffbState[cur_offb_state]].using_camera:
-    #             msg.header.frame_id = "base_link"
-    #             msg.header.stamp = rospy.Time.now()
-    #             msg.vel = vel
-    #             msg.pose = setpoint_.pose
-    #             msg.yaw_rate = setpoint_.yaw_rate
-    #             msg.is_global = False
-    #         # else:
-    #         #     msg.header.frame_id = "map"
-    #         #     msg.header.stamp = rospy.Time.now()
-    #         #     msg.geopose = geopose
-    #         #     msg.local_height_m = msg.geopose.position.altitude
-    #         #     msg.home_altitude_m = gps_home_alt_m_
-    #         #     msg.geopose.position.altitude += (gps_home_alt_m_ - alt_offset_m)
-    #         #     msg.is_global = True
-    #     else:
-    #         if geopose.position.latitude == 0 or geopose.position.longitude == 0:
-    #             is_valid = False
-    #         else:
-    #             is_valid = True
-
-    #             msg.header.frame_id = "map"
-    #             msg.header.stamp = rospy.Time.now()
-    #             msg.geopose = geopose
-    #             msg.local_height_m = msg.geopose.position.altitude
-    #             msg.home_altitude_m = gps_home_alt_m_
-    #             msg.geopose.position.altitude += (gps_home_alt_m_ - alt_offset_m)
-    #             msg.is_global = True
-
-    #     if is_valid:
-    #         setpoint_pub.publish(msg)
 
 def StatusPub():
     cur_mode, cur_offb_state = GetSMStatus()
@@ -222,7 +156,6 @@ def PayloadCmdCB(msg):
     global prev_mode_transitions_
     # mode update
     mode_transitions_ = msg.mode
-    rospy.logwarn("mode: %s, id: %d", mode_transitions_, id(mode_transitions_))
 
     # Check state machine mode change
     cur_mode, cur_offb_state = GetSMStatus()
@@ -296,7 +229,7 @@ def GetSMStatus():
 
     return [cur_mode, cur_offb_state]
 
-def GetGlobalSetpointMsg(geopose):
+def GetStandbyMsg(geopose):
     global gps_home_alt_m_
 
     msg = Setpoint()
@@ -310,16 +243,34 @@ def GetGlobalSetpointMsg(geopose):
 
     return msg
 
-def GetLocalSetpointMsg(setpoint):
+def GetSetpointMsg(setpoint):
+    global gps_home_alt_m_
+
     msg = Setpoint()
-    msg.header.frame_id = "base_link"
     msg.header.stamp = rospy.Time.now()
+
+    msg.local_height_m = setpoint.geopose.position.altitude
+    msg.home_altitude_m = gps_home_alt_m_
+    
+    msg.geopose = setpoint.geopose
+    msg.geopose.position.altitude += (gps_home_alt_m_ - alt_offset_m)
+    
     msg.vel = setpoint.vel
-    msg.pose = setpoint.pose
     msg.yaw_rate = setpoint.yaw_rate
-    msg.is_global = False
+    
+    msg.landing_state = setpoint.landing_state
+
+    msg.target_pose = setpoint.target_pose
+
+    if setpoint.is_global:
+        msg.header.frame_id = "map"
+        msg.is_global = True
+    else:
+        msg.header.frame_id = "base_link"
+        msg.is_global = False
 
     return msg
+
 
 '''
 Smach callback function
@@ -359,7 +310,6 @@ def ModeProcess(outcomes, func=None):
     Terminate
     '''
     mode = sm_mode_.get_active_states()[0]
-    rospy.logwarn("outcome: %s, mode: %s", mode_transitions_, mode)
     prev_mode_transitions_ = mode_transitions_ 
 
     return mode_transitions_
@@ -383,9 +333,9 @@ def LandCB(userdata):
     rospy.logwarn("Enter LandCB")
     def LandReuest():
         rospy.logwarn("Service requesting land")
-        rospy.wait_for_service('/payload_cmd/land_request')
+        rospy.wait_for_service('payload_cmd/land_request')
         try:
-            land_request = rospy.ServiceProxy('/payload_cmd/land_request', LandRequest)
+            land_request = rospy.ServiceProxy('payload_cmd/land_request', LandRequest)
             res = land_request(True)
             return res.is_complete
         except rospy.ServiceException as e:
@@ -424,15 +374,9 @@ if __name__ == '__main__':
     reached_dist_th_m = rospy.get_param("~reached_dist_th_m")
     guidance_dist_th_m = rospy.get_param("~guidance_dist_th_m")
     landing_threshold_m = rospy.get_param("~landing_threshold_m")
-    landing_standby_alt_m = rospy.get_param("~landing_standby_alt_m")
-    standby_dist_th_m = rospy.get_param("~standby_dist_th_m")
-    maf_buf_size = rospy.get_param("~maf_buf_size")
     battery_th = rospy.get_param("~battery_th_per")
     alt_offset_m = rospy.get_param("~alt_offset_m")
     using_camera = rospy.get_param("~using_camera")
-    big_target_mapping = rospy.get_param("~big_target_mapping")
-    medium_target_mapping = rospy.get_param("~medium_target_mapping")
-    small_target_mapping = rospy.get_param("~small_target_mapping")
 
     for state in offb_states_.values():
         try:
@@ -448,13 +392,7 @@ if __name__ == '__main__':
     offb_states_[OffbState.LANDING].reached_dist_th_m = reached_dist_th_m
     offb_states_[OffbState.LANDING].guidance_dist_th_m = guidance_dist_th_m
     offb_states_[OffbState.LANDING].landing_threshold_m = landing_threshold_m
-    offb_states_[OffbState.LANDING].landing_standby_alt_m = landing_standby_alt_m
-    offb_states_[OffbState.LANDING].standby_dist_th_m = standby_dist_th_m
-    offb_states_[OffbState.LANDING].maf_buf_size = maf_buf_size
     offb_states_[OffbState.LANDING].using_camera = using_camera
-    offb_states_[OffbState.LANDING].big_target_mapping = big_target_mapping
-    offb_states_[OffbState.LANDING].medium_target_mapping = medium_target_mapping
-    offb_states_[OffbState.LANDING].small_target_mapping = small_target_mapping
 
     '''
     Initialize ROS

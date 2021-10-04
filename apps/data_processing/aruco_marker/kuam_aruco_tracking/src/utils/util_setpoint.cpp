@@ -41,9 +41,12 @@ void UtilSetpoint::Translate(geometry_msgs::Pose& pose, const int id,
 
 float UtilSetpoint::GetYawRad(const geometry_msgs::Quaternion& quat_msg)
 {
-	tf2::Quaternion quat_tf;
+	tf2::Quaternion quat_tf(
+        quat_msg.x,
+        quat_msg.y,
+        quat_msg.z,
+        quat_msg.w);
 	double roll, pitch, yaw;
-	tf2::fromMsg(quat_msg, quat_tf);
 	tf2::Matrix3x3(quat_tf).getRPY(roll, pitch, yaw);
 	
     return yaw;
@@ -51,9 +54,12 @@ float UtilSetpoint::GetYawRad(const geometry_msgs::Quaternion& quat_msg)
 
 float UtilSetpoint::GetYawDeg(const geometry_msgs::Quaternion& quat_msg)
 {
-	tf2::Quaternion quat_tf;
+	tf2::Quaternion quat_tf(
+        quat_msg.x,
+        quat_msg.y,
+        quat_msg.z,
+        quat_msg.w);
 	double roll, pitch, yaw;
-	tf2::fromMsg(quat_msg, quat_tf);
 	tf2::Matrix3x3(quat_tf).getRPY(roll, pitch, yaw);
 	
     return yaw*RAD2DEG;

@@ -1,4 +1,3 @@
-bool is_detected
-# bool is_land
-# bool is_pass_landing_standby
+bool is_vehicle_detected
+bool is_marker_detected
 string mode

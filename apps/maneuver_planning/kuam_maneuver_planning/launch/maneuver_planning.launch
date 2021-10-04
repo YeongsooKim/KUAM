@@ -11,21 +11,25 @@
     <!-- state machine -->
     <arg name="using_camera" default="True" />
 
+    <!-- rviz -->
+    <arg name="rviz" default="false" />
+
     <group ns="/kuam/maneuver">
         <include file="$(find kuam_mission_manager)/launch/mission_manager.launch">
             <arg name="data_ns" value="$(arg data_ns)" />
         </include>
 
-        <!-- <include file="$(find kuam_mission_manager)/launch/tf_broadcaster.launch">
-            <arg name="stand_alone" value="false" />
-            <arg name="is_exp" value="$(arg is_exp)" />
-            <arg name="is_real" value="$(arg is_real)" />
-            <arg name="is_gazebo" value="$(arg is_gazebo)" />
-        </include> -->
-
         <include file="$(find kuam_state_machine)/launch/state_machine.launch">
             <arg name="using_camera" value="$(arg using_camera)" />
             <arg name="data_ns" value="$(arg data_ns)" />
         </include>
+
+        <include file="$(find kuam_payload_cmd)/launch/payload_cmd.launch">
+            <arg name="data_ns" value="$(arg data_ns)" />
+        </include>
+
+        <group if="$(arg rviz)">
+            <node pkg="rviz" type="rviz" name="maneuver_planning_rviz" args="-d $(find kuam_maneuver_planning)/rviz/maneuver_planning.rviz" required="true" />
+        </group>
     </group>
 </launch>

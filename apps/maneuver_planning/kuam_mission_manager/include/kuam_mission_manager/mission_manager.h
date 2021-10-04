@@ -18,8 +18,6 @@
 #include <mavros_msgs/HomePosition.h>
 #include <kuam_msgs/GlobalPathSync.h>
 
-#include <kuam_mission_manager/utils.h>
-
 using namespace std;
 
 namespace kuam{
@@ -43,7 +41,6 @@ private:
 	ros::NodeHandle m_p_nh;
 
     id_to_taskStatus_map m_id_to_taskStatus_list;
-    Utils m_utils;
     GlobalPath m_waypoints;
     
 public:

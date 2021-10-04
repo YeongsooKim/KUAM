@@ -24,11 +24,6 @@
 #include <kuam_aruco_tracking/parser.h>
 #include <kuam_aruco_tracking/target.h>
 
-#include "tf2_ros/transform_listener.h" // tf::quaternion
-#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
-#include <tf2/LinearMath/Vector3.h>
-#include <tf2/LinearMath/Quaternion.h>
-#include <tf2/LinearMath/Transform.h>
 #include <tf2_msgs/TFMessage.h>
 
 #include <geometry_msgs/Pose.h>
@@ -119,9 +114,6 @@ private:
     // Video variable
     VideoCapture m_input_video;
     const string OPENCV_WINDOW;
-
-	tf2_ros::Buffer m_tfBuffer;
-	tf2_ros::TransformListener m_tfListener;
 
 private: // Function
     bool GetParam();

@@ -17,6 +17,6 @@
     <node pkg="kuam_global_path" type="global_path_visual_node" name="global_path_visual" />
 
     <group if="$(arg rviz)">
-        <node pkg="rviz" type="rviz" name="rviz" args="-d $(find kuam_global_path)/rviz/global_path.rviz" required="true" />
+        <node pkg="rviz" type="rviz" name="global_path_rviz" args="-d $(find kuam_global_path)/rviz/global_path.rviz" required="true" />
     </group>
 </launch>

@@ -55,7 +55,7 @@ elif [ "$3" == "-h" ]; then
     echo "  -t, What frame is parent frame to camera_link; parent_frame to camera_link translation. Please select gazebo or real or exp."
     echo -e "      Example: launch-maneuver_planning.sh --aruco true -t gazebo"
 
-    exit -
+    exit 0
 elif [ "$4" == "gazebo" ]; then
     using="True"
     gazebo="true"

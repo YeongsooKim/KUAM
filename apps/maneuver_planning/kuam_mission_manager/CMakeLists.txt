@@ -7,7 +7,6 @@ add_compile_options(-std=c++11)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(Eigen3 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
@@ -40,12 +39,11 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
   include
-  ${EIGEN3_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
 )
 
 ## mission_manager_node
-add_executable(mission_manager_node src/mission_manager.cpp src/mission_manager_node.cpp src/utils.cpp)
+add_executable(mission_manager_node src/mission_manager.cpp src/mission_manager_node.cpp)
 target_link_libraries(mission_manager_node ${catkin_LIBRARIES})
 
 ## mission_manager_visual_node

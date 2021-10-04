@@ -7,6 +7,7 @@ add_compile_options(-std=c++11)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+find_package(Eigen3 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   roscpp
@@ -17,8 +18,6 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   tf2 
   tf2_ros
-  tf2_sensor_msgs
-  tf2_geometry_msgs
 )
 
 ###################################
@@ -52,6 +51,7 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
 )
 
 ## mission_manager_node
@@ -71,11 +71,11 @@ catkin_install_python(PROGRAMS
 )
 
 ## state_machine_tf_node
-add_executable(state_machine_tf_node src/hmi/state_machine_tf.cpp src/utils.cpp)
+add_executable(state_machine_tf_node src/hmi/state_machine_tf.cpp)
 target_link_libraries(state_machine_tf_node ${catkin_LIBRARIES})
 
 ## state_machine_visual
-add_executable(state_machine_visual_node src/hmi/state_machine_visual.cpp src/utils.cpp)
+add_executable(state_machine_visual_node src/hmi/state_machine_visual.cpp src/utils/util_visual.cpp)
 target_link_libraries(state_machine_visual_node ${catkin_LIBRARIES})
 
 ## Install project namespaced headers

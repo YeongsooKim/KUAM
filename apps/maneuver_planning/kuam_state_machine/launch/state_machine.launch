@@ -15,14 +15,17 @@
 		<param name="using_camera" value="$(arg using_camera)" />
 		<param name="data_ns" value="$(arg data_ns)" />
 	</node>
-	<node pkg="kuam_state_machine" type="state_machine_tf_node" name="state_machine_tf" output="screen" >
-		<param name="data_ns" value="$(arg data_ns)" />
-	</node>
+	<!-- <node pkg="kuam_state_machine" type="state_machine_tf_node" name="state_machine_tf" output="screen" /> -->
 	<node pkg="kuam_state_machine" type="state_machine_visual_node" name="state_machine_visual" output="screen" >
 		<param name="data_ns" value="$(arg data_ns)" />
 	</node>
 	
     <group if="$(arg rviz)">
         <node pkg="rviz" type="rviz" name="state_machine_rviz" args="-d $(find kuam_state_machine)/rviz/state_machine.rviz" required="true" />
+
+		<param name="robot_description" textfile="$(find kuam_state_machine)/rviz/urdf/simple_quad.urdf"/>
+
+		<arg name="model" default="$(find kuam_state_machine)/rviz/urdf/simple_quad.urdf"/>
+		<node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
     </group>
 </launch>

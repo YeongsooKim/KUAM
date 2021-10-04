@@ -47,5 +47,5 @@ include_directories(
 )
 
 ## kuam_global_tf_node
-add_executable(global_tf_node src/global_tf.cpp)
+add_executable(global_tf_node src/global_tf.cpp src/utils.cpp)
 target_link_libraries(global_tf_node ${catkin_LIBRARIES})

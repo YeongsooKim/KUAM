@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>config</name>
+  <name>kuam_tools</name>
   <version>0.0.1</version>
-  <description>The config package</description>
+  <description>The kuam_tools package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <maintainer email="kimkys768@gmail.com">darienmt</maintainer>

@@ -1,6 +1,6 @@
 <launch>
     <!-- namespace -->
-    <arg name="maneuver_ns" default="" />
+    <arg name="maneuver_ns" default="/kuam/maneuver" />
 
     <!-- - kuam_aruco_tracking - -->
     <arg name="using_aruco" default="true" />
@@ -17,7 +17,6 @@
 
     <group ns="/kuam/data">
         <include file="$(find kuam_global_path)/launch/global_path.launch">
-            <arg name="rviz" value="$(arg rviz)" />
             <arg name="maneuver_ns" value="$(arg maneuver_ns)" />
             <arg name="gps_only" value="$(arg gps_only)" />
         </include>
@@ -26,7 +25,10 @@
             <arg name="using_gazebo_data" value="$(arg using_gazebo_data)" />
             <arg name="using_logging_data" value="$(arg using_logging_data)" />
             <arg name="using_device_data" value="$(arg using_device_data)" />
-            <arg name="rviz" value="$(arg rviz)" />
         </include>
+
+        <group if="$(arg rviz)">
+            <node pkg="rviz" type="rviz" name="data_processing_rviz" args="-d $(find kuam_data_processing)/rviz/data_processing.rviz" required="true" />
+        </group>
     </group>
 </launch>

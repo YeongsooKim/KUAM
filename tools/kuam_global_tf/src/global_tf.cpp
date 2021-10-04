@@ -1,5 +1,5 @@
-#include <math.h>
 #include <Eigen/Dense>
+#include <cmath>
 
 // Messages
 #include <geometry_msgs/Pose.h>
@@ -9,7 +9,7 @@
 using namespace std;
 using namespace kuam;
 
-TFBroadcaster::TFBroadcaster() :
+TfBroadcaster::TfBroadcaster() :
     m_p_nh("~")
 {
     InitFlag();
@@ -18,18 +18,19 @@ TFBroadcaster::TFBroadcaster() :
     InitStaticTf();
 }
 
-TFBroadcaster::~TFBroadcaster()
+TfBroadcaster::~TfBroadcaster()
 {}
 
-bool TFBroadcaster::InitFlag()
+bool TfBroadcaster::InitFlag()
 {
+    m_is_home_set = false;
+    m_base_cb = false;
+
     return true;
 }
 
-bool TFBroadcaster::GetParam()
+bool TfBroadcaster::GetParam()
 {
-    if (!m_p_nh.getParam("data_ns", m_data_ns_param)) { m_err_param = "data_ns"; return false; }
-    if (!m_nh.getParam(m_data_ns_param + "/aruco_tracking/camera_frame_id", m_camera_frame_id_param)) { m_err_param = "camera_frame_id"; return false; }
     if (!m_p_nh.getParam("process_freq", m_process_freq_param)) { m_err_param = "process_freq"; return false; }
     if (!m_p_nh.getParam("is_real", m_is_real_param)) { m_err_param = "is_real"; return false; }
     if (!m_p_nh.getParam("extrinsic_imu_to_camera_x_m", m_extrinsic_imu_to_camera_x_m_param)) { m_err_param = "extrinsic_imu_to_camera_x_m"; return false; }
@@ -42,12 +43,26 @@ bool TFBroadcaster::GetParam()
     return true;
 }
 
-bool TFBroadcaster::InitROS()
+bool TfBroadcaster::InitROS()
 {
+    // Initialize subscriber
+    m_home_position_sub = 
+        m_nh.subscribe<mavros_msgs::HomePosition>("/mavros/home_position/home", 10, boost::bind(&TfBroadcaster::HomePositionCallback, this, _1));
+    ros::Rate rate(10);
+    while (ros::ok() && !m_is_home_set){
+        ros::spinOnce();
+        rate.sleep();
+    }
+
+    m_ego_global_pos_sub = m_nh.subscribe<sensor_msgs::NavSatFix>("/mavros/global_position/global", 10, boost::bind(&TfBroadcaster::EgoGlobalCallback, this, _1));
+    m_local_pose_sub = m_nh.subscribe<nav_msgs::Odometry>("/mavros/global_position/local", 10, boost::bind(&TfBroadcaster::EgoLocalCallback, this, _1));
+    
+    // Init timer
+    m_tf_broadcaster_timer = m_nh.createTimer(ros::Duration(1.0/m_process_freq_param), &TfBroadcaster::ProcessTimerCallback, this);
     return true;
 }
 
-bool TFBroadcaster::InitStaticTf()
+bool TfBroadcaster::InitStaticTf()
 {
     static tf2_ros::StaticTransformBroadcaster static_tf_broadcaster;
 	vector<geometry_msgs::TransformStamped> transform_vector;
@@ -58,7 +73,7 @@ bool TFBroadcaster::InitStaticTf()
     if (m_is_real_param){
         tf_stamped.header.stamp = ros::Time::now();
         tf_stamped.header.frame_id = "base_link";
-        tf_stamped.child_frame_id = m_camera_frame_id_param;
+        tf_stamped.child_frame_id = "camera_link";
 
         tf_stamped.transform.translation.x = m_extrinsic_imu_to_camera_x_m_param;
         tf_stamped.transform.translation.y = m_extrinsic_imu_to_camera_y_m_param;
@@ -77,7 +92,7 @@ bool TFBroadcaster::InitStaticTf()
     else {
         tf_stamped.header.stamp = ros::Time::now();
         tf_stamped.header.frame_id = "base_link";
-        tf_stamped.child_frame_id = m_camera_frame_id_param;
+        tf_stamped.child_frame_id = "camera_link";
 
         tf_stamped.transform.translation.x = 0.1;
         tf_stamped.transform.translation.y = 0.0;
@@ -97,11 +112,70 @@ bool TFBroadcaster::InitStaticTf()
     return true;
 }
 
+void TfBroadcaster::ProcessTimerCallback(const ros::TimerEvent& event)
+{
+	vector<geometry_msgs::TransformStamped> transform_vector;
+    if (m_base_cb) { AddTransform(m_base_tf_stamped.header.frame_id, m_base_tf_stamped.child_frame_id, m_base_tf_stamped.transform, transform_vector); m_base_cb = false; }
+	
+    geometry_msgs::TransformStamped test;
+
+    if (!transform_vector.empty()){
+        m_tf_broadcaster.sendTransform(transform_vector);
+    } 
+}
+
+void TfBroadcaster::HomePositionCallback(const mavros_msgs::HomePosition::ConstPtr &home_ptr)
+{
+    if (!m_is_home_set){
+        m_is_home_set = true;
+
+        m_home_position.latitude = home_ptr->geo.latitude;
+        m_home_position.longitude = home_ptr->geo.longitude;
+        m_home_position.altitude = home_ptr->geo.altitude;
+        ROS_WARN_STREAM("[tf_broadcaster] Home set");
+    }
+}
+
+void TfBroadcaster::EgoGlobalCallback(const sensor_msgs::NavSatFix::ConstPtr &pos_ptr)
+{
+    auto lat = pos_ptr->latitude;
+    auto lon = pos_ptr->longitude;
+    auto alt = m_local_pose.pose.pose.position.z;
+    auto pose = m_utils.ConvertToMapFrame(lat, lon, alt, m_home_position);
+    auto q = m_local_pose.pose.pose.orientation;
+    if (q.x == 0.0 && q.y == 0.0 && q.z == 0.0 && q.w == 0.0){
+        return;
+    }
+
+    m_base_tf_stamped.header.frame_id = "map";
+    m_base_tf_stamped.child_frame_id = "base_link";
+
+    m_base_tf_stamped.transform.translation.x = pose.position.x;
+    m_base_tf_stamped.transform.translation.y = pose.position.y;
+    m_base_tf_stamped.transform.translation.z = pose.position.z;
+
+    m_base_tf_stamped.transform.rotation = q;
+    
+    m_base_cb = true;
+}
+
+void TfBroadcaster::AddTransform(const string &frame_id, const string &child_id, const geometry_msgs::Transform tf, vector<geometry_msgs::TransformStamped>& vector)
+{
+	geometry_msgs::TransformStamped tf_stamped;
+
+	tf_stamped.header.stamp = ros::Time::now();
+	tf_stamped.header.frame_id = frame_id;
+	tf_stamped.child_frame_id = child_id;
+    tf_stamped.transform = tf;
+
+	vector.push_back(tf_stamped);
+}
+
 int main(int argc, char ** argv)
 {
     // Initialize ROS
 	ros::init (argc, argv, "global_tf");
-    kuam::TFBroadcaster global_tf;
+    kuam::TfBroadcaster global_tf;
 
     ros::spin();
 

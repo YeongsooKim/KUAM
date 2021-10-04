@@ -43,6 +43,7 @@ class Takeoff(smach.State, Base):
         self.is_start = True
         # Initialize setpoint
         self.setpoint.geopose.position.altitude = self.takeoff_alt_m
+        self.setpoint.is_global = True
 
     def Running(self):
         # wait for transition

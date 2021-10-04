@@ -31,7 +31,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: Image
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -74,24 +74,7 @@ Visualization Manager:
       Marker Topic: /aruco_visual/aruco_markerarray
       Name: MarkerArray
       Namespaces:
-        target0/current_point: true
-        target0/txt: true
-        target1/current_point: true
-        target1/txt: true
-        target10/current_point: true
-        target10/txt: true
-        target2/current_point: true
-        target2/txt: true
-        target3/current_point: true
-        target3/txt: true
-        target4/current_point: true
-        target4/txt: true
-        target6/current_point: true
-        target6/txt: true
-        target7/current_point: true
-        target7/txt: true
-        target8/current_point: true
-        target8/txt: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -99,7 +82,7 @@ Visualization Manager:
       Marker Topic: /aruco_visual/landingpoint_marker
       Name: Marker
       Namespaces:
-        setpoint/landing_point: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/TF
@@ -107,74 +90,13 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        base_link:
-          Value: true
-        camera_link:
-          Value: true
-        landing_point:
-          Value: true
-        marker0:
-          Value: true
-        marker1:
-          Value: true
-        marker10:
-          Value: true
-        marker11:
-          Value: true
-        marker12:
-          Value: true
-        marker2:
-          Value: true
-        marker3:
-          Value: true
-        marker4:
-          Value: true
-        marker5:
-          Value: true
-        marker6:
-          Value: true
-        marker7:
-          Value: true
-        marker8:
-          Value: true
-        marker9:
-          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: true
       Tree:
-        base_link:
-          camera_link:
-            landing_point:
-              {}
-            marker0:
-              {}
-            marker1:
-              {}
-            marker10:
-              {}
-            marker11:
-              {}
-            marker12:
-              {}
-            marker2:
-              {}
-            marker3:
-              {}
-            marker4:
-              {}
-            marker5:
-              {}
-            marker6:
-              {}
-            marker7:
-              {}
-            marker8:
-              {}
-            marker9:
-              {}
+        {}
       Update Interval: 0
       Value: true
   Enabled: true
@@ -205,25 +127,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 5.32701301574707
+      Distance: 12.003829002380371
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.238753080368042
-        Y: -0.016130898147821426
-        Z: -0.6422125101089478
+        X: -2.3560705184936523
+        Y: -0.3803318440914154
+        Z: 2.4330227375030518
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: -1.1952015161514282
+      Pitch: -1.0152018070220947
       Target Frame: camera_link
       Value: Orbit (rviz)
-      Yaw: 3.5035245418548584
+      Yaw: 2.8785130977630615
     Saved: ~
 Window Geometry:
   Displays:

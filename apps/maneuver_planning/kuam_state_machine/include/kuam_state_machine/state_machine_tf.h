@@ -1,12 +1,11 @@
-#ifndef __SETPOINT_TF_H__
-#define __SETPOINT_TF_H__
+#ifndef __STATE_MACHINE_TF_H__
+#define __STATE_MACHINE_TF_H__
 
 
 #include "ros/ros.h"
 #include <ros/spinner.h>
 #include <string>
-
-#include <mavros_msgs/HomePosition.h>
+#include <vector>
 
 #include <tf/tf.h>
 #include <tf/transform_datatypes.h>
@@ -20,52 +19,37 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geographic_msgs/GeoPoint.h>
 
-#include <nav_msgs/Odometry.h>
-#include <sensor_msgs/Imu.h>
-#include <sensor_msgs/NavSatFix.h>
-#include "kuam_state_machine/utils.h"
-
 using namespace std; 
 
 namespace kuam{
 class SetpointTfBroadcaster{
 private:
 	ros::NodeHandle m_nh;
-	ros::NodeHandle m_p_nh;
-    Utils m_utils;
+    ros::NodeHandle m_p_nh;
 
 public:
     SetpointTfBroadcaster();
     ~SetpointTfBroadcaster();
 
 private:
-    // Subscriber
-    // ros::Subscriber m_setpoint_sub;
-
-    // Timer
-    ros::Timer m_tf_broadcaster_timer;
-
     // Param
     string m_err_param;
     float m_process_freq_param;
-
-    // Flag
-    bool m_setpoint_cb;
-
-    geometry_msgs::TransformStamped m_setpoint_tf_stamped;
-
-    tf2_ros::TransformBroadcaster m_tf_broadcaster;
-	vector<geometry_msgs::TransformStamped> m_transforms;
+    bool m_is_real_param;
+    string m_camera_frame_id_param;
+    float m_extrinsic_imu_to_camera_x_m_param;
+    float m_extrinsic_imu_to_camera_y_m_param;
+    float m_extrinsic_imu_to_camera_z_m_param;
+    float m_extrinsic_imu_to_camera_r_deg_param;
+    float m_extrinsic_imu_to_camera_p_deg_param;
+    float m_extrinsic_imu_to_camera_y_deg_param;
 
 private:
-    void InitFlag();
+    bool InitFlag();
     bool GetParam();
-    void InitROS();
-
-    void ProcessTimerCallback(const ros::TimerEvent& event);
-
-    void AddTransform(const string &frame_id, const string &child_id, const geometry_msgs::Transform tf, vector<geometry_msgs::TransformStamped>& vector);
+    bool InitROS();
+    bool InitStaticTf();
 };
 }
 
-#endif // __SETPOINT_TF_H__
+#endif // __STATE_MACHINE_TF_H__

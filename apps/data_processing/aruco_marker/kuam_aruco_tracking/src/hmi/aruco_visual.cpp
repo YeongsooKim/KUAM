@@ -7,7 +7,6 @@
 
 #include <tf/LinearMath/Quaternion.h> // tf::quaternion
 #include "tf2_ros/transform_listener.h" // tf::quaternion
-#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
 #include <kuam_aruco_tracking/utils/util_geometry.h>
 #include <kuam_aruco_tracking/target.h>
@@ -159,9 +158,9 @@ bool Visualizer::InitROS()
     string ns_name = ros::this_node::getNamespace();
 
     m_aruco_visual_sub = 
-        m_nh.subscribe<kuam_msgs::ArucoVisuals>("/aruco_tracking/aruco_visuals", 1, boost::bind(&Visualizer::ArucoVisualCallback, this, _1));
+        m_nh.subscribe<kuam_msgs::ArucoVisuals>("aruco_tracking/aruco_visuals", 1, boost::bind(&Visualizer::ArucoVisualCallback, this, _1));
     m_aruco_states_sub = 
-        m_nh.subscribe<kuam_msgs::ArucoStates>("/aruco_tracking/target_states", 1, boost::bind(&Visualizer::ArucoStatesCallback, this, _1));
+        m_nh.subscribe<kuam_msgs::ArucoStates>("aruco_tracking/target_states", 1, boost::bind(&Visualizer::ArucoStatesCallback, this, _1));
 
     // Initialize publisher
     m_aruco_pub = m_p_nh.advertise<visualization_msgs::MarkerArray>("aruco_markerarray", 10);

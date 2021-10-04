@@ -43,7 +43,7 @@ void ArucoTfBroadcaster::InitROS()
     // Initialize subscriber
     m_aruco_tf_sub = m_nh.subscribe<tf2_msgs::TFMessage>("aruco_tracking/tf_list", 10, boost::bind(&ArucoTfBroadcaster::MarkerCallback, this, _1));
     m_aruco_states_sub = 
-        m_nh.subscribe<kuam_msgs::ArucoStates>("/aruco_tracking/target_states", 1, boost::bind(&ArucoTfBroadcaster::ArucoStatesCallback, this, _1));
+        m_nh.subscribe<kuam_msgs::ArucoStates>("aruco_tracking/target_states", 1, boost::bind(&ArucoTfBroadcaster::ArucoStatesCallback, this, _1));
 
     // Initialize timer
     m_tf_broadcaster_timer = m_nh.createTimer(ros::Duration(1.0/m_process_freq_param), &ArucoTfBroadcaster::ProcessTimerCallback, this);

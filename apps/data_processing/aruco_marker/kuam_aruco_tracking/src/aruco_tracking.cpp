@@ -16,8 +16,7 @@ namespace kuam{
     
 ArucoTracking::ArucoTracking() :
     m_p_nh("~"),
-    MARKER_ID_QUEUE_SIZE(30),
-    m_tfListener(m_tfBuffer)
+    MARKER_ID_QUEUE_SIZE(30)
 {
     InitFlag();
     if (!GetParam()) ROS_ERROR("[aruco_tracking] Fail GetParam %s", m_err_param.c_str());

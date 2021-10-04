@@ -65,6 +65,7 @@ class Flight(smach.State, Base):
 
             # Update setpoint
             self.setpoint.geopose = UpdateSetpointPose(self.setpoints.poses, self.ego_geopose, self.guidance_dist_th_m)
+            self.setpoint.is_global = True
             
             if IsReached(self.ego_geopose.position, self.setpoints.poses[-1].pose.position, self.reached_dist_th_m):
                 self.transition = 'done'
