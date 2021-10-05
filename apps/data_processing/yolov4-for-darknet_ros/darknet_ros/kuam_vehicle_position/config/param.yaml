@@ -1,0 +1,7 @@
+vehicle_position:
+  process_freq: 30
+  target_width_m: 1.83
+  target_length_m: 4.8
+  image_plane_width_m: 640
+  image_plane_height_m: 480
+  focal_length: 570.0

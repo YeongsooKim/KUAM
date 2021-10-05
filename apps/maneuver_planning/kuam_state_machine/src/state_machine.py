@@ -21,6 +21,7 @@ from kuam_msgs.msg import Completion
 from kuam_msgs.msg import Setpoint
 from kuam_msgs.msg import Status
 from kuam_msgs.msg import Task
+from kuam_msgs.msg import VehicleState
 from kuam_msgs.srv import LandRequest
 from geographic_msgs.msg import GeoPose
 from geographic_msgs.msg import GeoPath
@@ -404,6 +405,7 @@ if __name__ == '__main__':
     rospy.Subscriber("/mavros/global_position/global", NavSatFix, EgoGlobalPoseCB)
     rospy.Subscriber("/mavros/local_position/velocity_body", TwistStamped, EgoVelCB)
     rospy.Subscriber(data_ns + "/aruco_tracking/target_states", ArucoStates, offb_states_[OffbState.LANDING].MarkerCB)
+    rospy.Subscriber(data_ns + "/vehicle_position/vehicle_state", VehicleState, offb_states_[OffbState.LANDING].VehicleCB)
     rospy.Subscriber(data_ns + "/chat/command", Chat, CommandCB)
     rospy.Subscriber("/mavros/battery", BatteryState, BatteryCB)
 

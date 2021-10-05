@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+    <rosparam command="load" file="$(find kuam_vehicle_position)/config/param.yaml" />
+
+    <!-- rviz -->
+    <arg name="rviz" default="false" />
+
+    <!-- nodes -->
+    <node pkg="kuam_vehicle_position" type="vehicle_position_node" name="vehicle_position" output="screen" />
+
+    <group if="$(arg rviz)">
+        <node pkg="rviz" type="rviz" name="rviz" args="-d $(find kuam_vehicle_position)/rviz/aruco_marker.rviz" required="true" />
+    </group>
+</launch>

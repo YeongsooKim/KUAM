@@ -1,0 +1,11 @@
+yolo_model:
+
+  config_file:
+    name: yolov4_coco_carpk_pucpr+.cfg
+  weight_file:
+    name: yolov4_coco_carpk_pucpr+_best.weights
+  threshold:
+    value: 0.25
+  detection_classes:
+    names:
+      - car

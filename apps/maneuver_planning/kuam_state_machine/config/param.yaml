@@ -2,7 +2,7 @@ state_machine:
   process_freq: 20.0
 
   # takeoff
-  takeoff_alt_m: 3.0
+  takeoff_alt_m: 2.5
   reached_dist_th_m: 0.3 # checking have reached to mission destination waypoint
   guidance_dist_th_m: 1.5 # checking have reached to next waypoint during flight mode
 

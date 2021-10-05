@@ -34,6 +34,7 @@ add_message_files(
   Status.msg
   Task.msg
   TaskList.msg
+  VehicleState.msg
   Waypoint.msg
   Waypoints.msg
 )

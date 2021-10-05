@@ -27,6 +27,8 @@
             <arg name="using_device_data" value="$(arg using_device_data)" />
         </include>
 
+        <include file="$(find kuam_vehicle_position)/launch/vehicle_position.launch" />
+
         <group if="$(arg rviz)">
             <node pkg="rviz" type="rviz" name="data_processing_rviz" args="-d $(find kuam_data_processing)/rviz/data_processing.rviz" required="true" />
         </group>

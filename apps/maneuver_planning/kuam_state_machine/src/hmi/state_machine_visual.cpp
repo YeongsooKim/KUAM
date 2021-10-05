@@ -33,6 +33,7 @@ std_msgs::ColorRGBA WHITE;
 std_msgs::ColorRGBA PURPLE;
 std_msgs::ColorRGBA CYAN;
 std_msgs::ColorRGBA ORANGE;
+std_msgs::ColorRGBA WINE;
 
 enum class SETPOINT : int{
     GLOBAL,
@@ -57,7 +58,8 @@ struct TextDatum{
     string mode;
     string offb_state;
     string landing_state;
-    string is_detected;
+    string is_marker_detected;
+    string is_vehicle_detected;
     string is_pass_landing_standby;
     string tasklist;
     string ego_height_m;
@@ -214,6 +216,7 @@ bool Visualizer::InitMarkers()
     WHITE.r = 1.0f;     WHITE.g = 1.0f;     WHITE.b = 1.0f;
     PURPLE.r = 1.0f;    PURPLE.g = 0.0f;    PURPLE.b = 1.0f;
     CYAN.r = 0.0f;      CYAN.g = 1.0f;      CYAN.b = 1.0f;
+    WINE.r = 255.0/255.0;   WINE.g = 51.0/255.0;    WINE.b = 0.0;
     ORANGE.r = 255.0/255.0; ORANGE.g = 102.0/255.0; ORANGE.b = 0.0;
 
     //// ego pose
@@ -249,7 +252,8 @@ bool Visualizer::InitMarkers()
     m_text_datum.mode = "\n";
     m_text_datum.offb_state = "\n";
     m_text_datum.coverage = "\n";
-    m_text_datum.is_detected = "\n";
+    m_text_datum.is_marker_detected = "\n";
+    m_text_datum.is_vehicle_detected = "\n";
     m_text_datum.landing_state = "\n";
     m_text_datum.ego_global_alt_m = "\n";
     m_text_datum.home_altitude_m = "\n";
@@ -290,7 +294,11 @@ void Visualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_
     string is_detected;
     if (setpoint.landing_state.is_marker_detected) is_detected = BoostColor("TRUE", GREEN);
     else is_detected = is_detected = BoostColor("FALSE", RED);
-    m_text_datum.is_detected = "Is detected: " + is_detected + "\n";
+    m_text_datum.is_marker_detected = "Is marker detected: " + is_detected + "\n";
+
+    if (setpoint.landing_state.is_vehicle_detected) is_detected = BoostColor("TRUE", GREEN);
+    else is_detected = is_detected = BoostColor("FALSE", RED);
+    m_text_datum.is_vehicle_detected = "Is vehicle detected: " + is_detected + "\n";
 
     float h_m = -setpoint.target_pose.position.z;
     std_msgs::Float32 msg;
@@ -363,7 +371,11 @@ void Visualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_
             auto size = sqrt(pow(x, 2.0) + pow(y, 2.0) + pow(z, 2.0));
 
             visualization_msgs::Marker sp_marker;
-            std_msgs::ColorRGBA color = PURPLE; color.a = 0.4f;
+            std_msgs::ColorRGBA color;
+            if (setpoint.landing_state.mode == "mode1") color = PURPLE;
+            else if (setpoint.landing_state.mode == "mode2") color = WINE;
+            color.a = 0.4f;
+
             sp_marker.header.frame_id = "map";
             sp_marker.header.stamp = ros::Time::now();
             sp_marker.ns = "setpoint/relative";
@@ -464,7 +476,7 @@ void Visualizer::TextPubCallback(const ros::TimerEvent& event)
     text.text = 
         m_text_datum.mode + m_text_datum.offb_state +
         "\n" +
-        m_text_datum.coverage + m_text_datum.is_detected + m_text_datum.landing_state +
+        m_text_datum.coverage + m_text_datum.is_marker_detected + m_text_datum.is_vehicle_detected + m_text_datum.landing_state +
         "\n" +
         m_text_datum.ego_global_alt_m + m_text_datum.home_altitude_m + m_text_datum.setpoint_local_h_m + m_text_datum.offset_alt_m;
         

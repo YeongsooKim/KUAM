@@ -16,7 +16,7 @@ Usage: calibrate_camera_charuco [params] outfile
 	-h
 		Number of squares in Y direction
 	--ml
-		Marker side length (in meters)
+		Marker side length (in pixels)
 	--pc (value:false)
 		Fix the principal point at the center
 	--rs (value:false)
@@ -24,7 +24,7 @@ Usage: calibrate_camera_charuco [params] outfile
 	--sc (value:false)
 		Show detected chessboard corners after calibration
 	--sl
-		Square side length (in meters)
+		Square side length (in pixels)
 	-v
 		Input from video file, if ommited, input comes from camera
 	-w

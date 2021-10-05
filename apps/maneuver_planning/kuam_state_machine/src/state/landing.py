@@ -19,6 +19,7 @@ from geometry_msgs.msg import PoseStamped
 from kuam_msgs.msg import LandingState
 from geographic_msgs.msg import GeoPoseStamped
 import tf2_geometry_msgs
+import tf2_ros
 
 class Landing(smach.State, Base):
     def __init__(self, ego_geopose, ego_pose, ego_vel, setpoint, setpoints):
@@ -47,7 +48,8 @@ class Landing(smach.State, Base):
         self.transition = 'none'
         
         # Target state
-        self.target_pose = Pose()
+        self.marker_pose = Pose()
+        self.vehicle_pose = Pose()
 
         # Tf
         self.tfBuffer = None
@@ -63,7 +65,6 @@ class Landing(smach.State, Base):
     '''
     def Start(self):
         self.is_start = True
-        self.is_detected = False
         self.switching_mod2 = False
         self.switching_mod1 = False
         self.is_mod2_fixed = False
@@ -101,7 +102,7 @@ class Landing(smach.State, Base):
     Camera
     '''
     def CameraLandModeSwitching(self):
-        if -self.target_pose.position.z < self.landing_threshold_m and -self.target_pose.position.z > 0.01:
+        if -self.marker_pose.position.z < self.landing_threshold_m and -self.marker_pose.position.z > 0.01:
             self.mode = "auto.land"
             
         elif self.switching_mod2:
@@ -109,6 +110,7 @@ class Landing(smach.State, Base):
 
         elif self.switching_mod1:
             self.mode = "mode1"
+            # self.switching_mod1 = False
         else:
             self.mode = "standby"
         
@@ -119,29 +121,40 @@ class Landing(smach.State, Base):
         if self.mode == "mode1":
             self.setpoint.is_global = False
 
-            # Set setpoint.vel
-            # Set setpoint.yaw_rate
-            # Set setpoint.geopose (optional)
+            self.setpoint.vel.linear.x = self.XY_Vel(self.vehicle_pose.position.x)
+            self.setpoint.vel.linear.y = self.XY_Vel(self.vehicle_pose.position.y)
+            self.setpoint.vel.linear.z = self.Z_Vel(self.vehicle_pose.position.z)
 
-            landing_state.is_vehicle_detected = True
-
-        elif self.mode == "mode2":
-            self.setpoint.is_global = False
-
-            self.setpoint.vel.linear.x = self.XY_Vel(self.target_pose.position.x)
-            self.setpoint.vel.linear.y = self.XY_Vel(self.target_pose.position.y)
-            self.setpoint.vel.linear.z = self.Z_Vel(self.target_pose.position.z)
-
-            v_yaw = self.YawRate(self.target_pose.orientation)
+            v_yaw = self.YawRate(self.vehicle_pose.orientation)
             self.setpoint.yaw_rate.orientation.x = v_yaw[0]
             self.setpoint.yaw_rate.orientation.y = v_yaw[1]
             self.setpoint.yaw_rate.orientation.z = v_yaw[2]
             self.setpoint.yaw_rate.orientation.w = v_yaw[3]
 
             self.setpoint.geopose = self.ego_geopose
-            self.setpoint.target_pose = self.target_pose
+            self.setpoint.target_pose = self.vehicle_pose
+
+            landing_state.is_vehicle_detected = True
+
+        elif self.mode == "mode2":
+            self.setpoint.is_global = False
+
+            self.setpoint.vel.linear.x = self.XY_Vel(self.marker_pose.position.x)
+            self.setpoint.vel.linear.y = self.XY_Vel(self.marker_pose.position.y)
+            self.setpoint.vel.linear.z = self.Z_Vel(self.marker_pose.position.z)
+
+            v_yaw = self.YawRate(self.marker_pose.orientation)
+            self.setpoint.yaw_rate.orientation.x = v_yaw[0]
+            self.setpoint.yaw_rate.orientation.y = v_yaw[1]
+            self.setpoint.yaw_rate.orientation.z = v_yaw[2]
+            self.setpoint.yaw_rate.orientation.w = v_yaw[3]
+
+            self.setpoint.geopose = self.ego_geopose
+            self.setpoint.target_pose = self.marker_pose
 
             landing_state.is_marker_detected = True
+            if self.switching_mod1 == True:
+                landing_state.is_vehicle_detected = True
 
         elif self.mode == "auto.land":
             self.setpoint.is_global = True
@@ -227,8 +240,6 @@ class Landing(smach.State, Base):
         if not msg.is_detected:
             return
 
-        self.is_detected = True
-
         # find detected marker ids
         detected_marker_ids = []
         for aruco in msg.aruco_states:
@@ -246,7 +257,6 @@ class Landing(smach.State, Base):
                 return
             else:
                 self.is_mod2_fixed = True
-            
 
         # transform target pose from camera_link to base_link
         try:
@@ -256,7 +266,27 @@ class Landing(smach.State, Base):
             p.pose = msg.target_pose
             transformed_pose = tf2_geometry_msgs.do_transform_pose(p, transform)
 
-            self.target_pose = transformed_pose.pose
+            self.marker_pose = transformed_pose.pose
 
         except:
             rospy.logerr("[landing state] transform err")
+
+    def VehicleCB(self, msg):
+        if not msg.is_detected:
+            return
+
+        # mode change
+        self.switching_mod1 = True
+
+        # transform vehicle pixel from camera_link to base_link
+        try:
+            transform = self.tfBuffer.lookup_transform('base_link', msg.header.frame_id, rospy.Time())
+            p = PoseStamped()
+            p.header = msg.header
+            p.pose = msg.vehicle
+            transformed_pose = tf2_geometry_msgs.do_transform_pose(p, transform)
+
+            self.vehicle_pose = transformed_pose.pose
+
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+            rospy.logerr("[landing state] transform err. msg frame_id: %s", msg.header.frame_id)
