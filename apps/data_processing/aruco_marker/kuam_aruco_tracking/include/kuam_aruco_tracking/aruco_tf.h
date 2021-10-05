@@ -11,7 +11,6 @@
 #include <tf/transform_listener.h>
 #include <tf/LinearMath/Quaternion.h> // tf::quaternion
 #include <tf/transform_broadcaster.h>
-#include <tf_conversions/tf_eigen.h>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2_msgs/TFMessage.h>
 
