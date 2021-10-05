@@ -1,4 +1,13 @@
 # python3 환경설정
+## Missing package install for python3
+### 1. apt update & install python3 package 
+```
+sudo apt install python3-pip python3-all-dev python3-rospkg
+sudo apt update
+sudo apt upgrade
+sudo apt install ros-melodic-desktop-full --fix-missing
+```
+
 ## Error: dynamic module does not define module export function (PyInit__tf2)
 ### 1. Upgrade geometry2 to python3
 ```
@@ -65,4 +74,44 @@ copy PyKDL to python3.6/site-packages
 cd /orocos_kinematics_dynamics/python_orocos_kdl/build/devel/lib/python3/dist-packages
 sudo cp PyKDL.so /usr/local/lib/python3.6/dist-packages
 export PYTHONPATH=/usr/local/lib/python3.6/dist-packages/:$PYTHONPATH
+```
+
+# Dependency
+## No module named 'scipy'
+`sudo apt-get install python3-scipy`
+
+# Path
+## File "/opt/ros/melodic/lib/python2.7/dist-packages/smach_ros/__init__.py", line 52, ModuleNotFoundError: No module named 'util'
+convert to relative path
+
+from 
+ ```
+ ### Core classes
+ from util import set_preempt_handler
+ 
+ ### Top-level Containers / Wrappers
+ from action_server_wrapper import ActionServerWrapper
+ from introspection import IntrospectionClient, IntrospectionServer
+ 
+ ### State Classes
+ from simple_action_state import SimpleActionState
+ from service_state import ServiceState
+ from monitor_state import MonitorState
+ from condition_state import ConditionState
+```
+
+to
+```
+ ### Core classes
+ from .util import set_preempt_handler
+ 
+ ### Top-level Containers / Wrappers
+ from .action_server_wrapper import ActionServerWrapper
+ from .introspection import IntrospectionClient, IntrospectionServer
+ 
+ ### State Classes
+ from .simple_action_state import SimpleActionState
+ from .service_state import ServiceState
+ from .monitor_state import MonitorState
+ from .condition_state import ConditionState
 ```
