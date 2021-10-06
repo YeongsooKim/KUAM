@@ -34,7 +34,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: Image
+    SyncSource: vehicle
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -81,30 +81,7 @@ Visualization Manager:
               Marker Topic: /kuam/data/aruco_visual/aruco_markerarray
               Name: aruco
               Namespaces:
-                target0/current_point: true
-                target0/txt: true
-                target1/current_point: true
-                target1/txt: true
-                target10/current_point: true
-                target10/txt: true
-                target11/current_point: true
-                target11/txt: true
-                target12/current_point: true
-                target12/txt: true
-                target2/current_point: true
-                target2/txt: true
-                target3/current_point: true
-                target3/txt: true
-                target5/current_point: true
-                target5/txt: true
-                target6/current_point: true
-                target6/txt: true
-                target7/current_point: true
-                target7/txt: true
-                target8/current_point: true
-                target8/txt: true
-                target9/current_point: true
-                target9/txt: true
+                {}
               Queue Size: 100
               Value: true
             - Class: rviz/Marker
@@ -112,7 +89,7 @@ Visualization Manager:
               Marker Topic: /kuam/data/aruco_visual/landingpoint_marker
               Name: landing_point
               Namespaces:
-                setpoint/landing_point: true
+                {}
               Queue Size: 100
               Value: true
           Enabled: true
@@ -231,35 +208,9 @@ Visualization Manager:
           Value: true
         camera_link:
           Value: true
-        landing_point:
-          Value: true
         map:
           Value: true
         map_ned:
-          Value: true
-        marker0:
-          Value: true
-        marker1:
-          Value: true
-        marker10:
-          Value: true
-        marker11:
-          Value: true
-        marker12:
-          Value: true
-        marker2:
-          Value: true
-        marker3:
-          Value: true
-        marker5:
-          Value: true
-        marker6:
-          Value: true
-        marker7:
-          Value: true
-        marker8:
-          Value: true
-        marker9:
           Value: true
         odom:
           Value: true
@@ -276,32 +227,7 @@ Visualization Manager:
             base_link_frd:
               {}
             camera_link:
-              landing_point:
-                {}
-              marker0:
-                {}
-              marker1:
-                {}
-              marker10:
-                {}
-              marker11:
-                {}
-              marker12:
-                {}
-              marker2:
-                {}
-              marker3:
-                {}
-              marker5:
-                {}
-              marker6:
-                {}
-              marker7:
-                {}
-              marker8:
-                {}
-              marker9:
-                {}
+              {}
           map_ned:
             {}
       Update Interval: 0
@@ -366,25 +292,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 27.001220703125
+      Distance: 39.227210998535156
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 19.453081130981445
-        Y: 6.542355537414551
-        Z: -0.5469590425491333
+        X: 17.598751068115234
+        Y: 9.428422927856445
+        Z: -1.3889191150665283
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6153984665870667
+      Pitch: 0.8653984069824219
       Target Frame: map
       Value: Orbit (rviz)
-      Yaw: 5.408570289611816
+      Yaw: 5.723568439483643
     Saved: ~
 Window Geometry:
   Displays:

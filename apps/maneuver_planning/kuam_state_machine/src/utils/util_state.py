@@ -15,29 +15,37 @@ def UpdateSetpointPose(setpoints, ego_geopose, roi_th):
 
     # Find contained point in range of ROI
     contained_roi_idx = {}
-    for i, p in enumerate(setpoints):
+    min_dist = 100000
+    for idx, p in enumerate(setpoints):
         # p: GeoPoseStamped message
         dist = DistanceFromLatLonInMeter3D(p.pose.position, ego_geopose.position)
         if dist < roi_th:
-            contained_roi_idx[i] = dist
-            # print("index: ", i, ", dist: ", dist)
+            contained_roi_idx[idx] = dist
+            # print("index: ", idx, ", dist: ", dist)
+        
+        if dist < min_dist:
+            nearest_idx = idx
+            min_dist = dist
 
     if len(contained_roi_idx) == 1:
         idx = next(iter(contained_roi_idx))
-        # print("length of contained_roi_idx = 1")
-        return setpoints[idx].pose
 
-    # Find the nearest point with ego geopose
-    min_dist = 100000
-    for idx in contained_roi_idx:
-        if contained_roi_idx[idx] < min_dist:
-            nearest_idx = idx
-            min_dist = contained_roi_idx[idx]
-    # print("nearest index: ", nearest_idx, ", dist: ", min_dist)
+        if idx < (len(setpoints) - 1):
+            # print("length of contained_roi_idx = 1, return idx+1")
+            return setpoints[idx+1].pose
+        else:
+            # print("length of contained_roi_idx = 1, return idx")
+            return setpoints[idx].pose
+    elif len(contained_roi_idx) == 0:
+        if nearest_idx < (len(setpoints) - 1):
+            # print("length of contained_roi_idx = 0, return nearest_idx+1")
+            return setpoints[nearest_idx+1].pose
+        else:
+            # print("length of contained_roi_idx = 0, return nearest_idx")
+            return setpoints[nearest_idx].pose
 
     # Find over the nearest point
     over_nearest_idx = {}
-    keys = list(contained_roi_idx.keys())
     for idx in contained_roi_idx:
         if idx > nearest_idx:
             over_nearest_idx[idx] = contained_roi_idx[idx]

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from math import e
+from math import *
 import rospy
 import ros
 import copy
@@ -177,74 +177,130 @@ def FlightWaypoints(qgc_datum):
     pose.position.z = global_geopose_list_[0].position.altitude
     poses.append(pose)
 
-    for qgc in qgc_datum.qgc_datum:
-        # Get geopose
-        global_geopose_list_.append(qgc.geopose)
+    END_MIN = 2
+    dt = 0.1
+    z_end_m = 50
+    end_time = END_MIN * 60
+    num = end_time/dt
+    t = np.linspace(0, end_time, int(num))
+    z_ms = z_end_m/end_time
 
-        # Get pose
-        [east, north] = Wgs84ToCartesian([home_position_.latitude, home_position_.longitude], 
-                                        [qgc.geopose.position.latitude, qgc.geopose.position.longitude])
-        pose = Pose()
-        pose.position.x = east
-        pose.position.y = north
-        pose.position.z = qgc.geopose.position.altitude
-        poses.append(pose)
-
-    # Smoothing
-    x, y, z = List2Array(poses)
-    smooth_east_north_array = SmoothingEnu(x, y, smooth_param).T
-    x_list = smooth_east_north_array.tolist()[0]
-    y_list = smooth_east_north_array.tolist()[1]
-    smooth_east_top_array = SmoothingEnu(x, z, smooth_param, len(x_list)).T
-    z_list = smooth_east_top_array.tolist()[1]
-    
-    smoothed_poses = []
-    smoothed_geoposes = []
-    for i, _ in enumerate(x_list):
-        # Get smoothed pose
+    for i, t_ in enumerate(list(t)):
         p = Pose()
-        p.position.x = x_list[i]
-        p.position.y = y_list[i]
-        p.position.z = z_list[i]
-        smoothed_poses.append(p)
+        p.position.x = sqrt(t_)*cos(t_/6) + pose.position.x
+        p.position.y = sqrt(t_)*sin(t_/6) + pose.position.y
+        p.position.z = z_ms*t_ + pose.position.z
+        poses.append(p)
 
-        # Get smoothed geopose
-        [latitude, longitude] = CartesianToWgs84([home_position_.latitude, home_position_.longitude], [x_list[i], y_list[i]])
+    geoposes = []
+    for p in poses:
+        [latitude, longitude] = CartesianToWgs84([home_position_.latitude, home_position_.longitude], [p.position.x, p.position.y])
         gp = GeoPose()
         gp.position.longitude = longitude
         gp.position.latitude = latitude
-        gp.position.altitude = z_list[i]
-        smoothed_geoposes.append(gp)
+        gp.position.altitude = p.position.z
+        geoposes.append(gp)
 
     # Allocate orientation
-    for i, pose in enumerate(smoothed_poses):
-        if len(smoothed_poses) != 1:
-            if (i + 1) < len(smoothed_poses):
-                orientation = GetOrientation(smoothed_poses[i].position, smoothed_poses[i+1].position);
-                smoothed_poses[i].orientation = orientation
-                smoothed_geoposes[i].orientation = orientation
+    for i, pose in enumerate(poses):
+        if len(poses) != 1:
+            if (i + 1) < len(poses):
+                orientation = GetOrientation(poses[i].position, poses[i+1].position);
+                poses[i].orientation = orientation
+                geoposes[i].orientation = orientation
             else:
-                smoothed_poses[i].orientation = smoothed_poses[i-1].orientation;
-                smoothed_geoposes[i].orientation = smoothed_geoposes[i-1].orientation;
+                poses[i].orientation = poses[i-1].orientation;
+                geoposes[i].orientation = geoposes[i-1].orientation;
         else:
-            smoothed_poses[i].orientation.x = 0.0;
-            smoothed_poses[i].orientation.y = 0.0;
-            smoothed_poses[i].orientation.z = 0.0;
-            smoothed_poses[i].orientation.w = 1.0;
+            poses[i].orientation.x = 0.0;
+            poses[i].orientation.y = 0.0;
+            poses[i].orientation.z = 0.0;
+            poses[i].orientation.w = 1.0;
 
-            smoothed_geoposes[i].orientation.x = 0.0;
-            smoothed_geoposes[i].orientation.y = 0.0;
-            smoothed_geoposes[i].orientation.z = 0.0;
-            smoothed_geoposes[i].orientation.w = 1.0;
+            geoposes[i].orientation.x = 0.0;
+            geoposes[i].orientation.y = 0.0;
+            geoposes[i].orientation.z = 0.0;
+            geoposes[i].orientation.w = 1.0;
 
     global_path = Waypoints()
     global_path.id = global_path_msg.global_path.id
 
     wp = Waypoint()
     wp.mission = "flight"
-    wp.poses = smoothed_poses
-    wp.geoposes = smoothed_geoposes
+    wp.poses = poses
+    wp.geoposes = geoposes
     global_path.waypoints.append(wp)
+
+
+
+    # for qgc in qgc_datum.qgc_datum:
+    #     # Get geopose
+    #     global_geopose_list_.append(qgc.geopose)
+
+    #     # Get pose
+    #     [east, north] = Wgs84ToCartesian([home_position_.latitude, home_position_.longitude], 
+    #                                     [qgc.geopose.position.latitude, qgc.geopose.position.longitude])
+    #     pose = Pose()
+    #     pose.position.x = east
+    #     pose.position.y = north
+    #     pose.position.z = qgc.geopose.position.altitude
+    #     poses.append(pose)
+
+    # # Smoothing
+    # x, y, z = List2Array(poses)
+    # smooth_east_north_array = SmoothingEnu(x, y, smooth_param).T
+    # x_list = smooth_east_north_array.tolist()[0]
+    # y_list = smooth_east_north_array.tolist()[1]
+    # smooth_east_top_array = SmoothingEnu(x, z, smooth_param, len(x_list)).T
+    # z_list = smooth_east_top_array.tolist()[1]
+    
+    # smoothed_poses = []
+    # smoothed_geoposes = []
+    # for i, _ in enumerate(x_list):
+    #     # Get smoothed pose
+    #     p = Pose()
+    #     p.position.x = x_list[i]
+    #     p.position.y = y_list[i]
+    #     p.position.z = z_list[i]
+    #     smoothed_poses.append(p)
+
+    #     # Get smoothed geopose
+    #     [latitude, longitude] = CartesianToWgs84([home_position_.latitude, home_position_.longitude], [x_list[i], y_list[i]])
+    #     gp = GeoPose()
+    #     gp.position.longitude = longitude
+    #     gp.position.latitude = latitude
+    #     gp.position.altitude = z_list[i]
+    #     smoothed_geoposes.append(gp)
+
+    # # Allocate orientation
+    # for i, pose in enumerate(smoothed_poses):
+    #     if len(smoothed_poses) != 1:
+    #         if (i + 1) < len(smoothed_poses):
+    #             orientation = GetOrientation(smoothed_poses[i].position, smoothed_poses[i+1].position);
+    #             smoothed_poses[i].orientation = orientation
+    #             smoothed_geoposes[i].orientation = orientation
+    #         else:
+    #             smoothed_poses[i].orientation = smoothed_poses[i-1].orientation;
+    #             smoothed_geoposes[i].orientation = smoothed_geoposes[i-1].orientation;
+    #     else:
+    #         smoothed_poses[i].orientation.x = 0.0;
+    #         smoothed_poses[i].orientation.y = 0.0;
+    #         smoothed_poses[i].orientation.z = 0.0;
+    #         smoothed_poses[i].orientation.w = 1.0;
+
+    #         smoothed_geoposes[i].orientation.x = 0.0;
+    #         smoothed_geoposes[i].orientation.y = 0.0;
+    #         smoothed_geoposes[i].orientation.z = 0.0;
+    #         smoothed_geoposes[i].orientation.w = 1.0;
+
+    # global_path = Waypoints()
+    # global_path.id = global_path_msg.global_path.id
+
+    # wp = Waypoint()
+    # wp.mission = "flight"
+    # wp.poses = smoothed_poses
+    # wp.geoposes = smoothed_geoposes
+    # global_path.waypoints.append(wp)
 
     return global_path
 
