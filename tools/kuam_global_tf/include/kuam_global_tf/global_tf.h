@@ -66,6 +66,7 @@ private:
     float m_extrinsic_imu_to_camera_r_deg_param;
     float m_extrinsic_imu_to_camera_p_deg_param;
     float m_extrinsic_imu_to_camera_y_deg_param;
+    bool m_is_sim_param;
 
     geographic_msgs::GeoPoint m_home_position;
     geometry_msgs::TransformStamped m_base_tf_stamped;

@@ -52,7 +52,7 @@ bool Playload::InitROS()
     m_global_pose_pub = m_nh.advertise<geographic_msgs::GeoPoseStamped>("/mavros/setpoint_position/global", 10);
     m_local_pos_tar_pub = m_nh.advertise<mavros_msgs::PositionTarget>("/mavros/setpoint_raw/local", 10);
     m_payload_cmd_pub = m_p_nh.advertise<uav_msgs::PayloadCmd>("payload_cmd", 1000);
-
+    
     // Initialize service client
     m_arming_serv_client = m_nh.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
     m_set_mode_serv_client = m_nh.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
@@ -123,7 +123,7 @@ void Playload::ChatterCallback(const uav_msgs::Chat::ConstPtr &chat_ptr)
 bool Playload::LandRequestSrv(kuam_msgs::LandRequest::Request &req, kuam_msgs::LandRequest::Response &res)
 {
     if (req.land_request){
-        ROS_WARN_STREAM("Enter LandRequestSrv");
+        ROS_WARN_STREAM("[payload_cmd] Enter LandRequestSrv");
         LandRequest();
 
         ros::Rate rate(m_process_freq_param);
@@ -132,7 +132,7 @@ bool Playload::LandRequestSrv(kuam_msgs::LandRequest::Request &req, kuam_msgs::L
             ros::spinOnce();
             rate.sleep();
         }
-        ROS_WARN_STREAM("Complete LandRequestSrv");
+        ROS_WARN_STREAM("[payload_cmd] Complete LandRequestSrv");
         res.is_complete = true;
     }
 
@@ -148,7 +148,7 @@ void Playload::ArmRequest()
     if(!m_mavros_status.armed){
         if( m_arming_serv_client.call(arm_cmd) && arm_cmd.response.success){
 
-            ROS_INFO("Vehicle armed");
+            ROS_WARN("[payload_cmd] Vehicle armed");
         }
         m_last_request_time = ros::Time::now();
     }
@@ -162,7 +162,7 @@ void Playload::ManualRequest()
     if( m_mavros_status.mode != "MANUAL"){
         if(m_set_mode_serv_client.call(manual_set_mode) &&
             manual_set_mode.response.mode_sent){
-            ROS_INFO("Manual enabled");
+            ROS_WARN("[payload_cmd] Manual enabled");
         }
         m_last_request_time = ros::Time::now();
     }
@@ -176,7 +176,7 @@ void Playload::AltitudeRequest()
     if( m_mavros_status.mode != "ALTCTL"){
         if(m_set_mode_serv_client.call(altitude_set_mode) &&
             altitude_set_mode.response.mode_sent){
-            ROS_INFO("Altitude enabled");
+            ROS_WARN("[payload_cmd] Altitude enabled");
         }
         m_last_request_time = ros::Time::now();
     }
@@ -190,7 +190,7 @@ bool Playload::OffboardRequest()
     if( m_mavros_status.mode != "OFFBOARD"){
         if(m_set_mode_serv_client.call(offb_set_mode) &&
             offb_set_mode.response.mode_sent){
-            ROS_INFO("Offboard enabled");
+            ROS_WARN("[payload_cmd] Offboard enabled");
         }
         m_last_request_time = ros::Time::now();
         return false;
@@ -206,7 +206,7 @@ void Playload::LandRequest()
     if (m_mavros_status.mode != "AUTO.LAND" && m_mavros_status.armed){
         if(m_set_mode_serv_client.call(landing_mode) &&
             landing_mode.response.mode_sent){
-            ROS_INFO("Land enabled");
+            ROS_WARN("[payload_cmd] Land enabled");
         }
         m_last_request_time = ros::Time::now();
     }
@@ -221,7 +221,7 @@ void Playload::EmergRequest()
         if(m_set_mode_serv_client.call(emerg_mode) &&
             emerg_mode.response.mode_sent){
 
-            ROS_ERROR("Emergy enabled");
+            ROS_ERROR("[payload_cmd] Emergy enabled");
         }
         m_last_request_time = ros::Time::now();
     }
@@ -273,7 +273,7 @@ void Playload::PayloadCmdPub()
 {
     static string prev_mode = "none";
     if (prev_mode != m_mavros_status.mode){
-        ROS_WARN("PX4: %s, armed: False", m_mavros_status.mode.c_str());
+        ROS_WARN("[payload_cmd] PX4: %s, armed: False", m_mavros_status.mode.c_str());
 
         uav_msgs::PayloadCmd payload_cmd_msg;
         payload_cmd_msg.mode = m_mavros_status.mode;

@@ -2,7 +2,8 @@
 <launch>
     <node pkg="pub_img_stream" type="pub_img_stream" name="pub_img_stream" output="screen">
         <param name="frame_rate" value="5" />
-        <param name="file_path" value="/home/ys/dataset/au_air/frame_20190905111947/*" />
+        <!-- <param name="file_path" value="/home/ys/dataset/au_air/frame_20190905111947/*" /> -->
+        <param name="file_path" value="/home/ys/dataset/test/*" />
         
         <remap from="/camera/image" to="/camera/rgb/image_raw"/>
     </node>

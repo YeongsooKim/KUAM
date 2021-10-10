@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+    <rosparam command="load" file="$(find calculate_focal_length)/config/param.yaml" />
+
+    <!-- nodes -->
+    <node pkg="calculate_focal_length" type="calculate_focal_length" name="calculate_focal_length" output="screen" />
+</launch>

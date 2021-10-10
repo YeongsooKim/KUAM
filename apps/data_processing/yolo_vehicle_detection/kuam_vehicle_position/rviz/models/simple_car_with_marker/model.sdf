@@ -6,11 +6,11 @@
     </include>
 
     <include>
-      <uri>model://integration_marker_1</uri>
-      <pose>0.0 0.0 1.4 0 0 3.1415</pose>
+      <uri>model://integration_marker_2</uri>
+      <pose>-0.5 0.0 1.4 0 0  1.57075</pose>
     </include>
-    <joint name="integration_marker_1_joint" type="revolute">
-      <child>integration_marker_1::link</child>
+    <joint name="integration_marker_2_joint" type="revolute">
+      <child>integration_marker_2::link</child>
       <parent>simple_car::base_link</parent>
       <axis>
         <xyz>0 0 1</xyz>

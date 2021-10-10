@@ -18,22 +18,24 @@ void UtilSetpoint::Translate(geometry_msgs::Pose& pose, const int id,
 
     float x_trans = 0;
     float y_trans = 0;
-    if (id == 0){
-        x_trans = -big_marker_trans;
-        y_trans = -big_marker_trans;
-    }
-    if (id == 1) { x_trans = big_marker_trans; y_trans = -big_marker_trans; }
-    if (id == 2) { x_trans = big_marker_trans; y_trans = big_marker_trans; }
-    if (id == 3) { x_trans = -big_marker_trans; y_trans = big_marker_trans; }
-    if (id == 4) { x_trans = -medium_marker_trans; y_trans = 0.0; }
-    if (id == 5) { x_trans = 0.0; y_trans = -medium_marker_trans; }
-    if (id == 6) { x_trans = medium_marker_trans; y_trans = 0.0; }
-    if (id == 7) { x_trans = 0.0; y_trans = +medium_marker_trans; }
-    if (id == 8) { x_trans = 0.0; y_trans = 0.0; }
-    if (id == 9) { x_trans = -small_marker_trans; y_trans = 0.0; }
-    if (id == 10) { x_trans = 0.0; y_trans = -small_marker_trans; }
-    if (id == 11) { x_trans = small_marker_trans; y_trans = 0.0; }
-    if (id == 12) { x_trans = 0.0; y_trans = small_marker_trans; }
+
+    if (id == 0) { x_trans = +big_marker_trans; y_trans = -big_marker_trans; }
+    else if (id == 1) { x_trans = 0.0; y_trans = -big_marker_trans; }
+    else if (id == 2) { x_trans = -big_marker_trans; y_trans = -big_marker_trans; }
+    else if (id == 3) { x_trans = -big_marker_trans; y_trans = 0.0; }
+    else if (id == 4) { x_trans = -big_marker_trans; y_trans = 0.0; }
+    else if (id == 5) { x_trans = 0.0; y_trans = +big_marker_trans; }
+    else if (id == 6) { x_trans = +big_marker_trans; y_trans = +big_marker_trans; }
+    else if (id == 7) { x_trans = +big_marker_trans; y_trans = +big_marker_trans; }
+    else if (id == 8) { x_trans = +medium_marker_trans; y_trans = -medium_marker_trans; }
+    else if (id == 9) { x_trans = 0.0; y_trans = -medium_marker_trans; }
+    else if (id == 10) { x_trans = -medium_marker_trans; y_trans = -medium_marker_trans; }
+    else if (id == 11) { x_trans = -medium_marker_trans; y_trans = 0.0; }
+    else if (id == 12) { x_trans = -medium_marker_trans; y_trans = 0.0; }
+    else if (id == 13) { x_trans = 0.0; y_trans = +medium_marker_trans; }
+    else if (id == 14) { x_trans = +medium_marker_trans; y_trans = +medium_marker_trans; }
+    else if (id == 15) { x_trans = +medium_marker_trans; y_trans = +medium_marker_trans; }
+    else if (id == 16) { x_trans = 0.0; y_trans = 0.0; }
 
     pose.position.x += (x_trans*cos(theta_rad) + y_trans*sin(theta_rad));
     pose.position.y += (x_trans*sin(theta_rad) - y_trans*cos(theta_rad));

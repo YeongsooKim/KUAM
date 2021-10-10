@@ -23,6 +23,7 @@ from kuam_msgs.msg import Status
 from kuam_msgs.msg import Task
 from kuam_msgs.msg import VehicleState
 from kuam_msgs.srv import LandRequest
+from kuam_msgs.srv import EmergyRequest
 from geographic_msgs.msg import GeoPose
 from geographic_msgs.msg import GeoPath
 from geometry_msgs.msg import TwistStamped
@@ -108,10 +109,8 @@ def SetpointPub():
         return
 
     cur_mode, cur_offb_state = GetSMStatus()
-    if cur_mode != "OFFBOARD":
-        msg = GetStandbyMsg(standby_geopose_)
-
-    elif cur_mode == "OFFBOARD" and cur_offb_state != "None":
+    # Case of offboard
+    if cur_mode == "OFFBOARD" and cur_offb_state != "None":
         if cur_offb_state == "LANDING":
             # using gps only
             if not offb_states_[OffbState[cur_offb_state]].using_camera:
@@ -122,6 +121,10 @@ def SetpointPub():
                 msg = GetSetpointMsg(copy.deepcopy(setpoint_))
         else:
             msg = GetSetpointMsg(copy.deepcopy(setpoint_))
+
+    #Case of not offboard
+    else:
+        msg = GetStandbyMsg(standby_geopose_)
 
     if msg.geopose.position.latitude != 0 and msg.geopose.position.longitude != 0:
         setpoint_pub.publish(msg)
@@ -300,9 +303,9 @@ def ModeProcess(outcomes, func=None):
                 mode_transitions_ = prev_mode_transitions_
         
         if func is not None:
-            is_complete = func()
+            is_complete, output_mode = func()
             if is_complete:
-                mode_transitions_ = "ALTCTL"
+                mode_transitions_ = output_mode
                 break
 
         rate.sleep()
@@ -317,28 +320,28 @@ def ModeProcess(outcomes, func=None):
 
 
 # define state MANUAL
-@smach.cb_interface(input_keys=[], output_keys=[], outcomes=['ALTCTL', 'OFFBOARD', 'AUTO.RTL', 'finished'])
+@smach.cb_interface(input_keys=[], output_keys=[], outcomes=['MANUAL', 'ALTCTL', 'OFFBOARD', 'AUTO.RTL', 'finished'])
 def ManualCB(userdata):
-    outcome = ModeProcess(['ALTCTL', 'OFFBOARD', 'AUTO.RTL', 'finished'])
+    outcome = ModeProcess(['MANUAL', 'ALTCTL', 'OFFBOARD', 'AUTO.RTL', 'finished'])
     return outcome
 
 # define state ALTCTL
-@smach.cb_interface(input_keys=[], output_keys=[], outcomes=['MANUAL', 'OFFBOARD', 'AUTO.RTL', 'finished'])
+@smach.cb_interface(input_keys=[], output_keys=[], outcomes=['MANUAL', 'ALTCTL',  'OFFBOARD', 'AUTO.RTL', 'finished'])
 def AltitudeCB(userdata):
-    outcome = ModeProcess(['MANUAL', 'OFFBOARD', 'AUTO.RTL', 'finished'])
+    outcome = ModeProcess(['MANUAL', 'ALTCTL',  'OFFBOARD', 'AUTO.RTL', 'finished'])
     return outcome
     
 # define state LAND
 @smach.cb_interface(input_keys=[], output_keys=[], outcomes=['ALTCTL', 'MANUAL', 'AUTO.RTL', 'OFFBOARD', 'finished'])
 def LandCB(userdata):
-    rospy.logwarn("Enter LandCB")
+    rospy.logwarn("[state_machine] Enter LandCB")
     def LandReuest():
-        rospy.logwarn("Service requesting land")
+        rospy.logwarn("[state_machine] Service requesting land")
         rospy.wait_for_service('payload_cmd/land_request')
         try:
             land_request = rospy.ServiceProxy('payload_cmd/land_request', LandRequest)
             res = land_request(True)
-            return res.is_complete
+            return res.is_complete, 'ALTCTL'
         except rospy.ServiceException as e:
             print("Service call failed: %s"%e)
 
@@ -356,7 +359,18 @@ def LandCB(userdata):
 # define state EMERGY
 @smach.cb_interface(input_keys=[], output_keys=[], outcomes=['MANUAL', 'ALTCTL', 'finished'])
 def EmergyCB(userdata):
-    outcome = ModeProcess(['MANUAL', 'ALTCTL', 'finished'])
+    rospy.logwarn("Enter EmgeryCB")
+    def EmergyReq():
+        rospy.logwarn("Service requesting emergy")
+        rospy.wait_for_service('payload_cmd/emergy_request')
+        try:
+            emergy_request = rospy.ServiceProxy('payload_cmd/emergy_request', EmergyRequest)
+            res = emergy_request(True)
+            return res.is_complete
+        except rospy.ServiceException as e:
+            print("Service call failed: %s"%e)
+
+    outcome = ModeProcess(['MANUAL', 'ALTCTL', 'finished'], EmergyReq)
     return outcome
     
 
@@ -428,12 +442,14 @@ if __name__ == '__main__':
         
         # Add states to the container
         smach.StateMachine.add('MANUAL', CBState(ManualCB),
-                                transitions={'ALTCTL':'ALTCTL',
+                                transitions={'MANUAL':'MANUAL',
+                                             'ALTCTL':'ALTCTL',
                                              'OFFBOARD':'OFFBOARD',
                                              'AUTO.RTL':'EMERGY',
                                              'finished':'finished'})
         smach.StateMachine.add('ALTCTL', CBState(AltitudeCB),
-                                transitions={'MANUAL':'MANUAL',
+                                transitions={'ALTCTL':'ALTCTL',
+                                             'MANUAL':'MANUAL',
                                              'OFFBOARD':'OFFBOARD',
                                              'AUTO.RTL':'EMERGY',
                                              'finished':'finished'})

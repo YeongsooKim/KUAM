@@ -1,0 +1,4 @@
+calculate_focal_length:
+  process_freq: 30
+  image_plane_width_m: 640
+  image_plane_height_m: 480

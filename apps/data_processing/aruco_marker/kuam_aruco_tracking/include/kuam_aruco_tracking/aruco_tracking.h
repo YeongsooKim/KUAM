@@ -70,12 +70,10 @@ private:
     // Param
     string m_err_param;
     float m_process_freq_param;
-    string m_usb_cam_logging_topic_param;
     string m_calib_path_param;
     string m_detector_params_path_param;
     string m_camera_frame_id_param;
-    bool m_using_gazebo_data_param;
-    bool m_using_logging_data_param;
+    bool m_is_simulation_param;
     int m_dictionaryID_param;
     int m_marker_cnt_th_param;
     float m_big_marker_trans_param;

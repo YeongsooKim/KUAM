@@ -79,7 +79,7 @@ void ArucoTfBroadcaster::ArucoStatesCallback(const kuam_msgs::ArucoStates::Const
 
     m_setpoint_tf_stamped.header.stamp = ros::Time::now();
     m_setpoint_tf_stamped.header.frame_id = aruco_msg_ptr->header.frame_id;
-    m_setpoint_tf_stamped.child_frame_id = "landing_point";
+    m_setpoint_tf_stamped.child_frame_id = "marker_landing_point";
 
     m_setpoint_tf_stamped.transform.translation.x = aruco_msg_ptr->target_pose.position.x;
     m_setpoint_tf_stamped.transform.translation.y = aruco_msg_ptr->target_pose.position.y;

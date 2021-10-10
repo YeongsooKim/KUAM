@@ -125,7 +125,7 @@ class Landing(smach.State, Base):
             self.setpoint.vel.linear.y = self.XY_Vel(self.vehicle_pose.position.y)
             self.setpoint.vel.linear.z = self.Z_Vel(self.vehicle_pose.position.z)
 
-            v_yaw = self.YawRate(self.vehicle_pose.orientation)
+            v_yaw = self.YawRate(self.setpoints.poses[-1].pose.orientation)
             self.setpoint.yaw_rate.orientation.x = v_yaw[0]
             self.setpoint.yaw_rate.orientation.y = v_yaw[1]
             self.setpoint.yaw_rate.orientation.z = v_yaw[2]
@@ -248,10 +248,16 @@ class Landing(smach.State, Base):
 
         # compare detected big markers with used big markers, when all big markers are detected, mode switching to mode2
         if not self.is_mod2_fixed:
+            # cnt = 0
             self.switching_mod2 = True
             for id in msg.used_big_markers_id:
                 if id not in detected_marker_ids:
                     self.switching_mod2 = False
+                # if id in detected_marker_ids:
+                #     cnt += 1
+
+            # if cnt > 3:
+            #     self.switching_mod2 = True
 
             if not self.switching_mod2:
                 return

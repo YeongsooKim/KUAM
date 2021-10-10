@@ -33,6 +33,7 @@ std_msgs::ColorRGBA WHITE;
 std_msgs::ColorRGBA PURPLE;
 std_msgs::ColorRGBA CYAN;
 std_msgs::ColorRGBA ORANGE;
+std_msgs::ColorRGBA COBALT;
 std_msgs::ColorRGBA WINE;
 
 enum class SETPOINT : int{
@@ -108,6 +109,7 @@ private:
     float m_text_height_param;
     float m_text_left_param;
     float m_text_top_param;
+    bool m_is_sim_param;
 
     // Flag
     bool m_is_home_set;
@@ -172,6 +174,14 @@ bool Visualizer::GetParam()
     if (!m_p_nh.getParam("left", m_text_left_param)) { m_err_param = "left"; return false; }
     if (!m_p_nh.getParam("top", m_text_top_param)) { m_err_param = "top"; return false; }    
     if (!m_p_nh.getParam("process_freq", m_process_freq_param)) { m_err_param = "process_freq"; return false; }
+    if (!m_nh.getParam("/sim", m_is_sim_param)) { m_err_param = "sim"; return false; }
+    if (m_is_sim_param){
+        m_is_home_set = true;
+        if (!m_nh.getParam("/home_lon", m_home_position.longitude)) { m_err_param = "home_lon"; return false; }
+        if (!m_nh.getParam("/home_lat", m_home_position.latitude)) { m_err_param = "home_lat"; return false; }
+        if (!m_nh.getParam("/home_alt", m_home_position.altitude)) { m_err_param = "home_alt"; return false; }
+        ROS_WARN("[state_machine_visual] Home set");
+    }
 
     return true;
 }
@@ -179,12 +189,15 @@ bool Visualizer::GetParam()
 bool Visualizer::InitROS()
 {
     // Initialize subscriber
-    m_home_position_sub = 
-        m_nh.subscribe<mavros_msgs::HomePosition>("/mavros/home_position/home", 10, boost::bind(&Visualizer::HomePositionCallback, this, _1));
-    ros::Rate rate(10);
-    while (ros::ok() && !m_is_home_set){
-        ros::spinOnce();
-        rate.sleep();
+    if (!m_is_sim_param){
+        m_home_position_sub = 
+            m_nh.subscribe<mavros_msgs::HomePosition>("/mavros/home_position/home", 10, boost::bind(&Visualizer::HomePositionCallback, this, _1));
+        ros::Rate rate(0.2);
+        while (ros::ok() && !m_is_home_set){
+            ROS_WARN_STREAM("[state_machine_visual] Requesting home set");
+            ros::spinOnce();
+            rate.sleep();
+        }
     }
     m_setpoint_sub = 
         m_nh.subscribe<kuam_msgs::Setpoint>("state_machine/setpoint", 10, boost::bind(&Visualizer::SetpointCallback, this, _1));
@@ -217,6 +230,7 @@ bool Visualizer::InitMarkers()
     PURPLE.r = 1.0f;    PURPLE.g = 0.0f;    PURPLE.b = 1.0f;
     CYAN.r = 0.0f;      CYAN.g = 1.0f;      CYAN.b = 1.0f;
     WINE.r = 255.0/255.0;   WINE.g = 51.0/255.0;    WINE.b = 0.0;
+    COBALT.r = 0.0;         COBALT.g = 80.0/255.0;  COBALT.b = 239.0;
     ORANGE.r = 255.0/255.0; ORANGE.g = 102.0/255.0; ORANGE.b = 0.0;
 
     //// ego pose
@@ -269,7 +283,7 @@ void Visualizer::HomePositionCallback(const mavros_msgs::HomePosition::ConstPtr 
         m_home_position.latitude = home_ptr->geo.latitude;
         m_home_position.longitude = home_ptr->geo.longitude;
         m_home_position.altitude = home_ptr->geo.altitude;
-        ROS_WARN_STREAM("[tf_broadcaster] Home set");
+        ROS_WARN_STREAM("[state_machine_visual] Home set");
     }
 }
 
@@ -373,7 +387,7 @@ void Visualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_
             visualization_msgs::Marker sp_marker;
             std_msgs::ColorRGBA color;
             if (setpoint.landing_state.mode == "mode1") color = PURPLE;
-            else if (setpoint.landing_state.mode == "mode2") color = WINE;
+            else if (setpoint.landing_state.mode == "mode2") color = COBALT;
             color.a = 0.4f;
 
             sp_marker.header.frame_id = "map";

@@ -93,9 +93,9 @@ void Maneuver::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr)
 
         // Alocate mission
         for (int i = 0; i < wps_ptr->waypoints.size(); i++){
-            ROS_WARN("mission: %s", wps_ptr->waypoints[i].mission.c_str());
+            ROS_WARN("[mission_manager] mission: %s", wps_ptr->waypoints[i].mission.c_str());
             if (IsTransition(wps_ptr->waypoints[i].mission)){
-                ROS_WARN("InsertTaskStatus, geoposes size: %d", wps_ptr->waypoints[i].geoposes.size());
+                ROS_WARN("[mission_manager] InsertTaskStatus, geoposes size: %d", wps_ptr->waypoints[i].geoposes.size());
                 InsertTaskStatus(wps_ptr->waypoints[i].mission, wps_ptr->waypoints[i].geoposes);
             }
         }

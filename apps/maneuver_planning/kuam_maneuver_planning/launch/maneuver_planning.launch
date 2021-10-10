@@ -2,14 +2,8 @@
     <!-- namespace -->
 	<arg name="data_ns" default="/kuam/data" />
 
-    <!-- tf_broadcaster -->
-    	<!-- Must select only one -->
-	<arg name="is_exp" default="false" />
-	<arg name="is_real" default="false" />
-	<arg name="is_gazebo" default="true" />
-
     <!-- state machine -->
-    <arg name="using_camera" default="True" />
+    <arg name="using_camera" default="true" />
 
     <!-- rviz -->
     <arg name="rviz" default="false" />

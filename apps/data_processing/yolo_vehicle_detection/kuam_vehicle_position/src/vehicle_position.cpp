@@ -92,9 +92,13 @@ void VehiclePosition::BoundingBoxCallback(const darknet_ros_msgs::BoundingBoxes:
 
     geometry_msgs::Pose vehicle;
     vehicle.position.x = sum_x / norm_bounding_boxes.size();
-    vehicle.position.y = sum_y / norm_bounding_boxes.size();
+    vehicle.position.y = -sum_y / norm_bounding_boxes.size();
     vehicle.position.z = m_ego_point.z;
-    vehicle.orientation = GetOrientation(m_ego_point, vehicle.position);
+    vehicle.orientation.x = 0.0;
+    vehicle.orientation.y = 0.0;
+    vehicle.orientation.z = 0.0;
+    vehicle.orientation.w = 1.0;
+    // vehicle.orientation = GetOrientation(m_ego_point, vehicle.position);
 
     kuam_msgs::VehicleState vehicle_state;
     vehicle_state.header.frame_id = "camera_link";

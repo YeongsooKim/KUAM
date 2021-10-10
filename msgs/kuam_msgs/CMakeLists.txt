@@ -42,6 +42,7 @@ add_message_files(
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
+  EmergyRequest.srv
   GlobalPathSync.srv
   LandRequest.srv
 )

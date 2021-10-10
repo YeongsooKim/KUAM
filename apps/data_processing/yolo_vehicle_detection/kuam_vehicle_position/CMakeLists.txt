@@ -52,9 +52,19 @@ include_directories(
   ${catkin_INCLUDE_DIRS} 
 ) 
  
-## aruco_tracking_node
+## vehicle_position_node
 add_executable(vehicle_position_node src/vehicle_position_node.cpp src/vehicle_position.cpp)
 # add_dependencies(kuam_vehicle_position ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(vehicle_position_node
  ${catkin_LIBRARIES}
 )
+
+## vehicle_position_visual_node
+add_executable(vehicle_position_visual_node src/hmi/vehicle_position_visual.cpp)
+add_dependencies(vehicle_position_visual_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(vehicle_position_visual_node ${catkin_LIBRARIES})
+
+## vehicle_position_tf_node
+add_executable(vehicle_position_tf_node src/hmi/vehicle_position_tf.cpp)
+add_dependencies(vehicle_position_tf_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(vehicle_position_tf_node ${catkin_LIBRARIES})

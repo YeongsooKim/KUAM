@@ -36,20 +36,22 @@ int main(int argc, char** argv)
     auto file_list = Glob(path);
     vector<string> file_list_jpg;
     for (auto file : file_list){
-        if (HasEnding(file, "jpg")){
+        if (HasEnding(file, "png")){
             file_list_jpg.push_back(file);
         }
     }
 
     ros::Rate loop_rate(frame_rate);
 
-    for (auto file : file_list_jpg){
-        cout << file << endl;
+    while(true){
+        for (auto file : file_list_jpg){
+            cout << file << endl;
 
-        cv::Mat image = cv::imread(file, CV_LOAD_IMAGE_COLOR);
-        loop_rate.sleep();
-        sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image).toImageMsg();
-        pub.publish(msg);
+            cv::Mat image = cv::imread(file, CV_LOAD_IMAGE_COLOR);
+            loop_rate.sleep();
+            sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", image).toImageMsg();
+            pub.publish(msg);
+        }
     }
     
     return 0;

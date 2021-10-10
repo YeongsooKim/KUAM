@@ -43,13 +43,11 @@ bool ArucoTracking::GetParam()
 {
     string ns_name = ros::this_node::getNamespace();
 
-    if (!m_p_nh.getParam("usb_cam_logging_topic", m_usb_cam_logging_topic_param)) { m_err_param = "usb_cam_logging_topic"; return false; }
     if (!m_p_nh.getParam("calib_path", m_calib_path_param))  { m_err_param = "calib_path"; return false; }
     if (!m_p_nh.getParam("detector_params_path", m_detector_params_path_param))  { m_err_param = "detector_params_path"; return false; }
     if (!m_p_nh.getParam("camera_frame_id", m_camera_frame_id_param))  { m_err_param = "camera_frame_id"; return false; }
     if (!m_p_nh.getParam("compare_mode", m_compare_mode_param))  { m_err_param = "compare_mode"; return false; }
-    if (!m_p_nh.getParam("using_gazebo_data", m_using_gazebo_data_param))  { m_err_param = "using_gazebo_data"; return false; }
-    if (!m_p_nh.getParam("using_logging_data", m_using_logging_data_param))  { m_err_param = "using_logging_data"; return false; }
+    if (!m_p_nh.getParam("simulation", m_is_simulation_param))  { m_err_param = "simulation"; return false; }
     if (!m_p_nh.getParam("dictionaryID", m_dictionaryID_param))  { m_err_param = "dictionaryID"; return false; }
     if (!m_p_nh.getParam("big_marker_size_m", m_big_marker_size_m_param))  { m_err_param = "big_marker_size_m"; return false; }
     if (!m_p_nh.getParam("medium_marker_size_m", m_medium_marker_size_m_param))  { m_err_param = "medium_marker_size_m"; return false; }
@@ -94,13 +92,9 @@ bool ArucoTracking::GetParam()
 bool ArucoTracking::InitROS()
 {
     // package, node, topic name
-    string ns_name = ros::this_node::getNamespace();
     string image_topic_name;
-    if (m_using_gazebo_data_param) image_topic_name = "/camera/rgb/image_raw";
-    else {
-        if (m_using_logging_data_param) image_topic_name = m_usb_cam_logging_topic_param;
-        else image_topic_name = ns_name + "/usb_cam/image_rect_color";
-    } 
+    if (m_is_simulation_param) image_topic_name = "/camera/rgb/image_raw";
+    else image_topic_name = "usb_cam/image_rect_color";
 
     // Initialize subscriber
     m_image_sub = m_nh.subscribe<sensor_msgs::Image>(image_topic_name, 1, boost::bind(&ArucoTracking::ImageCallback, this, _1));

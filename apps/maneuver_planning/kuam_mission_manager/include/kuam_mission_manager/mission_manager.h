@@ -15,7 +15,6 @@
 #include <geographic_msgs/GeoPoint.h>
 #include <geographic_msgs/GeoPath.h>
 #include <kuam_msgs/Waypoints.h>
-#include <mavros_msgs/HomePosition.h>
 #include <kuam_msgs/GlobalPathSync.h>
 
 using namespace std;

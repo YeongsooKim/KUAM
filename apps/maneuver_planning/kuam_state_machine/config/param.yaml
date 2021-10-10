@@ -7,7 +7,7 @@ state_machine:
   guidance_dist_th_m: 1.5 # checking have reached to next waypoint during flight mode
 
   # landing
-  landing_threshold_m: 0.6 # for distinguish kuam control and px4 control during landing 
+  landing_threshold_m: 0.7 # for distinguish kuam control and px4 control during landing 
 
   # flight
   alt_offset_m: 23.156

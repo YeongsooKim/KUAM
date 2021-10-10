@@ -2,13 +2,26 @@
 <launch>
     <rosparam command="load" file="$(find kuam_vehicle_position)/config/param.yaml" />
 
+    <!-- nodes -->
+    <arg name="simulation" default="true" />
+	<arg     if="$(arg simulation)" name="focal_length" value="570.0" />
+	<arg unless="$(arg simulation)" name="focal_length" value="310.0" />
+
+    <node pkg="kuam_vehicle_position" type="vehicle_position_node" name="vehicle_position" output="screen" >
+		<param name="focal_length" value="$(arg focal_length)"/>
+    </node>
+    <node pkg="kuam_vehicle_position" type="vehicle_position_tf_node" name="vehicle_position_tf" output="screen" />
+    <node pkg="kuam_vehicle_position" type="vehicle_position_visual_node" name="vehicle_position_visual" output="screen" />
+
     <!-- rviz -->
     <arg name="rviz" default="false" />
 
-    <!-- nodes -->
-    <node pkg="kuam_vehicle_position" type="vehicle_position_node" name="vehicle_position" output="screen" />
-
     <group if="$(arg rviz)">
-        <node pkg="rviz" type="rviz" name="rviz" args="-d $(find kuam_vehicle_position)/rviz/aruco_marker.rviz" required="true" />
+        <node pkg="rviz" type="rviz" name="vehicle_position_rviz" args="-d $(find kuam_vehicle_position)/rviz/vehicle_position.rviz" required="true" />
+
+		<param name="robot_description" textfile="$(find kuam_vehicle_position)/rviz/urdf/vehicle.urdf"/>
+
+		<arg name="model" default="$(find kuam_vehicle_position)/rviz/urdf/vehicle.urdf"/>
+		<node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
     </group>
 </launch>
