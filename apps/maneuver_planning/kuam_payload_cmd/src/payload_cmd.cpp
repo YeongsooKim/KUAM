@@ -273,8 +273,6 @@ void Playload::PayloadCmdPub()
 {
     static string prev_mode = "none";
     if (prev_mode != m_mavros_status.mode){
-        ROS_WARN("[payload_cmd] PX4: %s, armed: False", m_mavros_status.mode.c_str());
-
         uav_msgs::PayloadCmd payload_cmd_msg;
         payload_cmd_msg.mode = m_mavros_status.mode;
         m_payload_cmd_pub.publish(payload_cmd_msg);

@@ -13,6 +13,10 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   uav_msgs
   geometry_msgs
+  geographic_msgs
+  mavros_msgs
+  tf2_geometry_msgs
+  tf2_ros
 )
 
 ###################################
@@ -30,6 +34,10 @@ catkin_package(
   std_msgs
   uav_msgs
   geometry_msgs
+  geographic_msgs
+  mavros_msgs
+  tf2_geometry_msgs
+  tf2_ros
 )
 
 ###########

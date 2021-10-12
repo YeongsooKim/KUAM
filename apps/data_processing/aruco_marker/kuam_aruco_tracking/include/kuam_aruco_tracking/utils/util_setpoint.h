@@ -25,7 +25,7 @@ private:
     const double RAD2DEG;
 
 public:
-    void Translate(geometry_msgs::Pose& pose, const int id, 
+    void Transform(geometry_msgs::Pose& pose, const int id, 
                             const float big_marker_trans, const float medium_marker_trans, const float small_marker_trans);
     float GetYawRad(const geometry_msgs::Quaternion& quat_msg);
     float GetYawDeg(const geometry_msgs::Quaternion& quat_msg);

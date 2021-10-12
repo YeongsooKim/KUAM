@@ -4,8 +4,8 @@
 
     <!-- nodes -->
     <arg name="simulation" default="true" />
-	<arg     if="$(arg simulation)" name="focal_length" value="570.0" />
-	<arg unless="$(arg simulation)" name="focal_length" value="310.0" />
+	  <arg     if="$(arg simulation)" name="focal_length" value="570.0" />
+	  <arg unless="$(arg simulation)" name="focal_length" value="310.0" />
 
     <node pkg="kuam_vehicle_position" type="vehicle_position_node" name="vehicle_position" output="screen" >
 		<param name="focal_length" value="$(arg focal_length)"/>
@@ -17,7 +17,7 @@
     <arg name="rviz" default="false" />
 
     <group if="$(arg rviz)">
-        <node pkg="rviz" type="rviz" name="vehicle_position_rviz" args="-d $(find kuam_vehicle_position)/rviz/vehicle_position.rviz" required="true" />
+      <node pkg="rviz" type="rviz" name="vehicle_position_rviz" args="-d $(find kuam_vehicle_position)/rviz/vehicle_position.rviz" required="true" />
 
 		<param name="robot_description" textfile="$(find kuam_vehicle_position)/rviz/urdf/vehicle.urdf"/>
 

@@ -105,9 +105,9 @@ bool TfBroadcaster::InitStaticTf()
         tf_stamped.header.frame_id = "base_link";
         tf_stamped.child_frame_id = "camera_link";
 
-        tf_stamped.transform.translation.x = 0.1;
+        tf_stamped.transform.translation.x = 0.0;
         tf_stamped.transform.translation.y = 0.0;
-        tf_stamped.transform.translation.z = 0.28;
+        tf_stamped.transform.translation.z = -0.04;
         
         tf2::Quaternion q;
         q.setRPY(0.0, M_PI, M_PI/2);

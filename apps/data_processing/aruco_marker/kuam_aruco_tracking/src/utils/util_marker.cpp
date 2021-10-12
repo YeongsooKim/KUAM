@@ -118,4 +118,25 @@ void UtilMarker::EraseIdnCorner(const vector<int> erase_ids, vector<int>& ids, v
         }
     }
 }
+
+geometry_msgs::Quaternion UtilMarker::ZProjection(const double x, const double y, const double z, const double w)
+{
+    // Convert quaternion to euler
+	tf2::Quaternion from_quat(x, y, z, w);
+	double roll, pitch, yaw;
+	tf2::Matrix3x3(from_quat).getRPY(roll, pitch, yaw);
+
+    // Remove roll and pitch element
+    // Convert euler to quaternion and return it
+    tf2::Quaternion to_quat;
+    to_quat.setRPY(0.0, 0.0, yaw);
+
+    geometry_msgs::Quaternion q;
+    q.x = to_quat.x();
+    q.y = to_quat.y();
+    q.z = to_quat.z();
+    q.w = to_quat.w();
+
+    return q;
+}
 }

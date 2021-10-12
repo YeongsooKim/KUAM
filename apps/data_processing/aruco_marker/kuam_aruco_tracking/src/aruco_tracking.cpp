@@ -298,20 +298,19 @@ bool ArucoTracking::Camera2World(const vector<vector<Point2f>> corners, const ve
         aruco_tf_stamped.transform.translation.x = transform.getOrigin().getX();
         aruco_tf_stamped.transform.translation.y = transform.getOrigin().getY();
         aruco_tf_stamped.transform.translation.z = transform.getOrigin().getZ();
-        aruco_tf_stamped.transform.rotation.x = transform.getRotation().getX();
-        aruco_tf_stamped.transform.rotation.y = transform.getRotation().getY();
-        aruco_tf_stamped.transform.rotation.z = transform.getRotation().getZ();
-        aruco_tf_stamped.transform.rotation.w = transform.getRotation().getW();
+
+        auto q = m_util_marker.ZProjection(transform.getRotation().getX(),
+                                            transform.getRotation().getY(),
+                                            transform.getRotation().getZ(),
+                                            transform.getRotation().getW());
+        aruco_tf_stamped.transform.rotation = q;
         tf_msg_list.transforms.push_back(aruco_tf_stamped);
 
         geometry_msgs::Pose pose;
-        pose.position.x = transform.getOrigin().getX();
-        pose.position.y = transform.getOrigin().getY();
-        pose.position.z = transform.getOrigin().getZ();
-        pose.orientation.x = transform.getRotation().getX();
-        pose.orientation.y = transform.getRotation().getY();
-        pose.orientation.z = transform.getRotation().getZ();
-        pose.orientation.w = transform.getRotation().getW();
+        pose.position.x = aruco_tf_stamped.transform.translation.x;
+        pose.position.y = aruco_tf_stamped.transform.translation.y;
+        pose.position.z = aruco_tf_stamped.transform.translation.z;
+        pose.orientation = q;
         int_to_pose.insert(pair<int,geometry_msgs::Pose>(ids[i], pose));
     }
 
@@ -371,7 +370,7 @@ void ArucoTracking::TargetPub()
             ac_state_msg.pose.position.x = target.GetX(m_estimating_method_param);
             ac_state_msg.pose.position.y = target.GetY(m_estimating_method_param);
             ac_state_msg.pose.position.z = target.GetZ(m_estimating_method_param);
-
+            
             ac_state_msg.pose.orientation.x = target.GetQX();
             ac_state_msg.pose.orientation.y = target.GetQY();
             ac_state_msg.pose.orientation.z = target.GetQZ();
@@ -413,7 +412,7 @@ void ArucoTracking::TargetPub()
                 geometry_msgs::Pose p;
                 p = ac_state.pose;
 
-                m_util_setpoint.Translate(p, ac_state.id, m_big_marker_trans_param, m_medium_marker_trans_param, m_small_marker_trans_param);
+                m_util_setpoint.Transform(p, ac_state.id, m_big_marker_trans_param, m_medium_marker_trans_param, m_small_marker_trans_param);
                 poses.push_back(p);
             }
         }

@@ -16,10 +16,10 @@ aruco_tracking:
   medium_marker_ids: [8, 9, 10, 11, 12, 13, 14, 15]
   small_marker_ids: [16]
   big_marker_size_m: 0.2
-  medium_marker_size_m: 0.08
+  medium_marker_size_m: 0.09
   small_marker_size_m: 0.04
-  big_marker_trans: 0.4
-  medium_marker_trans: 0.155
+  big_marker_trans: 0.35
+  medium_marker_trans: 0.105
   small_marker_trans: 0.0
 
   

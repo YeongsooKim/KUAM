@@ -41,6 +41,7 @@ public:
                             vector<int>& output_ids, vector<vector<Point2f>>& output_corners);
     void GetNoiseIndexes(vector<int>& noises, const vector<int> ids, vector<Target>& targets);
     void EraseIdnCorner(const vector<int> erase_ids, vector<int>& ids, vector<vector<Point2f>>& corners);
+    geometry_msgs::Quaternion ZProjection(const double x, const double y, const double z, const double w);
 };
 }
 
