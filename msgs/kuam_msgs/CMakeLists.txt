@@ -27,6 +27,7 @@ add_message_files(
   ArucoVisual.msg
   ArucoVisuals.msg
   Completion.msg
+  FittingPlane.msg
   LandingState.msg
   Qgc.msg
   QgcDatum.msg

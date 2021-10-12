@@ -26,11 +26,14 @@
 
 #include <tf2_msgs/TFMessage.h>
 
+#include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/Twist.h>
 
 #include <kuam_msgs/ArucoState.h>
+#include <kuam_msgs/ArucoStates.h>
+#include <kuam_msgs/ArucoVisuals.h>
 
 using namespace std;
 using namespace cv;
@@ -63,6 +66,7 @@ private:
     ros::Publisher m_tf_list_pub;
     ros::Publisher m_visual_pub;
     ros::Publisher m_target_state_pub;
+    ros::Publisher m_fitting_plane_pub;
 
     // Timer
     ros::Timer m_image_timer;
@@ -79,6 +83,9 @@ private:
     float m_big_marker_trans_param;
     float m_medium_marker_trans_param;
     float m_small_marker_trans_param;
+    double m_plane_threshold_param;
+    int m_plane_iterations_param;
+    double m_angle_deg_threshold_param;
 
     vector<int> m_big_marker_ids_param;
     vector<int> m_medium_marker_ids_param;
@@ -105,6 +112,8 @@ private:
     ros::Time m_last_enough_time;
     vector<int> m_marker_ids;
     using int2pose = map < int, geometry_msgs::Pose >;
+    Z2NormalAngle m_z_to_medium;
+    Z2NormalAngle m_z_to_big;
 
     // Time variable
     ros::Time m_last_detected_time;
@@ -129,13 +138,14 @@ private: // Function
     void NoiseFilter(vector<vector<Point2f>>& s_corners, vector<int>& s_ids,
                     vector<vector<Point2f>>& m_corners, vector<int>& m_ids,
                     vector<vector<Point2f>>& b_corners, vector<int>& b_ids);
-    bool Camera2World(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, 
+    bool GetTransformation(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, 
         const vector<Vec3d> tvecs, int2pose& int_to_pose, tf2_msgs::TFMessage& tf_msg_list);
     void MarkerUpdate(const vector<int> b_ids, const vector<int> m_ids, const vector<int> s_ids, int2pose int_to_pose);
+    void SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, kuam_msgs::ArucoVisuals& ac_visuals_msg);
     void ImagePub(Mat image, const vector<vector<Point2f>> s_corners, const vector<int> s_ids,
                             const vector<vector<Point2f>> m_corners, const vector<int> m_ids,
                             const vector<vector<Point2f>> b_corners, const vector<int> b_ids);
-    void TargetPub();
+    void TargetPub(kuam_msgs::ArucoStates ac_states_msg, kuam_msgs::ArucoVisuals ac_visuals_msg);
 };
 }
 #endif //  __ARUCO_TRACKING_H__

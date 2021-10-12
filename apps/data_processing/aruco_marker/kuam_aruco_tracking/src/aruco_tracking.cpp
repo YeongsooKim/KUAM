@@ -6,8 +6,9 @@
 #include <std_msgs/Int16.h>
 #include <kuam_msgs/ArucoVisual.h>
 #include <kuam_msgs/ArucoVisuals.h>
-#include <kuam_msgs/ArucoStates.h>
 #include <algorithm>
+
+#include <kuam_msgs/FittingPlane.h>
 
 using namespace std;
 using namespace cv;
@@ -36,6 +37,8 @@ ArucoTracking::~ArucoTracking()
 bool ArucoTracking::InitFlag()
 {
     m_fix_small_marker = false;
+    m_z_to_big.is_init = false;
+    m_z_to_medium.is_init = false;
     return true;
 }
 
@@ -61,6 +64,10 @@ bool ArucoTracking::GetParam()
     if (!m_p_nh.getParam("big_marker_trans", m_big_marker_trans_param))  { m_err_param = "big_marker_trans"; return false; }
     if (!m_p_nh.getParam("medium_marker_trans", m_medium_marker_trans_param))  { m_err_param = "medium_marker_trans"; return false; }
     if (!m_p_nh.getParam("small_marker_trans", m_small_marker_trans_param))  { m_err_param = "small_marker_trans"; return false; }
+    if (!m_p_nh.getParam("plane_threshold", m_plane_threshold_param))  { m_err_param = "plane_threshold"; return false; }
+    if (!m_p_nh.getParam("plane_iterations", m_plane_iterations_param))  { m_err_param = "plane_iterations"; return false; }
+    if (!m_p_nh.getParam("angle_deg_threshold", m_angle_deg_threshold_param))  { m_err_param = "angle_deg_threshold"; return false; }
+    
 
     XmlRpc::XmlRpcValue list;
     if (!m_p_nh.getParam("big_marker_ids", list))  { m_err_param = "big_marker_ids"; return false; }
@@ -104,6 +111,7 @@ bool ArucoTracking::InitROS()
     m_tf_list_pub = m_p_nh.advertise<tf2_msgs::TFMessage>("tf_list", 10);
     m_visual_pub = m_p_nh.advertise<kuam_msgs::ArucoVisuals> ("aruco_visuals", 1);
     m_target_state_pub = m_p_nh.advertise<kuam_msgs::ArucoStates> ("target_states", 1);
+    m_fitting_plane_pub = m_p_nh.advertise<kuam_msgs::FittingPlane> ("fitting_plane", 1);
     
     // Initialize timer
     m_image_timer = m_nh.createTimer(ros::Duration(1.0/m_process_freq_param), &ArucoTracking::ProcessTimerCallback, this);
@@ -143,7 +151,7 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
     if (m_cv_ptr == nullptr){
         return;
     }
-
+    // Marker detection by using opencv
     Mat image;
     image = m_cv_ptr->image;
     image = image(Rect(40, 40, 600, 440));
@@ -152,36 +160,46 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
     vector<vector<Point2f>> rejected;
     aruco::detectMarkers(image, m_dictionary, corners, ids, m_detector_params, rejected);
 
+    // Id distribution, small, medium, big
     vector<int> s_ids, m_ids, b_ids;
     vector<vector<Point2f>> s_corners, m_corners, b_corners;
     SelectMarkers(corners, ids, s_corners, s_ids, m_corners, m_ids, b_corners, b_ids);
 
+    // Noise filter
     NoiseFilter(s_corners, s_ids, m_corners, m_ids, b_corners, b_ids);
     
     if (s_ids.empty() && m_ids.empty() && b_ids.empty()){
         return;
     }
 
+    // Estimate marker pose by using opencv
     int2pose int_to_pose;
-    tf2_msgs::TFMessage tf_msg_list;
 
     vector<Vec3d> b_rvecs, b_tvecs;
     aruco::estimatePoseSingleMarkers(b_corners, m_big_marker_size_m_param, m_cam_matrix, m_dist_coeffs, b_rvecs, b_tvecs);
-    Camera2World(b_corners, b_ids, b_rvecs, b_tvecs, int_to_pose, tf_msg_list);
-
     vector<Vec3d> m_rvecs, m_tvecs;
     aruco::estimatePoseSingleMarkers(m_corners, m_medium_marker_size_m_param, m_cam_matrix, m_dist_coeffs, m_rvecs, m_tvecs);
-    Camera2World(m_corners, m_ids, m_rvecs, m_tvecs, int_to_pose, tf_msg_list);
-
     vector<Vec3d> s_rvecs, s_tvecs;
     aruco::estimatePoseSingleMarkers(s_corners, m_small_marker_size_m_param, m_cam_matrix, m_dist_coeffs, s_rvecs, s_tvecs);
-    Camera2World(s_corners, s_ids, s_rvecs, s_tvecs, int_to_pose, tf_msg_list);
 
+    // Get transformation from camera to marker
+    tf2_msgs::TFMessage tf_msg_list;
+    GetTransformation(b_corners, b_ids, b_rvecs, b_tvecs, int_to_pose, tf_msg_list);
+    GetTransformation(m_corners, m_ids, m_rvecs, m_tvecs, int_to_pose, tf_msg_list);
+    GetTransformation(s_corners, s_ids, s_rvecs, s_tvecs, int_to_pose, tf_msg_list);
+
+    // Update marker is_detection and pose (one of three method, no filter, average fitler, exponential average filter)
     MarkerUpdate(b_ids, m_ids, s_ids, int_to_pose);
 
+    // Get marker messages
+    kuam_msgs::ArucoStates ac_states_msg;
+    kuam_msgs::ArucoVisuals ac_visuals_msg;
+    SetArucoMessages(ac_states_msg, ac_visuals_msg);
+
+    // Publish
     m_tf_list_pub.publish(tf_msg_list);
     ImagePub(image, s_corners, s_ids, m_corners, m_ids, b_corners, b_ids);
-    TargetPub();
+    TargetPub(ac_states_msg, ac_visuals_msg);
 }
 
 void ArucoTracking::ImageCallback(const sensor_msgs::Image::ConstPtr &img_ptr)
@@ -273,7 +291,127 @@ void ArucoTracking::MarkerUpdate(const vector<int> b_ids, const vector<int> m_id
     }
 }
 
-bool ArucoTracking::Camera2World(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, 
+void ArucoTracking::SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, kuam_msgs::ArucoVisuals& ac_visuals_msg)
+{
+    ac_states_msg.header.frame_id = m_camera_frame_id_param;
+    ac_states_msg.header.stamp = ros::Time::now();
+
+    // Insert used id
+    for (auto id : m_big_marker_ids_param) ac_states_msg.used_big_markers_id.push_back(id);
+    for (auto id : m_medium_marker_ids_param) ac_states_msg.used_medium_markers_id.push_back(id);
+    for (auto id : m_small_marker_ids_param) ac_states_msg.used_small_markers_id.push_back(id);
+
+    // Insert each detected aruco marker
+    for (auto target : m_targets){
+        kuam_msgs::ArucoState ac_state_msg;
+        ac_state_msg.header.frame_id = m_camera_frame_id_param;
+        ac_state_msg.header.stamp = ros::Time::now();
+        ac_state_msg.id = target.GetId();
+
+        if (target.GetIsDetected()){
+            ac_state_msg.is_detected = true;
+            
+            ac_state_msg.pose.position.x = target.GetX(m_estimating_method_param);
+            ac_state_msg.pose.position.y = target.GetY(m_estimating_method_param);
+            ac_state_msg.pose.position.z = target.GetZ(m_estimating_method_param);
+            
+            ac_state_msg.pose.orientation.x = target.GetQX();
+            ac_state_msg.pose.orientation.y = target.GetQY();
+            ac_state_msg.pose.orientation.z = target.GetQZ();
+            ac_state_msg.pose.orientation.w = target.GetQW();
+        }
+        else{
+            ac_state_msg.is_detected = false;
+        }
+        ac_states_msg.aruco_states.push_back(ac_state_msg);
+
+        kuam_msgs::ArucoVisual aruco_visual_msg;
+        aruco_visual_msg.header.frame_id = m_camera_frame_id_param;
+        aruco_visual_msg.header.stamp = ros::Time::now();
+        aruco_visual_msg.is_compare_mode = m_compare_mode_param;
+        aruco_visual_msg.id = target.GetId();
+        aruco_visual_msg.esti_method =  m_estimating_method_param;
+
+        if (target.GetIsDetected()){
+            aruco_visual_msg.is_detected = true;
+            for (int method = (int)EstimatingMethod::WOF; method < (int)EstimatingMethod::ItemNum; method++){
+                geometry_msgs::Pose pose;
+                pose.position.x = target.GetX(method);
+                pose.position.y = target.GetY(method);
+                pose.position.z = target.GetZ(method);
+                aruco_visual_msg.poses.push_back(pose);
+            }
+        }
+        else{
+            aruco_visual_msg.is_detected = false;
+        }
+        ac_visuals_msg.aruco_visuals.push_back(aruco_visual_msg);
+    }
+
+    // Set target pose
+    std::shared_ptr<vector<kuam_msgs::ArucoState>> detected_ac_states = make_shared<vector<kuam_msgs::ArucoState>>();
+    kuam_msgs::FittingPlane fitting_plane_msg;
+    
+    vector<kuam_msgs::ArucoState> markers;
+    for (auto id : m_big_marker_ids_param){
+        for (auto ac_state : ac_states_msg.aruco_states){
+            if (ac_state.id == id && ac_state.is_detected){
+                markers.push_back(ac_state);
+                break;
+            }
+        }
+    }
+    geometry_msgs::PoseStamped big_plane;
+    bool is_valid = false;
+    if (m_util_setpoint.GeneratePlane(markers, big_plane, m_z_to_big, m_plane_threshold_param, 
+                                    m_plane_iterations_param, m_angle_deg_threshold_param, is_valid)){
+        if (is_valid){
+            detected_ac_states->insert(detected_ac_states->end(), markers.begin(), markers.end());
+            ac_states_msg.is_detected = true;
+        }
+        fitting_plane_msg.big_is_valid = true;
+        fitting_plane_msg.big_plane = big_plane;
+        fitting_plane_msg.big_z_to_normal_deg = m_z_to_big.angle_deg;
+    }
+    
+    markers.clear();
+    for (auto id : m_medium_marker_ids_param){
+        for (auto ac_state : ac_states_msg.aruco_states){
+            if (ac_state.id == id && ac_state.is_detected){
+                markers.push_back(ac_state);
+                break;
+            }
+        }
+    }
+    geometry_msgs::PoseStamped medium_plane;
+    is_valid = false;
+    if (m_util_setpoint.GeneratePlane(markers, medium_plane, m_z_to_medium, m_plane_threshold_param, 
+                                    m_plane_iterations_param, m_angle_deg_threshold_param, is_valid)){
+        if (is_valid){
+            detected_ac_states->insert(detected_ac_states->end(), markers.begin(), markers.end());
+            ac_states_msg.is_detected = true;
+        }
+        fitting_plane_msg.medium_is_valid = true;
+        fitting_plane_msg.medium_plane = medium_plane;
+        fitting_plane_msg.medium_z_to_normal_deg = m_z_to_medium.angle_deg;
+    }
+
+    if (ac_states_msg.is_detected){
+        vector<geometry_msgs::Pose> poses;
+        for (auto ac_state : *detected_ac_states){
+            geometry_msgs::Pose p;
+            p = ac_state.pose;
+
+            m_util_setpoint.Transform(p, ac_state.id, m_big_marker_trans_param, m_medium_marker_trans_param, m_small_marker_trans_param);
+            poses.push_back(p);
+        }
+        ac_states_msg.target_pose = m_util_setpoint.GetSetpoint(poses);
+    }
+
+    m_fitting_plane_pub.publish(fitting_plane_msg);
+}
+
+bool ArucoTracking::GetTransformation(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, 
     const vector<Vec3d> tvecs, int2pose& int_to_pose, tf2_msgs::TFMessage& tf_msg_list)
 {
     // Create and publish tf message for each marker
@@ -343,83 +481,8 @@ void ArucoTracking::ImagePub(Mat image, const vector<vector<Point2f>> s_corners,
     m_image_pub.publish(img_msg); // ros::Publisher pub_img = node.advertise<sensor_msgs::Image>("topic", queuesize);
 }
 
-void ArucoTracking::TargetPub()
+void ArucoTracking::TargetPub(kuam_msgs::ArucoStates ac_states_msg, kuam_msgs::ArucoVisuals ac_visuals_msg)
 {
-    kuam_msgs::ArucoStates ac_states_msg;
-    kuam_msgs::ArucoVisuals ac_visuals_msg;
-
-    ac_states_msg.header.frame_id = m_camera_frame_id_param;
-    ac_states_msg.header.stamp = ros::Time::now();
-
-    // Insert used id
-    for (auto id : m_big_marker_ids_param) ac_states_msg.used_big_markers_id.push_back(id);
-    for (auto id : m_medium_marker_ids_param) ac_states_msg.used_medium_markers_id.push_back(id);
-    for (auto id : m_small_marker_ids_param) ac_states_msg.used_small_markers_id.push_back(id);
-
-    // Insert each detected aruco marker
-    for (auto target : m_targets){
-        kuam_msgs::ArucoState ac_state_msg;
-        ac_state_msg.header.frame_id = m_camera_frame_id_param;
-        ac_state_msg.header.stamp = ros::Time::now();
-        ac_state_msg.id = target.GetId();
-
-        if (target.GetIsDetected()){
-            ac_states_msg.is_detected = true;
-            ac_state_msg.is_detected = true;
-            
-            ac_state_msg.pose.position.x = target.GetX(m_estimating_method_param);
-            ac_state_msg.pose.position.y = target.GetY(m_estimating_method_param);
-            ac_state_msg.pose.position.z = target.GetZ(m_estimating_method_param);
-            
-            ac_state_msg.pose.orientation.x = target.GetQX();
-            ac_state_msg.pose.orientation.y = target.GetQY();
-            ac_state_msg.pose.orientation.z = target.GetQZ();
-            ac_state_msg.pose.orientation.w = target.GetQW();
-        }
-        else{
-            ac_state_msg.is_detected = false;
-        }
-        ac_states_msg.aruco_states.push_back(ac_state_msg);
-
-        kuam_msgs::ArucoVisual aruco_visual_msg;
-        aruco_visual_msg.header.frame_id = m_camera_frame_id_param;
-        aruco_visual_msg.header.stamp = ros::Time::now();
-        aruco_visual_msg.is_compare_mode = m_compare_mode_param;
-        aruco_visual_msg.id = target.GetId();
-        aruco_visual_msg.esti_method =  m_estimating_method_param;
-
-        if (target.GetIsDetected()){
-            aruco_visual_msg.is_detected = true;
-            for (int method = (int)EstimatingMethod::WOF; method < (int)EstimatingMethod::ItemNum; method++){
-                geometry_msgs::Pose pose;
-                pose.position.x = target.GetX(method);
-                pose.position.y = target.GetY(method);
-                pose.position.z = target.GetZ(method);
-                aruco_visual_msg.poses.push_back(pose);
-            }
-        }
-        else{
-            aruco_visual_msg.is_detected = false;
-        }
-        ac_visuals_msg.aruco_visuals.push_back(aruco_visual_msg);
-    }
-
-    // Set target pose
-    if (ac_states_msg.is_detected){
-        vector<geometry_msgs::Pose> poses;
-        for (auto ac_state : ac_states_msg.aruco_states){
-            if (ac_state.is_detected){
-                geometry_msgs::Pose p;
-                p = ac_state.pose;
-
-                m_util_setpoint.Transform(p, ac_state.id, m_big_marker_trans_param, m_medium_marker_trans_param, m_small_marker_trans_param);
-                poses.push_back(p);
-            }
-        }
-
-        ac_states_msg.target_pose = m_util_setpoint.GetSetpoint(poses);
-    }
-
     m_target_state_pub.publish(ac_states_msg);
     m_visual_pub.publish(ac_visuals_msg);
 }

@@ -129,7 +129,7 @@ geometry_msgs::Quaternion UtilMarker::ZProjection(const double x, const double y
     // Remove roll and pitch element
     // Convert euler to quaternion and return it
     tf2::Quaternion to_quat;
-    to_quat.setRPY(0.0, 0.0, yaw);
+    to_quat.setRPY(M_PI, 0.0, yaw);
 
     geometry_msgs::Quaternion q;
     q.x = to_quat.x();

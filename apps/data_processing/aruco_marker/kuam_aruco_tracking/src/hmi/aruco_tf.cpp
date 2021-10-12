@@ -75,6 +75,10 @@ void ArucoTfBroadcaster::MarkerCallback(const tf2_msgs::TFMessage::ConstPtr &mar
 
 void ArucoTfBroadcaster::ArucoStatesCallback(const kuam_msgs::ArucoStates::ConstPtr &aruco_msg_ptr)
 {
+    if (!aruco_msg_ptr->is_detected){
+        return;
+    }
+    
     m_setpoint_cb = true;
 
     m_setpoint_tf_stamped.header.stamp = ros::Time::now();

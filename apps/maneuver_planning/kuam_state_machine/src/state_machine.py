@@ -370,7 +370,8 @@ def EmergyCB(userdata):
         except rospy.ServiceException as e:
             print("Service call failed: %s"%e)
 
-    outcome = ModeProcess(['MANUAL', 'ALTCTL', 'finished'], EmergyReq)
+    outcome = ModeProcess(['MANUAL', 'ALTCTL', 'finished'])
+    # outcome = ModeProcess(['MANUAL', 'ALTCTL', 'finished'], EmergyReq)
     return outcome
     
 

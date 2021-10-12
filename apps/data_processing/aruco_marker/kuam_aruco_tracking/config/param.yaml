@@ -21,6 +21,9 @@ aruco_tracking:
   big_marker_trans: 0.35
   medium_marker_trans: 0.105
   small_marker_trans: 0.0
+  plane_threshold: 0.1
+  plane_iterations: 1000
+  angle_deg_threshold: 28
 
   
   # frame id
