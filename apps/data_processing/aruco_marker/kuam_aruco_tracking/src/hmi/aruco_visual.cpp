@@ -370,6 +370,24 @@ void Visualizer::FittingPlaneCallback(const kuam_msgs::FittingPlane::ConstPtr &f
 
         marker_array.markers.push_back(plane);
     }
+
+    if (fitting_plane_ptr->small_is_valid){
+        visualization_msgs::Marker plane;
+        plane.ns = "fitting_plane/small";
+        plane.header.frame_id = fitting_plane_ptr->small_plane.header.frame_id;
+        plane.header.stamp = ros::Time::now();
+        plane.type = visualization_msgs::Marker::CUBE;
+        plane.action = visualization_msgs::Marker::ADD;
+        plane.scale.x = 0.7;
+        plane.scale.y = 0.7;
+        plane.scale.z = 0.01;
+        plane.pose = fitting_plane_ptr->small_plane.pose;
+        plane.color = YELLOW;
+        plane.color.a = 0.6f;
+        plane.lifetime = ros::Duration(0.1);
+
+        marker_array.markers.push_back(plane);
+    }
     m_fitting_plane_pub.publish(marker_array);
 }
 

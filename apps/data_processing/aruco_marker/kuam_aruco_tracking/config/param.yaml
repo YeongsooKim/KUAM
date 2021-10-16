@@ -14,17 +14,16 @@ aruco_tracking:
   dictionaryID: 0
   big_marker_ids: [0, 1, 2, 3, 4, 5, 6, 7]
   medium_marker_ids: [8, 9, 10, 11, 12, 13, 14, 15]
-  small_marker_ids: [16]
-  big_marker_size_m: 0.2
+  small_marker_ids: [16, 17, 18, 19]
+  big_marker_size_m: 0.30
   medium_marker_size_m: 0.09
-  small_marker_size_m: 0.04
+  small_marker_size_m: 0.0416
   big_marker_trans: 0.35
   medium_marker_trans: 0.105
-  small_marker_trans: 0.0
+  small_marker_trans: 0.0243
   plane_threshold: 0.1
   plane_iterations: 1000
   angle_deg_threshold: 28
-
   
   # frame id
   camera_frame_id: 'camera_link'
@@ -42,7 +41,7 @@ aruco_tf:
 aruco_visual:
   big_marker_ids: [0, 1, 2, 3, 4, 5, 6, 7]
   medium_marker_ids: [8, 9, 10, 11, 12, 13, 14, 15]
-  small_marker_ids: [16]
+  small_marker_ids: [16, 17, 18, 19]
   big_marker_size_m: 0.2
   medium_marker_size_m: 0.08
   small_marker_size_m: 0.04

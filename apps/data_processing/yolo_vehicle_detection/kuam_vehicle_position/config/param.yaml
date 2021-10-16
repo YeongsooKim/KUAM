@@ -12,7 +12,7 @@ vehicle_position_visual:
   target_pos_z: 0
   target_euler_r: 0.0
   target_euler_p: 0.0
-  target_euler_y: 0.57
+  target_euler_y: 2.97
 
 vehicle_position_tf:
   process_freq: 50.0

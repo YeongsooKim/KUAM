@@ -112,8 +112,9 @@ private:
     ros::Time m_last_enough_time;
     vector<int> m_marker_ids;
     using int2pose = map < int, geometry_msgs::Pose >;
-    Z2NormalAngle m_z_to_medium;
     Z2NormalAngle m_z_to_big;
+    Z2NormalAngle m_z_to_medium;
+    Z2NormalAngle m_z_to_small;
 
     // Time variable
     ros::Time m_last_detected_time;

@@ -248,16 +248,8 @@ class Landing(smach.State, Base):
 
         # compare detected big markers with used big markers, when all big markers are detected, mode switching to mode2
         if not self.is_mod2_fixed:
-            # cnt = 0
-            self.switching_mod2 = True
-            for id in msg.used_big_markers_id:
-                if id not in detected_marker_ids:
-                    self.switching_mod2 = False
-                # if id in detected_marker_ids:
-                #     cnt += 1
-
-            # if cnt > 3:
-            #     self.switching_mod2 = True
+            if msg.is_detected:
+                self.switching_mod2 = True
 
             if not self.switching_mod2:
                 return

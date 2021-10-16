@@ -37,7 +37,10 @@ void UtilSetpoint::Transform(geometry_msgs::Pose& pose, const int id,
     else if (id == 13) { x_trans = 0.0;                      y_trans = +medium_marker_trans; }
     else if (id == 14) { x_trans = +medium_marker_trans;     y_trans = +medium_marker_trans; }
     else if (id == 15) { x_trans = +medium_marker_trans;     y_trans = 0.0; }
-    else if (id == 16) { x_trans = 0.0;                      y_trans = 0.0; }
+    else if (id == 16) { x_trans = +small_marker_trans;      y_trans = +small_marker_trans; }
+    else if (id == 17) { x_trans = -small_marker_trans;      y_trans = +small_marker_trans; }
+    else if (id == 18) { x_trans = -small_marker_trans;      y_trans = -small_marker_trans; }
+    else if (id == 19) { x_trans = +small_marker_trans;      y_trans = -small_marker_trans; }
 
     pose.position.x += (x_trans*cos(theta_rad) + y_trans*sin(theta_rad));
     pose.position.y += (x_trans*sin(theta_rad) - y_trans*cos(theta_rad));
@@ -121,7 +124,7 @@ bool UtilSetpoint::GeneratePlane(const vector<kuam_msgs::ArucoState>& markers,
     if (z_to_normal.angle_deg < angle_threshold){
         is_valid = true;
     }
-
+    
     return true;
 }
 

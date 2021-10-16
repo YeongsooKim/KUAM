@@ -39,6 +39,7 @@ bool ArucoTracking::InitFlag()
     m_fix_small_marker = false;
     m_z_to_big.is_init = false;
     m_z_to_medium.is_init = false;
+    m_z_to_small.is_init = false;
     return true;
 }
 
@@ -352,15 +353,7 @@ void ArucoTracking::SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, kuam
     std::shared_ptr<vector<kuam_msgs::ArucoState>> detected_ac_states = make_shared<vector<kuam_msgs::ArucoState>>();
     kuam_msgs::FittingPlane fitting_plane_msg;
     
-    vector<kuam_msgs::ArucoState> markers;
-    for (auto id : m_big_marker_ids_param){
-        for (auto ac_state : ac_states_msg.aruco_states){
-            if (ac_state.id == id && ac_state.is_detected){
-                markers.push_back(ac_state);
-                break;
-            }
-        }
-    }
+    vector<kuam_msgs::ArucoState> markers = m_util_marker.GetMarkerState(m_big_marker_ids_param, ac_states_msg);
     geometry_msgs::PoseStamped big_plane;
     bool is_valid = false;
     if (m_util_setpoint.GeneratePlane(markers, big_plane, m_z_to_big, m_plane_threshold_param, 
@@ -375,14 +368,7 @@ void ArucoTracking::SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, kuam
     }
     
     markers.clear();
-    for (auto id : m_medium_marker_ids_param){
-        for (auto ac_state : ac_states_msg.aruco_states){
-            if (ac_state.id == id && ac_state.is_detected){
-                markers.push_back(ac_state);
-                break;
-            }
-        }
-    }
+    markers = m_util_marker.GetMarkerState(m_medium_marker_ids_param, ac_states_msg);
     geometry_msgs::PoseStamped medium_plane;
     is_valid = false;
     if (m_util_setpoint.GeneratePlane(markers, medium_plane, m_z_to_medium, m_plane_threshold_param, 
@@ -394,6 +380,21 @@ void ArucoTracking::SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, kuam
         fitting_plane_msg.medium_is_valid = true;
         fitting_plane_msg.medium_plane = medium_plane;
         fitting_plane_msg.medium_z_to_normal_deg = m_z_to_medium.angle_deg;
+    }
+
+    markers.clear();
+    markers = m_util_marker.GetMarkerState(m_small_marker_ids_param, ac_states_msg);
+    geometry_msgs::PoseStamped small_plane;
+    is_valid = false;
+    if (m_util_setpoint.GeneratePlane(markers, small_plane, m_z_to_small, m_plane_threshold_param, 
+                                    m_plane_iterations_param, m_angle_deg_threshold_param, is_valid)){
+        if (is_valid){
+            detected_ac_states->insert(detected_ac_states->end(), markers.begin(), markers.end());
+            ac_states_msg.is_detected = true;
+        }
+        fitting_plane_msg.small_is_valid = true;
+        fitting_plane_msg.small_plane = small_plane;
+        fitting_plane_msg.small_z_to_normal_deg = m_z_to_small.angle_deg;
     }
 
     if (ac_states_msg.is_detected){
@@ -408,7 +409,9 @@ void ArucoTracking::SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, kuam
         ac_states_msg.target_pose = m_util_setpoint.GetSetpoint(poses);
     }
 
-    m_fitting_plane_pub.publish(fitting_plane_msg);
+    if (fitting_plane_msg.medium_is_valid || fitting_plane_msg.big_is_valid || fitting_plane_msg.small_is_valid){
+        m_fitting_plane_pub.publish(fitting_plane_msg);
+    }
 }
 
 bool ArucoTracking::GetTransformation(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, 

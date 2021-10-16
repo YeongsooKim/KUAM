@@ -97,6 +97,21 @@ void UtilMarker::GetNoiseIndexes(vector<int>& noises, const vector<int> ids, vec
     }
 }
 
+vector<kuam_msgs::ArucoState> UtilMarker::GetMarkerState(const vector<int>& target_ids, const kuam_msgs::ArucoStates& ac_states_msg)
+{
+    vector<kuam_msgs::ArucoState> markers;
+    for (auto id : target_ids){
+        for (auto ac_state : ac_states_msg.aruco_states){
+            if (ac_state.id == id && ac_state.is_detected){
+                markers.push_back(ac_state);
+                break;
+            }
+        }
+    }
+
+    return markers;
+}
+
 void UtilMarker::EraseIdnCorner(const vector<int> erase_ids, vector<int>& ids, vector<vector<Point2f>>& corners)
 {
     vector<int> indexes;

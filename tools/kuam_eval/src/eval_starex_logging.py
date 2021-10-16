@@ -52,10 +52,11 @@ class Plotting:
         self.x_err_square_list = []
         self.y_err_square_list = []
         self.d_err_square_list = []
+        
+        self.height = 0.0
 
     def InitPlot(self):
-        self.step_list = []
-        self.step = 0
+        self.height_list = []
         
         # Home position = target position (lon, lat, ignore z)
         # Convert target position from lon, lat to cartesian coordinate x, y
@@ -64,42 +65,42 @@ class Plotting:
         self.x = [[], []]
         self.x_colors = ['black', 'red']
         self.x_labels = ['ground truth x', 'estimated x']
-        self.x_xlabel = 'step []'
+        self.x_xlabel = 'height [m]'
         self.x_ylabel = 'distance [m]'
         self.x_title = "Vehicle Position X"
 
         self.y = [[], []]
         self.y_colors = ['black', 'green']
         self.y_labels = ['ground truth y', 'estimated y']
-        self.y_xlabel = 'step []'
+        self.y_xlabel = 'height [m]'
         self.y_ylabel = 'distance [m]'
         self.y_title = "Vehicle Position Y"
 
         self.d = [[], []]
         self.d_colors = ['black', 'blue']
         self.d_labels = ['ground truth dist', 'estimated dist']
-        self.d_xlabel = 'step []'
+        self.d_xlabel = 'height [m]'
         self.d_ylabel = 'distance [m]'
         self.d_title = "Vehicle Distance"
 
         self.rx = [[]]
         self.rx_colors = ['black']
         self.rx_labels = ['rmse x']
-        self.rx_xlabel = 'step []'
+        self.rx_xlabel = 'height [m]'
         self.rx_ylabel = 'distance [m]'
         self.rx_title = "RMSE X"
 
         self.ry = [[]]
         self.ry_colors = ['black']
         self.ry_labels = ['rmse y']
-        self.ry_xlabel = 'step []'
+        self.ry_xlabel = 'height [m]'
         self.ry_ylabel = 'distance [m]'
         self.ry_title = "RMSE Y"
 
         self.rd = [[]]
         self.rd_colors = ['black']
         self.rd_labels = ['rmse dist']
-        self.rd_xlabel = 'step []'
+        self.rd_xlabel = 'height [m]'
         self.rd_ylabel = 'distance [m]'
         self.rd_title = "RMSE Dist"
 
@@ -124,6 +125,7 @@ class Plotting:
                 col_ax.set_xlabel(self.xlabel_set[data_idx])  # Add an x-label to the axes.
                 col_ax.set_ylabel(self.ylabel_set[data_idx])  # Add a y-label to the axes.
                 col_ax.set_title(self.title_set[data_idx])  # Add a title to the axes.            
+                col_ax.grid()
                 col_ax.legend()  # Add a legend.
 
     '''
@@ -135,8 +137,8 @@ class Plotting:
             return
 
         # Append horizontal
-        self.step_list.append(self.step)
-        self.step += 1
+        self.height_list.append(self.height)
+        self.height_list.sort()
 
         # Append 1st raw vertical
         gt = self.GroundTruthPos()
@@ -190,6 +192,9 @@ class Plotting:
         home_position_.longitude = msg.geo.longitude
         home_position_.altitude = msg.geo.altitude
 
+    def LocalPosCB(self, msg):
+        self.height = msg.pose.position.z + 1.925
+
     def ChatCB(self, msg):
         cmd = msg.msg
         if cmd == 'pause':
@@ -213,12 +218,11 @@ class Plotting:
             for col_ax in raw_ax:
 
                 col_ax.set_ylim(self.GetYLim(self.list_set[data_idx]))
-                col_ax.set_xlim(self.GetXLim(self.step_list))
+                col_ax.set_xlim(self.GetXLim(self.height_list))
 
                 for sub_data_idx in range(len(self.list_set[data_idx])):
-                    
-                    if len(self.step_list) == len(self.list_set[data_idx][sub_data_idx]):
-                        self.line[line_idx].set_data(self.step_list, self.list_set[data_idx][sub_data_idx])
+                    if len(self.height_list) == len(self.list_set[data_idx][sub_data_idx]):
+                        self.line[line_idx].set_data(self.height_list, self.list_set[data_idx][sub_data_idx])
                     line_idx += 1
                 
                 data_idx += 1
@@ -253,13 +257,13 @@ class Plotting:
         margin = (list_max - list_min)*MARGIN_RATIO/2.0
         return [float(list_min) - margin, float(list_max) + margin]
 
-    def GetXLim(self, step_list):
-        if len(step_list) == 0:
+    def GetXLim(self, lst):
+        if len(lst) == 0:
             return [0, 10]
-        elif step_list[-1] < 10.0:
-            return [0, 10]
+        elif lst[-1] < 10.0:
+            return [min(lst), min(lst) + 10]
         else:
-            return [0, step_list[-1]]
+            return [min(lst), max(lst)]
 
     def GroundTruthPos(self):
         try:
@@ -307,6 +311,7 @@ if __name__ == "__main__":
 
     vehicle_sub = rospy.Subscriber("/kuam/data/vehicle_position/vehicle_state", VehicleState, plotting.VehicleCB)
     cmd_sub = rospy.Subscriber("/kuam/data/chat/command", Chat, plotting.ChatCB)
+    local_pos_sub = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, plotting.LocalPosCB)
 
     freq = 10.0
     process_timer = rospy.Timer(rospy.Duration(1.0/freq), plotting.ProcessCB)

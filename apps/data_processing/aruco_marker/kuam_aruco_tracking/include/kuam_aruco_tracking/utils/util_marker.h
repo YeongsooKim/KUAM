@@ -11,6 +11,8 @@
 
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/Image.h>
+#include <kuam_msgs/ArucoState.h>
+#include <kuam_msgs/ArucoStates.h>
 
 #include <kuam_aruco_tracking/parser.h>
 #include <kuam_aruco_tracking/target.h>
@@ -40,6 +42,7 @@ public:
     void GetIdsnCorners(const vector<int> ref_ids, const vector<int> input_ids, const vector<vector<Point2f>> input_corners,
                             vector<int>& output_ids, vector<vector<Point2f>>& output_corners);
     void GetNoiseIndexes(vector<int>& noises, const vector<int> ids, vector<Target>& targets);
+    vector<kuam_msgs::ArucoState> GetMarkerState(const vector<int>& target_ids, const kuam_msgs::ArucoStates& ac_states_msg);
     void EraseIdnCorner(const vector<int> erase_ids, vector<int>& ids, vector<vector<Point2f>>& corners);
     geometry_msgs::Quaternion ZProjection(const double x, const double y, const double z, const double w);
 };
