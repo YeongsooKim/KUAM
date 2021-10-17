@@ -108,7 +108,7 @@ bool ArucoTracking::InitROS()
     m_image_sub = m_nh.subscribe<sensor_msgs::Image>(image_topic_name, 1, boost::bind(&ArucoTracking::ImageCallback, this, _1));
     
     // Initialize publisher
-    m_image_pub = m_p_nh.advertise<sensor_msgs::Image>("output_video", 10);
+    m_image_pub = m_p_nh.advertise<sensor_msgs::Image>("image_raw", 10);
     m_tf_list_pub = m_p_nh.advertise<tf2_msgs::TFMessage>("tf_list", 10);
     m_visual_pub = m_p_nh.advertise<kuam_msgs::ArucoVisuals> ("aruco_visuals", 1);
     m_target_state_pub = m_p_nh.advertise<kuam_msgs::ArucoStates> ("target_states", 1);

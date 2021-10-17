@@ -20,6 +20,11 @@
     <arg name="rviz" default="false" />
 
     <!-- nodes -->
+    <group ns="aruco_tracking">
+        <node pkg="image_proc" type="image_proc" name="image_proc" />
+    </group>
+
+
     <node pkg="kuam_aruco_tracking" type="aruco_tracking_node" name="aruco_tracking" cwd="node" output="screen">
         <param name="calib_path" value="$(arg calib_path)" />
         <param name="detector_params_path" value="$(arg detector_params_path)" />
