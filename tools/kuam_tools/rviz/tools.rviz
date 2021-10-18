@@ -38,7 +38,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: vehicle
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -186,7 +186,8 @@ Visualization Manager:
               Marker Topic: /kuam/maneuver/state_machine_visual/ego_markerarray
               Name: ego_vehicle
               Namespaces:
-                {}
+                ego/current_point: true
+                ego/trajectory: true
               Queue Size: 100
               Value: true
             - Class: rviz/MarkerArray
@@ -194,7 +195,7 @@ Visualization Manager:
               Marker Topic: /kuam/maneuver/state_machine_visual/setpoint_markerarray
               Name: setpoint
               Namespaces:
-                {}
+                setpoint/relative: true
               Queue Size: 100
               Value: true
             - Align Bottom: false
@@ -231,6 +232,8 @@ Visualization Manager:
           Value: true
         base_link_frd:
           Value: false
+        camera_link:
+          Value: true
         map:
           Value: true
         map_ned:
@@ -246,6 +249,11 @@ Visualization Manager:
       Show Names: true
       Tree:
         map:
+          base_link:
+            base_link_frd:
+              {}
+            camera_link:
+              {}
           map_ned:
             {}
       Update Interval: 0
@@ -310,25 +318,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 37.09395980834961
+      Distance: 24.52467918395996
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -5.005810737609863
-        Y: -10.597278594970703
+        X: -1.9235048294067383
+        Y: 1.1041769981384277
         Z: 8.106231689453125e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.3853986859321594
+      Pitch: 0.7803983688354492
       Target Frame: base_link
       Value: XYOrbit (rviz)
-      Yaw: 2.753544807434082
+      Yaw: 3.0035500526428223
     Saved: ~
 Window Geometry:
   Displays:

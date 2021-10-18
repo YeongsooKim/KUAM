@@ -80,25 +80,21 @@ private:
     bool m_is_simulation_param;
     int m_dictionaryID_param;
     int m_marker_cnt_th_param;
-    float m_big_marker_trans_param;
-    float m_medium_marker_trans_param;
-    float m_small_marker_trans_param;
     double m_plane_threshold_param;
     int m_plane_iterations_param;
     double m_angle_deg_threshold_param;
 
-    vector<int> m_big_marker_ids_param;
-    vector<int> m_medium_marker_ids_param;
-    vector<int> m_small_marker_ids_param;
-    float m_big_marker_size_m_param;
-    float m_medium_marker_size_m_param;
-    float m_small_marker_size_m_param;
     int m_filter_buf_size_param;
     int m_estimating_method_param;
     float m_noise_dist_th_m_param;
     float m_noise_cnt_th_param;
     bool m_compare_mode_param;
 
+    int m_marker_size_type_num_param;
+    float m_big_marker_trans_param;
+    float m_medium_marker_trans_param;
+    float m_small_marker_trans_param;
+    
     // Const value
     const int MARKER_ID_QUEUE_SIZE;
 
@@ -115,6 +111,8 @@ private:
     Z2NormalAngle m_z_to_big;
     Z2NormalAngle m_z_to_medium;
     Z2NormalAngle m_z_to_small;
+    vector<vector<int>> m_marker_ids_vec;
+    vector<double> m_marker_sizes_m;
 
     // Time variable
     ros::Time m_last_detected_time;
@@ -132,20 +130,14 @@ private: // Function
     void ImageCallback(const sensor_msgs::Image::ConstPtr &img_ptr);
     void ProcessTimerCallback(const ros::TimerEvent& event);
 
-    void SelectMarkers(vector<vector<Point2f>>& corners, vector<int>& ids,
-                    vector<vector<Point2f>>& s_corners, vector<int>& s_ids,
-                    vector<vector<Point2f>>& m_corners, vector<int>& m_ids,
-                    vector<vector<Point2f>>& b_corners, vector<int>& b_ids);
-    void NoiseFilter(vector<vector<Point2f>>& s_corners, vector<int>& s_ids,
-                    vector<vector<Point2f>>& m_corners, vector<int>& m_ids,
-                    vector<vector<Point2f>>& b_corners, vector<int>& b_ids);
+    void SelectMarker(const vector<int> target_ids, vector<vector<Point2f>>& corners, vector<int>& ids,
+                    vector<vector<Point2f>>& discrete_corners, vector<int>& discrete_ids);
+    void NoiseFilter(vector < vector<vector<Point2f>> >& corners, vector < vector<int> >& ids);
     bool GetTransformation(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, 
         const vector<Vec3d> tvecs, int2pose& int_to_pose, tf2_msgs::TFMessage& tf_msg_list);
-    void MarkerUpdate(const vector<int> b_ids, const vector<int> m_ids, const vector<int> s_ids, int2pose int_to_pose);
+    void MarkerUpdate(const vector < vector<int> > ids_vec, int2pose int_to_pose);
     void SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, kuam_msgs::ArucoVisuals& ac_visuals_msg);
-    void ImagePub(Mat image, const vector<vector<Point2f>> s_corners, const vector<int> s_ids,
-                            const vector<vector<Point2f>> m_corners, const vector<int> m_ids,
-                            const vector<vector<Point2f>> b_corners, const vector<int> b_ids);
+    void ImagePub(Mat image, const vector < vector<vector<Point2f>> > corners_vec, const vector < vector<int> > ids_vec);
     void TargetPub(kuam_msgs::ArucoStates ac_states_msg, kuam_msgs::ArucoVisuals ac_visuals_msg);
 };
 }

@@ -12,12 +12,20 @@ aruco_tracking:
 
   # aruco marker
   dictionaryID: 0
-  big_marker_ids: [0, 1, 2, 3, 4, 5, 6, 7]
-  medium_marker_ids: [8, 9, 10, 11, 12, 13, 14, 15]
-  small_marker_ids: [16, 17, 18, 19]
-  big_marker_size_m: 0.30
-  medium_marker_size_m: 0.09
-  small_marker_size_m: 0.0416
+  marker_size_type_num: 6
+  marker_ids_type_0: [0]
+  marker_ids_type_1: [1]
+  marker_ids_type_2: [2]
+  marker_ids_type_3: [3]
+  marker_ids_type_4: [4]
+  marker_ids_type_5: [5]
+  marker_sizes_m: [0.72, 0.445, 0.275, 0.17, 0.105, 0.0648]
+  # marker_size_type_num: 3
+  # marker_ids_type_0: [0, 1, 2, 3, 4, 5, 6, 7]
+  # marker_ids_type_1: [8, 9, 10, 11, 12, 13, 14, 15]
+  # marker_ids_type_2: [16, 17, 18, 19]
+  # marker_sizes_m: [0.30, 0.09, 0.0416]
+
   big_marker_trans: 0.35
   medium_marker_trans: 0.105
   small_marker_trans: 0.0243
@@ -39,9 +47,10 @@ aruco_tf:
   extrinsic_imu_to_camera_y_deg: 90.0
 
 aruco_visual:
-  big_marker_ids: [0, 1, 2, 3, 4, 5, 6, 7]
-  medium_marker_ids: [8, 9, 10, 11, 12, 13, 14, 15]
-  small_marker_ids: [16, 17, 18, 19]
-  big_marker_size_m: 0.2
-  medium_marker_size_m: 0.08
-  small_marker_size_m: 0.04
+  marker_size_type_num: 6
+  marker_ids_type_0: [0]
+  marker_ids_type_1: [1]
+  marker_ids_type_2: [2]
+  marker_ids_type_3: [3]
+  marker_ids_type_4: [4]
+  marker_ids_type_5: [5]

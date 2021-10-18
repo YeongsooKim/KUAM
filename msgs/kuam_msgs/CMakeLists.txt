@@ -29,6 +29,7 @@ add_message_files(
   Completion.msg
   FittingPlane.msg
   LandingState.msg
+  marker_ids.msg
   Qgc.msg
   QgcDatum.msg
   Setpoint.msg
