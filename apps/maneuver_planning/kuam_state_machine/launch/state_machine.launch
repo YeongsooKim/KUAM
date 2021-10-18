@@ -1,4 +1,6 @@
 <launch>
+	<!-- <param name="sim" value="false" /> -->
+	
 	<rosparam command="load" file="$(find kuam_state_machine)/config/param.yaml" />
 
     <!-- namespace -->
