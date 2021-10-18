@@ -1,0 +1,13 @@
+material IntegrationMarker5/Marker
+{
+	technique
+	{
+		pass
+		{
+			texture_unit
+			{
+				texture integration_marker5.png
+			}
+		}
+	}
+}
