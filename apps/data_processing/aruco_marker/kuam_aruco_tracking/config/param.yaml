@@ -9,11 +9,11 @@ aruco_tracking:
   noise_dist_th_m: 3.0
   noise_cnt_th: 15 # (3/10)*process_frequency
 
-  dft_buf_size: 256
-  dft_integral_start_point: 100
-  frequency_degree_buf_size: 20
+  dft_buf_size: 256 # discrete fourier transform buffer size
+  dft_integral_start_point: 100 # integral start point
+  frequency_degree_buf_size: 20 # (exponential) moving average filter for frequency degree buffer
   frequency_degree_threshold: 20
-  difference_threshold_m: 5
+  difference_threshold_m: 5 # difference between previous and current z position is more than difference_threshold_m, determine outlier
 
   # aruco marker
     #---------------------
