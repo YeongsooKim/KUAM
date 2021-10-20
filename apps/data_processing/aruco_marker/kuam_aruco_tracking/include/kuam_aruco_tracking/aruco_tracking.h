@@ -36,6 +36,7 @@
 #include <kuam_msgs/ArucoState.h>
 #include <kuam_msgs/ArucoStates.h>
 #include <kuam_msgs/ArucoVisuals.h>
+#include <kuam_msgs/FittingPlanes.h>
 
 using namespace std;
 using namespace cv;
@@ -133,9 +134,13 @@ private: // Function
         const vector<Vec3d> tvecs, int2pose& int_to_pose, tf2_msgs::TFMessage& tf_msg_list);
     void TargetStateEstimating(const vector < vector<int> > ids_vec, int2pose int_to_pose);
     void CalFrequencyDegree();
-    void SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, kuam_msgs::ArucoVisuals& ac_visuals_msg, vector < vector<int> > discrete_ids_vec);
+    void PlaneFitting(std::shared_ptr<vector<kuam_msgs::ArucoState>>& markers_contained_valid_plane, 
+                    kuam_msgs::FittingPlanes& fitting_planes, const vector < vector<int> > discrete_ids_vec);
+    void SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, kuam_msgs::ArucoVisuals& ac_visuals_msg, 
+                    std::shared_ptr<vector<kuam_msgs::ArucoState>>& markers_contained_valid_plane);
     void ImagePub(Mat image, const vector < vector<vector<Point2f>> > corners_vec, const vector < vector<int> > ids_vec);
     void TargetPub(kuam_msgs::ArucoStates ac_states_msg, kuam_msgs::ArucoVisuals ac_visuals_msg);
+    void FittingPlanePub(const kuam_msgs::FittingPlanes fitting_planes);
 };
 }
 #endif //  __ARUCO_TRACKING_H__

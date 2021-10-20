@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
@@ -16,13 +17,12 @@
 
 #include <kuam_aruco_tracking/parser.h>
 #include <kuam_aruco_tracking/target.h>
+#include <kuam_aruco_tracking/frequency_degree.h>
 
 #include <tf2/LinearMath/Vector3.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Transform.h>
 #include <tf2_msgs/TFMessage.h>
-
-#include <kuam_aruco_tracking/target.h>
 
 namespace kuam{
 class UtilMarker
@@ -42,7 +42,9 @@ public:
     void GetIdsnCorners(const vector<int> ref_ids, const vector<int> input_ids, const vector<vector<Point2f>> input_corners,
                             vector<int>& output_ids, vector<vector<Point2f>>& output_corners);
     void GetNoiseIndexes(vector<int>& noises, const vector<int> ids, vector<Target>& targets);
-    vector<kuam_msgs::ArucoState> GetMarkerState(const vector<int>& target_ids, const kuam_msgs::ArucoStates& ac_states_msg);
+    vector<kuam_msgs::ArucoState> GetMarkerStates(const vector<int>& target_ids, const kuam_msgs::ArucoStates& ac_states_msg);
+    vector<kuam_msgs::ArucoState> GetMarkerStates(const vector<int>& target_ids, const vector<Target>& targets,
+                            map<int, FrequencyDegree>& id2frequencyDegrees, string camera_frame_id, int estimating_method);
     void EraseIdnCorner(const vector<int> erase_ids, vector<int>& ids, vector<vector<Point2f>>& corners);
     geometry_msgs::Quaternion ZProjection(const double x, const double y, const double z, const double w);
 };
