@@ -10,6 +10,7 @@
 #include <algorithm>
 
 #include <kuam_msgs/FittingPlane.h>
+#include <kuam_msgs/FittingPlanes.h>
 
 using namespace std;
 using namespace cv;
@@ -36,9 +37,6 @@ ArucoTracking::~ArucoTracking()
 
 bool ArucoTracking::InitFlag()
 {
-    m_z_to_big.is_init = false;
-    m_z_to_medium.is_init = false;
-    m_z_to_small.is_init = false;
     return true;
 }
 
@@ -115,7 +113,7 @@ bool ArucoTracking::InitROS()
     m_tf_list_pub = m_p_nh.advertise<tf2_msgs::TFMessage>("tf_list", 10);
     m_visual_pub = m_p_nh.advertise<kuam_msgs::ArucoVisuals> ("aruco_visuals", 1);
     m_target_state_pub = m_p_nh.advertise<kuam_msgs::ArucoStates> ("target_states", 1);
-    m_fitting_plane_pub = m_p_nh.advertise<kuam_msgs::FittingPlane> ("fitting_plane", 1);
+    m_fitting_planes_pub = m_p_nh.advertise<kuam_msgs::FittingPlanes> ("fitting_planes", 1);
     
     // Initialize timer
     m_image_timer = m_nh.createTimer(ros::Duration(1.0/m_process_freq_param), &ArucoTracking::ProcessTimerCallback, this);
@@ -204,14 +202,14 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
     TargetStateEstimating(discrete_ids_vec, int_to_pose);
 
 
-    // SetFrequencyDegree
-    SetFrequencyDegree();
+    // Calculate frequency degree of each marker
+    CalFrequencyDegree();
 
 
     // Get marker messages
     kuam_msgs::ArucoStates ac_states_msg;
     kuam_msgs::ArucoVisuals ac_visuals_msg;
-    SetArucoMessages(ac_states_msg, ac_visuals_msg);
+    SetArucoMessages(ac_states_msg, ac_visuals_msg, discrete_ids_vec);
 
 
     // Publish
@@ -320,7 +318,7 @@ void ArucoTracking::TargetStateEstimating(const vector < vector<int> > ids_vec, 
     }
 }
 
-void ArucoTracking::SetFrequencyDegree()
+void ArucoTracking::CalFrequencyDegree()
 {
     // Reverse sort
     auto all_marker_ids = m_marker_ids;
@@ -378,7 +376,7 @@ void ArucoTracking::SetFrequencyDegree()
     }
 }
 
-void ArucoTracking::SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, kuam_msgs::ArucoVisuals& ac_visuals_msg)
+void ArucoTracking::SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, kuam_msgs::ArucoVisuals& ac_visuals_msg, const vector < vector<int> > discrete_ids_vec)
 {
     ac_states_msg.header.frame_id = m_camera_frame_id_param;
     ac_states_msg.header.stamp = ros::Time::now();
@@ -433,82 +431,74 @@ void ArucoTracking::SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, kuam
     }
 
     // Set target Pose
-    if (FrequencyDegree::valid_id != -1){
+    // if (FrequencyDegree::valid_id != -1){
 
-        for (auto aruco_state : ac_states_msg.aruco_states){
-            if (aruco_state.id != FrequencyDegree::valid_id){
-                continue;
-            }
+    //     for (auto aruco_state : ac_states_msg.aruco_states){
+    //         if (aruco_state.id != FrequencyDegree::valid_id){
+    //             continue;
+    //         }
 
-            if (aruco_state.is_detected){
-                ac_states_msg.target_pose = aruco_state.pose;
+    //         if (aruco_state.is_detected){
+    //             ac_states_msg.target_pose = aruco_state.pose;
+    //             ac_states_msg.is_detected = true;
+    //         }
+    //     }
+    // }
+
+    // Set target pose
+    // markers_contained_valid_plane
+    std::shared_ptr<vector<kuam_msgs::ArucoState>> markers_contained_valid_plane = make_shared<vector<kuam_msgs::ArucoState>>();
+    kuam_msgs::FittingPlanes fitting_planes;
+    int plane_level = 0;
+    for (auto ids : discrete_ids_vec){
+        if (m_id2ZbtNormalAngles.find(plane_level) == m_id2ZbtNormalAngles.end()){
+            Z2NormalAngle z2norm_angle;
+            m_id2ZbtNormalAngles.insert(pair<int, Z2NormalAngle>(plane_level, z2norm_angle));
+        }
+
+        bool is_valid = false;
+        geometry_msgs::PoseStamped plane_pose;
+        auto it = m_id2ZbtNormalAngles.find(plane_level);
+        vector<kuam_msgs::ArucoState> markers = m_util_marker.GetMarkerState(ids, ac_states_msg);
+        if (m_util_setpoint.GeneratePlane(markers, plane_pose, it->second, m_plane_threshold_param, 
+                                        m_plane_iterations_param, m_angle_deg_threshold_param, is_valid)){
+            if (is_valid){
+                markers_contained_valid_plane->insert(markers_contained_valid_plane->end(), markers.begin(), markers.end());
                 ac_states_msg.is_detected = true;
             }
+            
+            kuam_msgs::FittingPlane fitting_plane;
+            fitting_plane.id = plane_level;
+            fitting_plane.is_valid = true;
+            fitting_plane.plane = plane_pose;
+            fitting_plane.z_to_normal_deg = it->second.angle_deg;
+            fitting_planes.planes.push_back(fitting_plane);
+        }
+        plane_level++;
+    }
+
+    if (ac_states_msg.is_detected){
+        vector<geometry_msgs::Pose> poses;
+        for (auto ac_state : *markers_contained_valid_plane){
+            geometry_msgs::Pose p;
+            p = ac_state.pose;
+
+            m_util_setpoint.Transform(p, ac_state.id, m_big_marker_trans_param, m_medium_marker_trans_param, m_small_marker_trans_param);
+            poses.push_back(p);
+        }
+        ac_states_msg.target_pose = m_util_setpoint.GetSetpoint(poses);
+    }
+
+    for (auto fitting_plane : fitting_planes.planes){
+        bool is_valid = false;
+        if (fitting_plane.is_valid){
+            is_valid = true;
+        }
+
+        if (is_valid){
+            m_fitting_planes_pub.publish(fitting_planes);
         }
     }
-    // // Set target pose
-    // std::shared_ptr<vector<kuam_msgs::ArucoState>> detected_ac_states = make_shared<vector<kuam_msgs::ArucoState>>();
-    // kuam_msgs::FittingPlane fitting_plane_msg;
-    
-    // vector<kuam_msgs::ArucoState> markers = m_util_marker.GetMarkerState(m_big_marker_ids_param, ac_states_msg);
-    // geometry_msgs::PoseStamped big_plane;
-    // bool is_valid = false;
-    // if (m_util_setpoint.GeneratePlane(markers, big_plane, m_z_to_big, m_plane_threshold_param, 
-    //                                 m_plane_iterations_param, m_angle_deg_threshold_param, is_valid)){
-    //     if (is_valid){
-    //         detected_ac_states->insert(detected_ac_states->end(), markers.begin(), markers.end());
-    //         ac_states_msg.is_detected = true;
-    //     }
-    //     fitting_plane_msg.big_is_valid = true;
-    //     fitting_plane_msg.big_plane = big_plane;
-    //     fitting_plane_msg.big_z_to_normal_deg = m_z_to_big.angle_deg;
-    // }
-    
-    // markers.clear();
-    // markers = m_util_marker.GetMarkerState(m_medium_marker_ids_param, ac_states_msg);
-    // geometry_msgs::PoseStamped medium_plane;
-    // is_valid = false;
-    // if (m_util_setpoint.GeneratePlane(markers, medium_plane, m_z_to_medium, m_plane_threshold_param, 
-    //                                 m_plane_iterations_param, m_angle_deg_threshold_param, is_valid)){
-    //     if (is_valid){
-    //         detected_ac_states->insert(detected_ac_states->end(), markers.begin(), markers.end());
-    //         ac_states_msg.is_detected = true;
-    //     }
-    //     fitting_plane_msg.medium_is_valid = true;
-    //     fitting_plane_msg.medium_plane = medium_plane;
-    //     fitting_plane_msg.medium_z_to_normal_deg = m_z_to_medium.angle_deg;
-    // }
-
-    // markers.clear();
-    // markers = m_util_marker.GetMarkerState(m_small_marker_ids_param, ac_states_msg);
-    // geometry_msgs::PoseStamped small_plane;
-    // is_valid = false;
-    // if (m_util_setpoint.GeneratePlane(markers, small_plane, m_z_to_small, m_plane_threshold_param, 
-    //                                 m_plane_iterations_param, m_angle_deg_threshold_param, is_valid)){
-    //     if (is_valid){
-    //         detected_ac_states->insert(detected_ac_states->end(), markers.begin(), markers.end());
-    //         ac_states_msg.is_detected = true;
-    //     }
-    //     fitting_plane_msg.small_is_valid = true;
-    //     fitting_plane_msg.small_plane = small_plane;
-    //     fitting_plane_msg.small_z_to_normal_deg = m_z_to_small.angle_deg;
-    // }
-
-    // if (ac_states_msg.is_detected){
-    //     vector<geometry_msgs::Pose> poses;
-    //     for (auto ac_state : *detected_ac_states){
-    //         geometry_msgs::Pose p;
-    //         p = ac_state.pose;
-
-    //         m_util_setpoint.Transform(p, ac_state.id, m_big_marker_trans_param, m_medium_marker_trans_param, m_small_marker_trans_param);
-    //         poses.push_back(p);
-    //     }
-    //     ac_states_msg.target_pose = m_util_setpoint.GetSetpoint(poses);
-    // }
-
-    // if (fitting_plane_msg.medium_is_valid || fitting_plane_msg.big_is_valid || fitting_plane_msg.small_is_valid){
-    //     m_fitting_plane_pub.publish(fitting_plane_msg);
-    // }
 }
 
 bool ArucoTracking::GetTransformation(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, 

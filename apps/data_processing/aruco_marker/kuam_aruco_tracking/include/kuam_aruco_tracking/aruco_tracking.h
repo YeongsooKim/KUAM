@@ -54,6 +54,7 @@ private:
     Parser m_parser;
     vector<Target> m_targets;
     map<int, FrequencyDegree> m_id2frequencyDegrees;
+    map<int, Z2NormalAngle> m_id2ZbtNormalAngles;
     cv_bridge::CvImagePtr m_cv_ptr;
 
 public:
@@ -69,7 +70,7 @@ private:
     ros::Publisher m_tf_list_pub;
     ros::Publisher m_visual_pub;
     ros::Publisher m_target_state_pub;
-    ros::Publisher m_fitting_plane_pub;
+    ros::Publisher m_fitting_planes_pub;
 
     // Timer
     ros::Timer m_image_timer;
@@ -115,9 +116,6 @@ private:
     vector<vector<int>> m_marker_ids_vec;
     vector<double> m_marker_sizes_m;
     using int2pose = map < int, geometry_msgs::Pose >;
-    Z2NormalAngle m_z_to_big;
-    Z2NormalAngle m_z_to_medium;
-    Z2NormalAngle m_z_to_small;
 
 private: // Function
     bool GetParam();
@@ -134,8 +132,8 @@ private: // Function
     bool GetTransformation(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, 
         const vector<Vec3d> tvecs, int2pose& int_to_pose, tf2_msgs::TFMessage& tf_msg_list);
     void TargetStateEstimating(const vector < vector<int> > ids_vec, int2pose int_to_pose);
-    void SetFrequencyDegree();
-    void SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, kuam_msgs::ArucoVisuals& ac_visuals_msg);
+    void CalFrequencyDegree();
+    void SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, kuam_msgs::ArucoVisuals& ac_visuals_msg, vector < vector<int> > discrete_ids_vec);
     void ImagePub(Mat image, const vector < vector<vector<Point2f>> > corners_vec, const vector < vector<int> > ids_vec);
     void TargetPub(kuam_msgs::ArucoStates ac_states_msg, kuam_msgs::ArucoVisuals ac_visuals_msg);
 };

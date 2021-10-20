@@ -123,9 +123,9 @@ bool Visualizer::InitMarkers()
     m_ground_truth_vehicle_marker.type = visualization_msgs::Marker::MESH_RESOURCE;
     m_ground_truth_vehicle_marker.mesh_resource = "package://kuam_vehicle_position/rviz/models/nissan_skyline_250gt/nissan_skyline_250gt.stl";
     m_ground_truth_vehicle_marker.action = visualization_msgs::Marker::ADD;
-    m_ground_truth_vehicle_marker.scale.x = 0.23;
-    m_ground_truth_vehicle_marker.scale.y = 0.23;
-    m_ground_truth_vehicle_marker.scale.z = 0.23;
+    m_ground_truth_vehicle_marker.scale.x = 0.26;
+    m_ground_truth_vehicle_marker.scale.y = 0.26;
+    m_ground_truth_vehicle_marker.scale.z = 0.26;
     m_ground_truth_vehicle_marker.pose.position.x = m_target_pos_x_param;
     m_ground_truth_vehicle_marker.pose.position.y = m_target_pos_y_param;
     m_ground_truth_vehicle_marker.pose.position.z = m_target_pos_z_param;
