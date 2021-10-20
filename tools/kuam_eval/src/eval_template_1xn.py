@@ -72,7 +72,7 @@ class Plotting:
             ax.set_xlabel(self.xlabel_set[data_idx])  # Add an x-label to the axes.
             ax.set_ylabel(self.ylabel_set[data_idx])  # Add a y-label to the axes.
             ax.set_title(self.title_set[data_idx])  # Add a title to the axes.            
-            ax.grid()
+            ax.grid()  # Add a legend.
             ax.legend()  # Add a legend.
 
     '''

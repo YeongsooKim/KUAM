@@ -91,7 +91,7 @@ class Plotting:
                 col_ax.set_xlabel(self.xlabel_set[data_idx])  # Add an x-label to the axes.
                 col_ax.set_ylabel(self.ylabel_set[data_idx])  # Add a y-label to the axes.
                 col_ax.set_title(self.title_set[data_idx])  # Add a title to the axes.            
-                col_ax.grid()
+                col_ax.grid()  # Add a legend.
                 col_ax.legend()  # Add a legend.
 
     '''

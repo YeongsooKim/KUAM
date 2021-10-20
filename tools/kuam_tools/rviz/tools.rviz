@@ -85,7 +85,8 @@ Visualization Manager:
               Marker Topic: /kuam/data/aruco_visual/aruco_markerarray
               Name: aruco
               Namespaces:
-                {}
+                target0/current_point: true
+                target0/txt: true
               Queue Size: 100
               Value: true
             - Class: rviz/Marker
@@ -93,7 +94,7 @@ Visualization Manager:
               Marker Topic: /kuam/data/aruco_visual/landingpoint_marker
               Name: landing_point
               Namespaces:
-                {}
+                setpoint/landing_point: true
               Queue Size: 100
               Value: true
             - Class: rviz/MarkerArray
@@ -186,8 +187,7 @@ Visualization Manager:
               Marker Topic: /kuam/maneuver/state_machine_visual/ego_markerarray
               Name: ego_vehicle
               Namespaces:
-                ego/current_point: true
-                ego/trajectory: true
+                {}
               Queue Size: 100
               Value: true
             - Class: rviz/MarkerArray
@@ -195,7 +195,7 @@ Visualization Manager:
               Marker Topic: /kuam/maneuver/state_machine_visual/setpoint_markerarray
               Name: setpoint
               Namespaces:
-                setpoint/relative: true
+                {}
               Queue Size: 100
               Value: true
             - Align Bottom: false
@@ -238,6 +238,10 @@ Visualization Manager:
           Value: true
         map_ned:
           Value: false
+        marker0:
+          Value: true
+        marker_landing_point:
+          Value: true
         odom:
           Value: false
         odom_ned:
@@ -253,7 +257,10 @@ Visualization Manager:
             base_link_frd:
               {}
             camera_link:
-              {}
+              marker0:
+                {}
+              marker_landing_point:
+                {}
           map_ned:
             {}
       Update Interval: 0
@@ -318,25 +325,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 24.52467918395996
+      Distance: 18.194393157958984
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -1.9235048294067383
-        Y: 1.1041769981384277
-        Z: 8.106231689453125e-6
-      Focal Shape Fixed Size: true
+        X: 2.290708065032959
+        Y: -0.6944432258605957
+        Z: 3.814697265625e-6
+      Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7803983688354492
-      Target Frame: base_link
+      Pitch: 0.5153985023498535
+      Target Frame: map
       Value: XYOrbit (rviz)
-      Yaw: 3.0035500526428223
+      Yaw: 4.518568992614746
     Saved: ~
 Window Geometry:
   Displays:

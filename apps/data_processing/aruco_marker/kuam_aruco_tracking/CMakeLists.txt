@@ -73,6 +73,7 @@ add_executable(aruco_tracking_node
   src/aruco_tracking.cpp 
   src/parser.cpp 
   src/target.cpp
+  src/frequency_degree.cpp
   src/utils/util_marker.cpp
   src/utils/util_setpoint.cpp
 )

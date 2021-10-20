@@ -5,6 +5,7 @@
 #include <string>
 #include <Eigen/Dense>
 #include <vector>
+#include <algorithm>
 #include <map>
 
 #include <image_transport/image_transport.h>
@@ -23,6 +24,7 @@
 #include <kuam_aruco_tracking/utils/util_setpoint.h>
 #include <kuam_aruco_tracking/parser.h>
 #include <kuam_aruco_tracking/target.h>
+#include <kuam_aruco_tracking/frequency_degree.h>
 
 #include <tf2_msgs/TFMessage.h>
 
@@ -51,6 +53,7 @@ private:
     UtilSetpoint m_util_setpoint;
     Parser m_parser;
     vector<Target> m_targets;
+    map<int, FrequencyDegree> m_id2frequencyDegrees;
     cv_bridge::CvImagePtr m_cv_ptr;
 
 public:
@@ -79,7 +82,6 @@ private:
     string m_camera_frame_id_param;
     bool m_is_simulation_param;
     int m_dictionaryID_param;
-    int m_marker_cnt_th_param;
     double m_plane_threshold_param;
     int m_plane_iterations_param;
     double m_angle_deg_threshold_param;
@@ -94,6 +96,12 @@ private:
     float m_big_marker_trans_param;
     float m_medium_marker_trans_param;
     float m_small_marker_trans_param;
+
+    int m_dft_buf_size_param;
+    int m_freq_deg_buf_size_param;
+    int m_dft_integral_start_point_param;
+    double m_freq_degree_th_param;
+    double m_diff_th_m_param;
     
     // Const value
     const int MARKER_ID_QUEUE_SIZE;
@@ -103,23 +111,13 @@ private:
     Ptr<aruco::Dictionary> m_dictionary;
     Mat m_cam_matrix;
     Mat m_dist_coeffs;
-    vector<bool> m_is_small_id_queue;
-    bool m_fix_small_marker;
-    ros::Time m_last_enough_time;
     vector<int> m_marker_ids;
+    vector<vector<int>> m_marker_ids_vec;
+    vector<double> m_marker_sizes_m;
     using int2pose = map < int, geometry_msgs::Pose >;
     Z2NormalAngle m_z_to_big;
     Z2NormalAngle m_z_to_medium;
     Z2NormalAngle m_z_to_small;
-    vector<vector<int>> m_marker_ids_vec;
-    vector<double> m_marker_sizes_m;
-
-    // Time variable
-    ros::Time m_last_detected_time;
-
-    // Video variable
-    VideoCapture m_input_video;
-    const string OPENCV_WINDOW;
 
 private: // Function
     bool GetParam();
@@ -135,7 +133,8 @@ private: // Function
     void NoiseFilter(vector < vector<vector<Point2f>> >& corners, vector < vector<int> >& ids);
     bool GetTransformation(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, 
         const vector<Vec3d> tvecs, int2pose& int_to_pose, tf2_msgs::TFMessage& tf_msg_list);
-    void MarkerUpdate(const vector < vector<int> > ids_vec, int2pose int_to_pose);
+    void TargetStateEstimating(const vector < vector<int> > ids_vec, int2pose int_to_pose);
+    void SetFrequencyDegree();
     void SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, kuam_msgs::ArucoVisuals& ac_visuals_msg);
     void ImagePub(Mat image, const vector < vector<vector<Point2f>> > corners_vec, const vector < vector<int> > ids_vec);
     void TargetPub(kuam_msgs::ArucoStates ac_states_msg, kuam_msgs::ArucoVisuals ac_visuals_msg);

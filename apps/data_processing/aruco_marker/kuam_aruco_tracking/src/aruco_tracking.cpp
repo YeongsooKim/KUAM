@@ -14,6 +14,8 @@
 using namespace std;
 using namespace cv;
 
+int FrequencyDegree::valid_id = -1;
+
 namespace kuam{
     
 ArucoTracking::ArucoTracking() :
@@ -25,19 +27,15 @@ ArucoTracking::ArucoTracking() :
     InitROS();
     InitMarker();
 
-    //namedWindow(OPENCV_WINDOW);
     m_parser.ReadFile(m_dictionaryID_param, m_calib_path_param, m_detector_params_path_param,
                     m_detector_params, m_dictionary, m_cam_matrix, m_dist_coeffs);
 }
 
 ArucoTracking::~ArucoTracking()
-{
-    //destroyWindow(OPENCV_WINDOW);
-}
+{ }
 
 bool ArucoTracking::InitFlag()
 {
-    m_fix_small_marker = false;
     m_z_to_big.is_init = false;
     m_z_to_medium.is_init = false;
     m_z_to_small.is_init = false;
@@ -59,7 +57,6 @@ bool ArucoTracking::GetParam()
     if (!m_p_nh.getParam("noise_dist_th_m", m_noise_dist_th_m_param))  { m_err_param = "noise_dist_th_m"; return false; }
     if (!m_p_nh.getParam("noise_cnt_th", m_noise_cnt_th_param))  { m_err_param = "noise_cnt_th"; return false; }
     if (!m_p_nh.getParam("process_freq", m_process_freq_param))  { m_err_param = "process_freq"; return false; }
-    if (!m_p_nh.getParam("marker_cnt_th", m_marker_cnt_th_param))  { m_err_param = "marker_cnt_th"; return false; }
     if (!m_p_nh.getParam("plane_threshold", m_plane_threshold_param))  { m_err_param = "plane_threshold"; return false; }
     if (!m_p_nh.getParam("plane_iterations", m_plane_iterations_param))  { m_err_param = "plane_iterations"; return false; }
     if (!m_p_nh.getParam("angle_deg_threshold", m_angle_deg_threshold_param))  { m_err_param = "angle_deg_threshold"; return false; }
@@ -68,6 +65,12 @@ bool ArucoTracking::GetParam()
     if (!m_p_nh.getParam("big_marker_trans", m_big_marker_trans_param))  { m_err_param = "big_marker_trans"; return false; }
     if (!m_p_nh.getParam("medium_marker_trans", m_medium_marker_trans_param))  { m_err_param = "medium_marker_trans"; return false; }
     if (!m_p_nh.getParam("small_marker_trans", m_small_marker_trans_param))  { m_err_param = "small_marker_trans"; return false; }
+    
+    if (!m_p_nh.getParam("dft_buf_size", m_dft_buf_size_param))  { m_err_param = "dft_buf_size"; return false; }
+    if (!m_p_nh.getParam("frequency_degree_buf_size", m_freq_deg_buf_size_param))  { m_err_param = "frequency_degree_buf_size"; return false; }
+    if (!m_p_nh.getParam("dft_integral_start_point", m_dft_integral_start_point_param))  { m_err_param = "freq_threshold"; return false; }
+    if (!m_p_nh.getParam("frequency_degree_threshold", m_freq_degree_th_param))  { m_err_param = "frequency_degree_threshold"; return false; }
+    if (!m_p_nh.getParam("difference_threshold_m", m_diff_th_m_param))  { m_err_param = "difference_threshold_m"; return false; }
 
 
     for (int i = 0; i < m_marker_size_type_num_param; i++){
@@ -164,6 +167,7 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
         discrete_corners_vec.push_back(discrete_corners);
     }
 
+
     // Noise filter
     NoiseFilter(discrete_corners_vec, discrete_ids_vec);
 
@@ -174,6 +178,7 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
     if (is_empty){
         return;
     }
+
 
     // Estimate marker pose by using opencv
     vector < vector<Vec3d> > rvecs_vec, tvecs_vec;
@@ -186,21 +191,28 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
         tvecs_vec.push_back(tvecs);
     }
 
+
     // Get transformation from camera to marker
     int2pose int_to_pose;
     tf2_msgs::TFMessage tf_msg_list;
     for (auto i = 0; i < discrete_corners_vec.size(); i++){
         GetTransformation(discrete_corners_vec[i], discrete_ids_vec[i], rvecs_vec[i], tvecs_vec[i], int_to_pose, tf_msg_list);
-
     }
 
-    // Update marker is_detection and pose (one of three method, no filter, average fitler, exponential average filter)
-    MarkerUpdate(discrete_ids_vec, int_to_pose);
+
+    // Update marker pose (one of three method, no filter, average fitler, exponential average filter)
+    TargetStateEstimating(discrete_ids_vec, int_to_pose);
+
+
+    // SetFrequencyDegree
+    SetFrequencyDegree();
+
 
     // Get marker messages
     kuam_msgs::ArucoStates ac_states_msg;
     kuam_msgs::ArucoVisuals ac_visuals_msg;
     SetArucoMessages(ac_states_msg, ac_visuals_msg);
+
 
     // Publish
     m_tf_list_pub.publish(tf_msg_list);
@@ -234,9 +246,36 @@ void ArucoTracking::NoiseFilter(vector < vector<vector<Point2f>> >& corners_vec,
         m_util_marker.GetNoiseIndexes(noises, ids_vec[i], m_targets);
         m_util_marker.EraseIdnCorner(noises, ids_vec[i], corners_vec[i]);
     }
+
+    vector<int> detected_ids;
+    vector<int> undetected_ids;
+    for (auto i = 0; i < ids_vec.size(); i++){
+        m_util_marker.GetDetectedId(detected_ids, undetected_ids, ids_vec[i], m_marker_ids_vec[i]);
+    }
+
+    for (auto id : detected_ids){
+        for (auto& target : m_targets){
+            if (target.GetId() != id){
+                continue;
+            }
+            target.UpdateDetection(true);
+            break;
+        }
+    }
+
+    for (auto id : undetected_ids){
+        for (auto& target : m_targets){
+            if (target.GetId() != id){
+                continue;
+            }
+
+            target.UpdateDetection(false);
+            break;
+        }
+    }
 }
 
-void ArucoTracking::MarkerUpdate(const vector < vector<int> > ids_vec, int2pose int_to_pose)
+void ArucoTracking::TargetStateEstimating(const vector < vector<int> > ids_vec, int2pose int_to_pose)
 {
     vector<int> detected_ids;
     vector<int> undetected_ids;
@@ -249,8 +288,6 @@ void ArucoTracking::MarkerUpdate(const vector < vector<int> > ids_vec, int2pose 
             if (target.GetId() != id){
                 continue;
             }
-
-            target.UpdateDetection(true);
 
             auto it = int_to_pose.find(id);
             if (it != int_to_pose.end()){
@@ -277,8 +314,65 @@ void ArucoTracking::MarkerUpdate(const vector < vector<int> > ids_vec, int2pose 
                 continue;
             }
 
-            target.UpdateDetection(false);
             target.TargetStateEstimating();
+            break;
+        }
+    }
+}
+
+void ArucoTracking::SetFrequencyDegree()
+{
+    // Reverse sort
+    auto all_marker_ids = m_marker_ids;
+    std::sort(all_marker_ids.begin(), all_marker_ids.end(), std::greater<int>());
+
+    for (auto id : all_marker_ids){
+        bool is_valid = false;
+        for (auto target : m_targets){
+            if (target.GetId() != id) {
+                continue;
+            }
+
+            // Is detected
+            if (!target.GetIsDetected()){
+                continue;
+            }
+
+            // Has frequency_degree of same id
+            bool has_id;
+            auto it = m_id2frequencyDegrees.find(target.GetId());
+            if (it == m_id2frequencyDegrees.end()) has_id = false;
+            else has_id = true;
+
+            if (!has_id){
+                FrequencyDegree frequency_degree(target.GetId(), m_dft_buf_size_param, m_freq_deg_buf_size_param);
+                frequency_degree.Init(m_dft_integral_start_point_param, m_freq_degree_th_param,
+                                    m_diff_th_m_param, target.GetZ(m_estimating_method_param));
+
+                m_id2frequencyDegrees.insert(pair<int, FrequencyDegree> (target.GetId(), frequency_degree));
+                
+                continue;
+            }
+
+            // Calculate frequency degree of estimated pos
+            it->second.CalEstimatedFreqDegree(target.GetZ(m_estimating_method_param));
+            
+            static double prev_freq_deg = 0.0;
+            static bool is_first = true;
+            if (it->second.IsValid()){
+                is_valid = true;
+
+                break;
+            }
+            else{
+            }
+        }
+
+        if (is_valid){
+            if (id > FrequencyDegree::valid_id){
+                FrequencyDegree::valid_id = id;
+                ROS_WARN("Set frequency degree valid id: %d", FrequencyDegree::valid_id);
+            }
             break;
         }
     }
@@ -307,6 +401,8 @@ void ArucoTracking::SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, kuam
             ac_state_msg.pose.orientation.y = target.GetQY();
             ac_state_msg.pose.orientation.z = target.GetQZ();
             ac_state_msg.pose.orientation.w = target.GetQW();
+
+            ac_state_msg.frequency_degree = m_id2frequencyDegrees.find(ac_state_msg.id)->second.GetValue();
         }
         else{
             ac_state_msg.is_detected = false;
@@ -336,6 +432,20 @@ void ArucoTracking::SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, kuam
         ac_visuals_msg.aruco_visuals.push_back(aruco_visual_msg);
     }
 
+    // Set target Pose
+    if (FrequencyDegree::valid_id != -1){
+
+        for (auto aruco_state : ac_states_msg.aruco_states){
+            if (aruco_state.id != FrequencyDegree::valid_id){
+                continue;
+            }
+
+            if (aruco_state.is_detected){
+                ac_states_msg.target_pose = aruco_state.pose;
+                ac_states_msg.is_detected = true;
+            }
+        }
+    }
     // // Set target pose
     // std::shared_ptr<vector<kuam_msgs::ArucoState>> detected_ac_states = make_shared<vector<kuam_msgs::ArucoState>>();
     // kuam_msgs::FittingPlane fitting_plane_msg;

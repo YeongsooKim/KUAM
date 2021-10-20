@@ -23,6 +23,10 @@ using namespace std;
 namespace kuam{
 
 struct Z2NormalAngle{
+    Z2NormalAngle(){
+        is_init = false;
+    }
+    
     bool is_init;
     vector<double> angle_deg_buf;
     double angle_deg;

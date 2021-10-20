@@ -188,8 +188,8 @@ bool Target::ExpMovingAvgFilter(const Eigen::Vector3d pos)
     }
 
     // exponential moving average filter
-    m_state[(int)EstimatingMethod::EMAF].position = m_is_init_emaf*pos + (1.0 - m_is_init_emaf)*m_state[(int)EstimatingMethod::EMAF].prev_position;
-    m_state[(int)EstimatingMethod::EMAF].prev_position = pos;
+    m_state[(int)EstimatingMethod::EMAF].position = m_emaf_w*pos + (1.0 - m_emaf_w)*m_state[(int)EstimatingMethod::EMAF].prev_position;
+    m_state[(int)EstimatingMethod::EMAF].prev_position = m_state[(int)EstimatingMethod::EMAF].position;
 }
 
 float Target::Distance3D(Point point1, Point point2)
