@@ -39,7 +39,7 @@ private:
 	ros::NodeHandle m_nh;
 	ros::NodeHandle m_p_nh;
 
-    id_to_taskStatus_map m_id_to_taskStatus_list;
+    id_to_taskStatus_map m_id_to_taskStatus_map;
     GlobalPath m_waypoints;
     
 public:

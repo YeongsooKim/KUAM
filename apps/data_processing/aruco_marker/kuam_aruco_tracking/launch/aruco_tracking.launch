@@ -10,12 +10,6 @@
     <arg name="calib_path" default="$(find kuam_aruco_tracking)/config/calib_sim.txt" if="$(arg simulation)"/>
     <arg name="calib_path" default="$(find kuam_aruco_tracking)/config/calib.txt" unless="$(arg simulation)"/>
 
-        <!-- Estimating method -->
-        <!-- 0. Without filter -->
-        <!-- 1. Moving average filter -->
-        <!-- 2. Exponential moving average filter -->
-    <arg name="estimating_method" default="2" />
-
     <!-- rviz -->
     <arg name="rviz" default="false" />
 
@@ -28,7 +22,6 @@
     <node pkg="kuam_aruco_tracking" type="aruco_tracking_node" name="aruco_tracking" cwd="node" output="screen">
         <param name="calib_path" value="$(arg calib_path)" />
         <param name="detector_params_path" value="$(arg detector_params_path)" />
-        <param name="estimating_method" value="$(arg estimating_method)" />
         <param name="simulation" value="$(arg simulation)" />
     </node>
     <node pkg="kuam_aruco_tracking" type="aruco_tf_node" name="aruco_tf" output="screen" />

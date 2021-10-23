@@ -1,11 +1,4 @@
-bool big_is_valid
-float32 big_z_to_normal_deg
-geometry_msgs/PoseStamped big_plane
-
-bool medium_is_valid
-float32 medium_z_to_normal_deg
-geometry_msgs/PoseStamped medium_plane
-
-bool small_is_valid
-float32 small_z_to_normal_deg
-geometry_msgs/PoseStamped small_plane
+int32 id
+bool is_valid
+float32 z_to_normal_deg
+geometry_msgs/PoseStamped plane

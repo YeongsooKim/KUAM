@@ -1,0 +1,24 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+  <model name='simple_car_with_marker_v2'>
+    <include>
+      <uri>model://simple_car_v2</uri>
+    </include>
+
+    <include>
+      <uri>model://integration_marker_5</uri>
+      <pose>-0.43 -2.3 1.85 0 0  1.57075</pose>
+    </include>
+    <joint name="integration_marker_5_joint" type="revolute">
+      <child>integration_marker_5::link</child>
+      <parent>simple_car_v2::base_link</parent>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <upper>0</upper>
+          <lower>0</lower>
+        </limit>
+      </axis>
+    </joint>
+  </model>
+</sdf>

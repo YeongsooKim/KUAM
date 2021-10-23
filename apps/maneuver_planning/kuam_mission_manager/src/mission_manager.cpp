@@ -140,13 +140,13 @@ bool Maneuver::InsertTaskStatus(string input, vector<geographic_msgs::GeoPose> g
     Status status = Status::Todo;
     task_to_status_pair task_to_status = make_pair(trans_to_geoposes, status);
 
-    m_id_to_taskStatus_list.insert(pair<int, task_to_status_pair>(taskStatus_id, task_to_status));
+    m_id_to_taskStatus_map.insert(pair<int, task_to_status_pair>(taskStatus_id, task_to_status));
     taskStatus_id++;
 }
 
 bool Maneuver::IsTaskRunning()
 {
-    for (auto id_to_taskStatus : m_id_to_taskStatus_list){
+    for (auto id_to_taskStatus : m_id_to_taskStatus_map){
         auto taskStatus = id_to_taskStatus.second;
         if (taskStatus.second == Status::Doing){
             return true;
@@ -158,7 +158,7 @@ bool Maneuver::IsTaskRunning()
 bool Maneuver::HasTodoTask()
 {
     int task_num = 0;
-    for (auto id_to_taskStatus : m_id_to_taskStatus_list){
+    for (auto id_to_taskStatus : m_id_to_taskStatus_map){
         auto taskStatus = id_to_taskStatus.second;
         if (taskStatus.second == Status::Todo){
             m_cur_task_id = id_to_taskStatus.first;
@@ -172,7 +172,7 @@ bool Maneuver::HasTodoTask()
 
 bool Maneuver::DoTask()
 {
-    auto &taskStatus = m_id_to_taskStatus_list.find(m_cur_task_id)->second;
+    auto &taskStatus = m_id_to_taskStatus_map.find(m_cur_task_id)->second;
     auto &task = taskStatus.first;
     
     taskStatus.second = Status::Doing;
@@ -199,7 +199,7 @@ bool Maneuver::DoTask()
 
 void Maneuver::CheckComplete()
 {
-    auto &taskStatus = m_id_to_taskStatus_list.find(m_cur_task_id)->second;
+    auto &taskStatus = m_id_to_taskStatus_map.find(m_cur_task_id)->second;
     auto &task = taskStatus.first;
     auto complete_task = String2Trans(m_completion.task);
     
@@ -215,7 +215,7 @@ void Maneuver::TaskListPub()
 {
     // Publish whole tasks
     kuam_msgs::TaskList tasklist_msg;
-    for (auto id_to_taskStatus : m_id_to_taskStatus_list){
+    for (auto id_to_taskStatus : m_id_to_taskStatus_map){
         auto taskStatus = id_to_taskStatus.second;
         auto task = taskStatus.first;
 

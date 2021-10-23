@@ -70,7 +70,7 @@ geometry_msgs::Pose UtilSetpoint::GetSetpoint(vector<geometry_msgs::Pose> poses)
 
     float avg_yaw_deg = sum_yaw_deg/size;
     tf2::Quaternion q_tf;
-    q_tf.setRPY(0.0, 0.0, avg_yaw_deg*DEG2RAD);
+    q_tf.setRPY(M_PI, 0.0, avg_yaw_deg*DEG2RAD);
     p.orientation.x = q_tf.x();
     p.orientation.y = q_tf.y();
     p.orientation.z = q_tf.z();

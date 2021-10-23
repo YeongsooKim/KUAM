@@ -97,7 +97,7 @@ void UtilMarker::GetNoiseIndexes(vector<int>& noises, const vector<int> ids, vec
     }
 }
 
-vector<kuam_msgs::ArucoState> UtilMarker::GetMarkerState(const vector<int>& target_ids, const kuam_msgs::ArucoStates& ac_states_msg)
+vector<kuam_msgs::ArucoState> UtilMarker::GetMarkerStates(const vector<int>& target_ids, const kuam_msgs::ArucoStates& ac_states_msg)
 {
     vector<kuam_msgs::ArucoState> markers;
     for (auto id : target_ids){
@@ -110,6 +110,47 @@ vector<kuam_msgs::ArucoState> UtilMarker::GetMarkerState(const vector<int>& targ
     }
 
     return markers;
+}
+
+vector<kuam_msgs::ArucoState> UtilMarker::GetMarkerStates(const vector<int>& target_ids, const vector<Target>& targets,
+                                map<int, FrequencyDegree>& id2frequencyDegrees, string camera_frame_id, int estimating_method)
+{
+    vector <kuam_msgs::ArucoState> aruco_states;
+    for (auto id : target_ids){
+        for (auto target : targets){
+            if (id != target.GetId()){
+                continue;
+            }
+
+            kuam_msgs::ArucoState ac_state_msg;
+            ac_state_msg.header.frame_id = camera_frame_id;
+            ac_state_msg.header.stamp = ros::Time::now();
+            ac_state_msg.id = target.GetId();
+
+            if (target.GetIsDetected()){
+                ac_state_msg.is_detected = true;
+                
+                ac_state_msg.pose.position.x = target.GetX(estimating_method);
+                ac_state_msg.pose.position.y = target.GetY(estimating_method);
+                ac_state_msg.pose.position.z = target.GetZ(estimating_method);
+                
+                ac_state_msg.pose.orientation.x = target.GetQX();
+                ac_state_msg.pose.orientation.y = target.GetQY();
+                ac_state_msg.pose.orientation.z = target.GetQZ();
+                ac_state_msg.pose.orientation.w = target.GetQW();
+
+                ac_state_msg.frequency_degree = id2frequencyDegrees.find(ac_state_msg.id)->second.GetValue();
+            }
+            else{
+                ac_state_msg.is_detected = false;
+            }
+            aruco_states.push_back(ac_state_msg);
+
+            break;
+        }
+    }
+
+    return aruco_states;
 }
 
 void UtilMarker::EraseIdnCorner(const vector<int> erase_ids, vector<int>& ids, vector<vector<Point2f>>& corners)

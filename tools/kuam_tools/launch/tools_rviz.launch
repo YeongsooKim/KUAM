@@ -1,4 +1,0 @@
-<?xml version="1.0"?>
-<launch>
-    <node pkg="rviz" type="rviz" name="tools_rviz" args="-d $(find kuam_tools)/rviz/tools.rviz" required="true" />
-</launch>

@@ -1,7 +1,10 @@
 <?xml version="1.0"?>
 <launch>
-    <rosparam command="load" file="$(find kuam_global_tf)/config/param.yaml" />
+    <!-- <param name="sim" value="false" /> -->
 
+    <rosparam command="load" file="$(find kuam_global_tf)/config/param.yaml" />
+	
     <!-- nodes -->
-    <node pkg="kuam_global_tf" type="global_tf_node" name="global_tf" output="screen" />
+    <node pkg="kuam_global_tf" type="global_tf_node" name="global_tf" output="screen" >
+    </node>
 </launch>
