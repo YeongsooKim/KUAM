@@ -50,7 +50,13 @@ class Flight(smach.State, Base):
 
 
     def Start(self):
-        pass
+        # Initialize setpoint
+        if self.setpoints.is_global:
+            self.setpoint.is_global = True
+        else:
+            self.setpoint.is_global = False
+            self.setpoint.is_setpoint_position = True
+
 
     def Running(self):
         rate = rospy.Rate(self.freq)
@@ -64,10 +70,10 @@ class Flight(smach.State, Base):
                     self.transition = 'none'
 
             # Update setpoint
-            self.setpoint.geopose = UpdateSetpointPose(self.setpoints.poses, self.ego_geopose, self.guidance_dist_th_m)
-            self.setpoint.is_global = True
+            self.setpoint.geopose, self.setpoint.pose = UpdateSetpoint(self.setpoints, self.ego_geopose, self.ego_pose, self.guidance_dist_th_m)
             
-            if IsReached(self.ego_geopose.position, self.setpoints.poses[-1].pose.position, self.reached_dist_th_m):
+            # Check arrived
+            if self.IsReached():
                 self.transition = 'done'
                 break
 
@@ -81,7 +87,20 @@ class Flight(smach.State, Base):
         msg = Completion()
         msg.task = "flight"
         msg.is_complete = not self.is_start
-        msg.geopose = self.setpoints.poses[-1].pose
+        msg.geopose = self.setpoints.geopath.poses[-1].pose
         self.CompletionPub(msg)
         
         return trans
+
+
+    def IsReached(self):
+        if self.setpoint.is_global:
+            dist = DistanceFromLatLonInMeter3D(self.setpoints.geopath.poses[-1].pose.position, self.ego_geopose.position)
+        else:
+            dist = Distance3D(self.setpoints.pose_array.poses[-1].position, self.ego_pose.position)
+
+        if dist < self.reached_dist_th_m:
+            return True
+        else: 
+            return False
+

@@ -1,5 +1,6 @@
 mission_manager:
   process_freq: 30.0
+  is_global: false
 
 mission_manager_visual:
   process_freq: 5.0

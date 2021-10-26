@@ -41,9 +41,16 @@ class Takeoff(smach.State, Base):
 
     def Start(self):
         self.is_start = True
+        
         # Initialize setpoint
+        if self.setpoints.is_global:
+            self.setpoint.is_global = True
+        else:
+            self.setpoint.is_global = False
+            self.setpoint.is_setpoint_position = True
+
         self.setpoint.geopose.position.altitude = self.takeoff_alt_m
-        self.setpoint.is_global = True
+        self.setpoint.pose.position.z = self.takeoff_alt_m
 
     def Running(self):
         # wait for transition
@@ -77,7 +84,10 @@ class Takeoff(smach.State, Base):
 
 
     def IsReached(self):
-        dist = DistanceFromLatLonInMeter3D(self.setpoint.geopose.position, self.ego_geopose.position)
+        if self.setpoint.is_global:
+            dist = DistanceFromLatLonInMeter3D(self.setpoint.geopose.position, self.ego_geopose.position)
+        else:
+            dist = Distance3D(self.setpoint.pose.position, self.ego_pose.position)
 
         if dist < self.reached_dist_th_m:
             return True

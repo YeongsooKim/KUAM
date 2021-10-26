@@ -35,6 +35,7 @@ bool Maneuver::GetParam()
 
     if (!m_p_nh.getParam("process_freq", m_process_freq_param)) { m_err_param = "process_freq"; return false; }
     if (!m_p_nh.getParam("data_ns", m_data_ns_param)) { m_err_param = "data_ns"; return false; }
+    if (!m_p_nh.getParam("is_global", m_is_global_param)) { m_err_param = "is_global"; return false; }
 
     return true;
 }
@@ -95,8 +96,8 @@ void Maneuver::WaypointsCallback(const kuam_msgs::Waypoints::ConstPtr &wps_ptr)
         for (int i = 0; i < wps_ptr->waypoints.size(); i++){
             ROS_WARN("[mission_manager] mission: %s", wps_ptr->waypoints[i].mission.c_str());
             if (IsTransition(wps_ptr->waypoints[i].mission)){
-                ROS_WARN("[mission_manager] InsertTaskStatus, geoposes size: %d", wps_ptr->waypoints[i].geoposes.size());
-                InsertTaskStatus(wps_ptr->waypoints[i].mission, wps_ptr->waypoints[i].geoposes);
+                ROS_WARN("[mission_manager] InsertTaskStatus, geoposes size: %d, poses size: %d", wps_ptr->waypoints[i].geoposes.size(), wps_ptr->waypoints[i].poses.size());
+                InsertTaskStatus(wps_ptr->waypoints[i].mission, wps_ptr->waypoints[i].geoposes, wps_ptr->waypoints[i].poses);
             }
         }
     }
@@ -131,14 +132,19 @@ bool Maneuver::IsTransition(string input)
     else return false;
 }
 
-bool Maneuver::InsertTaskStatus(string input, vector<geographic_msgs::GeoPose> geoposes)
+bool Maneuver::InsertTaskStatus(string input, vector<geographic_msgs::GeoPose> geoposes, vector<geometry_msgs::Pose> poses)
 {
     static unsigned int taskStatus_id = 0;
     Trans trans = String2Trans(input);
-    trans_to_geoposes_pair trans_to_geoposes = make_pair(trans, geoposes);
+
+    Trajectory trajectory;
+    trajectory.is_global = m_is_global_param;
+    trajectory.geoposes = geoposes;
+    trajectory.poses = poses;
+    trans_to_trajectory_pair trans_to_trajectory = make_pair(trans, trajectory);
     
     Status status = Status::Todo;
-    task_to_status_pair task_to_status = make_pair(trans_to_geoposes, status);
+    task_to_status_pair task_to_status = make_pair(trans_to_trajectory, status);
 
     m_id_to_taskStatus_map.insert(pair<int, task_to_status_pair>(taskStatus_id, task_to_status));
     taskStatus_id++;
@@ -181,18 +187,22 @@ bool Maneuver::DoTask()
     task_msg.task = Enum2String(task.first);
     
     geometry_msgs::PoseArray pose_array;
-    geographic_msgs::GeoPath geopath;
     pose_array.header.frame_id = "map";
-    if (!task.second.empty()){
-        for (auto p : task.second){
+    geographic_msgs::GeoPath geopath;
+
+    if (!task.second.geoposes.empty() && !task.second.poses.empty()){
+        for (auto p : task.second.geoposes){
             geographic_msgs::GeoPoseStamped g;
             g.pose = p;
 
             geopath.poses.push_back(g);
         }
+        pose_array.poses = task.second.poses;
     }
 
     task_msg.geopath = geopath;
+    task_msg.pose_array = pose_array;
+    task_msg.is_global = task.second.is_global;
 
     m_task_pub.publish(task_msg);
 }

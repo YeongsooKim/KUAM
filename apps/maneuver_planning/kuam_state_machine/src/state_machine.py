@@ -26,6 +26,7 @@ from kuam_msgs.srv import LandRequest
 from kuam_msgs.srv import EmergyRequest
 from geographic_msgs.msg import GeoPose
 from geographic_msgs.msg import GeoPath
+from geometry_msgs.msg import PoseArray
 from geometry_msgs.msg import TwistStamped
 from geometry_msgs.msg import Twist
 
@@ -56,6 +57,11 @@ class SMMode(Enum):
     ALTCTL = 3
     LAND = 4
 
+class Setpoints:
+    geopath = GeoPath()
+    pose_array = PoseArray()
+    is_global = bool()
+
 
 '''
 State Machines
@@ -69,7 +75,7 @@ ego_geopose_ = GeoPose()
 ego_pose_ = Pose()
 ego_vel_ = Twist()
 setpoint_ = Setpoint()
-setpoints_ = GeoPath()
+setpoints_ = Setpoints()
 
 # Init state
 offb_states_ = {}
@@ -152,8 +158,9 @@ def TaskCB(msg):
     offb_transition_list_.append(msg.task)
 
     global setpoints_
-    setpoints_.header = msg.geopath.header
-    setpoints_.poses = msg.geopath.poses
+    setpoints_.is_global = msg.is_global
+    setpoints_.geopath = msg.geopath
+    setpoints_.pose_array = msg.pose_array
 
 def PayloadCmdCB(msg):
     global mode_transitions_
@@ -242,7 +249,7 @@ def GetStandbyMsg(geopose):
     msg.geopose = copy.deepcopy(geopose)
     msg.local_height_m = msg.geopose.position.altitude
     msg.home_altitude_m = gps_home_alt_m_
-    msg.geopose.position.altitude += (gps_home_alt_m_ - alt_offset_m)
+    msg.geopose.position.altitude += gps_home_alt_m_
     msg.is_global = True
 
     return msg
@@ -257,21 +264,27 @@ def GetSetpointMsg(setpoint):
     msg.home_altitude_m = gps_home_alt_m_
     
     msg.geopose = setpoint.geopose
-    msg.geopose.position.altitude += (gps_home_alt_m_ - alt_offset_m)
+    msg.geopose.position.altitude += gps_home_alt_m_
     
     msg.vel = setpoint.vel
     msg.yaw_rate = setpoint.yaw_rate
+
+    msg.pose = setpoint.pose
     
     msg.landing_state = setpoint.landing_state
 
     msg.target_pose = setpoint.target_pose
 
+    msg.is_global = setpoint.is_global
+    msg.is_setpoint_position = setpoint.is_setpoint_position
+
     if setpoint.is_global:
         msg.header.frame_id = "map"
-        msg.is_global = True
     else:
-        msg.header.frame_id = "base_link"
-        msg.is_global = False
+        if setpoint.is_setpoint_position:
+            msg.header.frame_id = "map"
+        else:
+            msg.header.frame_id = "base_link"
 
     return msg
 
@@ -391,7 +404,6 @@ if __name__ == '__main__':
     guidance_dist_th_m = rospy.get_param("~guidance_dist_th_m")
     landing_threshold_m = rospy.get_param("~landing_threshold_m")
     battery_th = rospy.get_param("~battery_th_per")
-    alt_offset_m = rospy.get_param("~alt_offset_m")
     using_camera = rospy.get_param("~using_camera")
 
     for state in offb_states_.values():

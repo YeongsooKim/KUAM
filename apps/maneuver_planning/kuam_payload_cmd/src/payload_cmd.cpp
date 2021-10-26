@@ -1,5 +1,6 @@
 #include "kuam_payload_cmd/payload_cmd.h"
 #include <string>
+#include <GeographicLib/Geoid.hpp>
 
 #include <geometry_msgs/Point.h>
 #include <mavros_msgs/PositionTarget.h>
@@ -7,7 +8,7 @@
 using namespace std;
 using namespace kuam;
 using namespace mission;
-    
+
 
 Playload::Playload() : 
     m_p_nh("~"),
@@ -50,6 +51,7 @@ bool Playload::InitROS()
 
     // Initialize publisher
     m_global_pose_pub = m_nh.advertise<geographic_msgs::GeoPoseStamped>("/mavros/setpoint_position/global", 10);
+    m_local_pose_pub = m_nh.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
     m_local_pos_tar_pub = m_nh.advertise<mavros_msgs::PositionTarget>("/mavros/setpoint_raw/local", 10);
     m_payload_cmd_pub = m_p_nh.advertise<uav_msgs::PayloadCmd>("payload_cmd", 1000);
     
@@ -231,41 +233,53 @@ void Playload::EmergRequest()
 void Playload::SetpointPub()
 {
     if (m_setpoint.is_global){
+        GeographicLib::Geoid egm96("egm96-5");
+        auto offset = egm96(m_setpoint.geopose.position.latitude, m_setpoint.geopose.position.longitude);
         geographic_msgs::GeoPoseStamped msg;
-        msg.header.frame_id = "map";
+        msg.header.frame_id = m_setpoint.header.frame_id;
         msg.header.stamp = ros::Time::now();
 
-        msg.header = m_setpoint.header;
         msg.pose = m_setpoint.geopose;
+        msg.pose.position.altitude -= offset;
 
         m_global_pose_pub.publish(msg);
     }
     else {
-        mavros_msgs::PositionTarget pos_tar;
-        pos_tar.header.stamp = ros::Time::now();
-        pos_tar.header.frame_id = "base_link";
+        if (m_setpoint.is_setpoint_position){
+            geometry_msgs::PoseStamped msg;
+            msg.header.frame_id = m_setpoint.header.frame_id;
+            msg.header.stamp = ros::Time::now();
 
-        pos_tar.type_mask = mavros_msgs::PositionTarget::IGNORE_PX
-            | mavros_msgs::PositionTarget::IGNORE_PY
-            | mavros_msgs::PositionTarget::IGNORE_PZ 
-            | mavros_msgs::PositionTarget::IGNORE_AFX
-            | mavros_msgs::PositionTarget::IGNORE_AFY
-            | mavros_msgs::PositionTarget::IGNORE_AFZ
-            | mavros_msgs::PositionTarget::FORCE
-            | mavros_msgs::PositionTarget::IGNORE_YAW;
+            msg.pose = m_setpoint.pose;
+            m_local_pose_pub.publish(msg);
+        }
+        else{
+            mavros_msgs::PositionTarget pos_tar;
+            pos_tar.header.stamp = ros::Time::now();
+            pos_tar.header.frame_id = m_setpoint.header.frame_id;
 
-        pos_tar.coordinate_frame = mavros_msgs::PositionTarget::FRAME_BODY_NED;
+            pos_tar.type_mask = mavros_msgs::PositionTarget::IGNORE_PX
+                | mavros_msgs::PositionTarget::IGNORE_PY
+                | mavros_msgs::PositionTarget::IGNORE_PZ 
+                | mavros_msgs::PositionTarget::IGNORE_AFX
+                | mavros_msgs::PositionTarget::IGNORE_AFY
+                | mavros_msgs::PositionTarget::IGNORE_AFZ
+                | mavros_msgs::PositionTarget::FORCE
+                | mavros_msgs::PositionTarget::IGNORE_YAW;
 
-        pos_tar.velocity.x = m_setpoint.vel.linear.x;
-        pos_tar.velocity.y = m_setpoint.vel.linear.y;
-        pos_tar.velocity.z = m_setpoint.vel.linear.z;
+            pos_tar.coordinate_frame = mavros_msgs::PositionTarget::FRAME_BODY_NED;
 
-        auto euler = m_utils.Quat2Euler(m_setpoint.yaw_rate.orientation);
-        auto yaw_rate_rads = euler.y;
-        if (__isnan(yaw_rate_rads)){ yaw_rate_rads = 0.0; }
-        pos_tar.yaw_rate = yaw_rate_rads;
-        
-        m_local_pos_tar_pub.publish(pos_tar);
+            pos_tar.velocity.x = m_setpoint.vel.linear.x;
+            pos_tar.velocity.y = m_setpoint.vel.linear.y;
+            pos_tar.velocity.z = m_setpoint.vel.linear.z;
+
+            auto euler = m_utils.Quat2Euler(m_setpoint.yaw_rate.orientation);
+            auto yaw_rate_rads = euler.y;
+            if (__isnan(yaw_rate_rads)){ yaw_rate_rads = 0.0; }
+            pos_tar.yaw_rate = yaw_rate_rads;
+            
+            m_local_pos_tar_pub.publish(pos_tar);
+        }
     }
 }
 

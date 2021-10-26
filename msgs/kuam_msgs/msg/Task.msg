@@ -1,2 +1,4 @@
 string task
 geographic_msgs/GeoPath geopath
+geometry_msgs/PoseArray pose_array
+bool is_global

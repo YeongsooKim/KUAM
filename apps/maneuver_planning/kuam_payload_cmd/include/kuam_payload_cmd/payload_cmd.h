@@ -51,6 +51,7 @@ private:
     // Publisher
     ros::Publisher m_local_pos_tar_pub;
     ros::Publisher m_global_pose_pub;
+    ros::Publisher m_local_pose_pub;
     ros::Publisher m_payload_cmd_pub;
     
     // ServiceClient

@@ -67,7 +67,6 @@ struct TextDatum{
     string home_altitude_m;
     string setpoint_local_h_m;
     string ego_global_alt_m;
-    string offset_alt_m;
     string battery_per;
 };
 
@@ -272,7 +271,6 @@ bool Visualizer::InitMarkers()
     m_text_datum.ego_global_alt_m = "\n";
     m_text_datum.home_altitude_m = "\n";
     m_text_datum.setpoint_local_h_m = "\n";
-    m_text_datum.offset_alt_m = "\n";
 }
 
 void Visualizer::HomePositionCallback(const mavros_msgs::HomePosition::ConstPtr &home_ptr)
@@ -298,10 +296,10 @@ void Visualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_
     m_text_datum.setpoint_local_h_m = "Local setpoint alt: " + to_string(m_setpoint_local_height_m) + " [m]\n";
 
     string coverage;
-    if (setpoint.is_global) coverage = "GPS coverage";
+    if (!setpoint.is_setpoint_position) coverage = "GPS coverage";
     else coverage = "Camera coverage";
     m_text_datum.coverage = "Coverage: " + coverage + "\n";
-    
+
     string landing_state = setpoint.landing_state.mode;
     m_text_datum.landing_state = "Landing state: " + landing_state + "\n";
 
@@ -427,9 +425,6 @@ void Visualizer::EgoGlobalPosCallback(const sensor_msgs::NavSatFix::ConstPtr &eg
     auto ego_global_alt_m = ego_ptr->altitude;
     m_text_datum.ego_global_alt_m = "Global altitude: " + to_string(ego_global_alt_m) + " [m]\n";
 
-    float alt_offset_m = ego_global_alt_m - (m_setpoint_local_height_m + m_setpoint_home_altitude_m);
-    m_text_datum.offset_alt_m = "Offset altitude: " + to_string(alt_offset_m) + " [m]\n";
-
     // Set ego markers
     auto lat = ego_ptr->latitude;
     auto lon = ego_ptr->longitude;
@@ -492,7 +487,7 @@ void Visualizer::TextPubCallback(const ros::TimerEvent& event)
         "\n" +
         m_text_datum.coverage + m_text_datum.is_marker_detected + m_text_datum.is_vehicle_detected + m_text_datum.landing_state +
         "\n" +
-        m_text_datum.ego_global_alt_m + m_text_datum.home_altitude_m + m_text_datum.setpoint_local_h_m + m_text_datum.offset_alt_m;
+        m_text_datum.ego_global_alt_m + m_text_datum.home_altitude_m + m_text_datum.setpoint_local_h_m;
         
     text.fg_color = fg_color;
     text.bg_color = bg_color;

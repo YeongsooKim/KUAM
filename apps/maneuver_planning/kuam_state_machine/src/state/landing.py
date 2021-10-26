@@ -120,6 +120,7 @@ class Landing(smach.State, Base):
 
         if self.mode == "mode1":
             self.setpoint.is_global = False
+            self.setpoint.is_setpoint_position = False
 
             self.setpoint.vel.linear.x = self.XY_Vel(self.vehicle_pose.position.x)
             self.setpoint.vel.linear.y = self.XY_Vel(self.vehicle_pose.position.y)
@@ -132,12 +133,14 @@ class Landing(smach.State, Base):
             self.setpoint.yaw_rate.orientation.w = v_yaw[3]
 
             self.setpoint.geopose = self.ego_geopose
+            self.setpoint.pose = self.ego_pose
             self.setpoint.target_pose = self.vehicle_pose
 
             landing_state.is_vehicle_detected = True
 
         elif self.mode == "mode2":
             self.setpoint.is_global = False
+            self.setpoint.is_setpoint_position = False
 
             self.setpoint.vel.linear.x = self.XY_Vel(self.marker_pose.position.x)
             self.setpoint.vel.linear.y = self.XY_Vel(self.marker_pose.position.y)
@@ -150,6 +153,7 @@ class Landing(smach.State, Base):
             self.setpoint.yaw_rate.orientation.w = v_yaw[3]
 
             self.setpoint.geopose = self.ego_geopose
+            self.setpoint.pose = self.ego_pose
             self.setpoint.target_pose = self.marker_pose
 
             landing_state.is_marker_detected = True
@@ -157,13 +161,15 @@ class Landing(smach.State, Base):
                 landing_state.is_vehicle_detected = True
 
         elif self.mode == "auto.land":
-            self.setpoint.is_global = True
+            self.setpoint.is_global = self.setpoints.is_global
 
             self.transition = 'done'
 
         elif self.mode == "standby":
-            self.setpoint.is_global = True
-            self.setpoint.geopose = self.setpoints.poses[-1].pose
+            self.setpoint.is_global = self.setpoints.is_global
+            self.setpoint.is_setpoint_position = True
+            self.setpoint.geopose = self.setpoints.geopath.poses[-1].pose
+            self.setpoint.pose = self.setpoints.pose_array.poses[-1]
 
         self.setpoint.landing_state = landing_state
     
@@ -183,8 +189,9 @@ class Landing(smach.State, Base):
         landing_state.mode = self.mode
 
         if self.mode == "mode1":
+            # Update setpoint
             self.setpoint.is_global = True
-            self.setpoint.geopose = UpdateSetpointPose(self.setpoints.poses, self.ego_geopose, self.guidance_dist_th_m)
+            self.setpoint.geopose, self.setpoint.pose = UpdateSetpoint(self.setpoints, self.ego_geopose, self.ego_pose, self.guidance_dist_th_m)
             
         elif self.mode == "auto.land":
             self.setpoint.is_global = True

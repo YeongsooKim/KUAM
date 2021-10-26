@@ -42,6 +42,7 @@ class Standby(smach.State, Base):
 
             # Update setpoint
             self.setpoint.geopose = copy.deepcopy(self.ego_geopose)
+            self.setpoint.pose = copy.deepcopy(self.ego_pose)
             rate.sleep()
 
     def Terminate(self):
