@@ -49,8 +49,8 @@ class Takeoff(smach.State, Base):
             self.setpoint.is_global = False
             self.setpoint.is_setpoint_position = True
 
-        self.setpoint.geopose.position.altitude = self.takeoff_alt_m
-        self.setpoint.pose.position.z = self.takeoff_alt_m
+        self.setpoint.geopose.position.altitude += self.takeoff_alt_m
+        self.setpoint.pose.position.z += self.takeoff_alt_m
 
     def Running(self):
         # wait for transition
@@ -77,7 +77,7 @@ class Takeoff(smach.State, Base):
         msg = Completion()
         msg.task = "takeoff"
         msg.is_complete = not self.is_start
-        msg.geopose = self.setpoint.geopose
+        msg.geopose = self.ego_geopose
         self.CompletionPub(msg)
 
         return trans

@@ -87,7 +87,7 @@ class Flight(smach.State, Base):
         msg = Completion()
         msg.task = "flight"
         msg.is_complete = not self.is_start
-        msg.geopose = self.setpoints.geopath.poses[-1].pose
+        msg.geopose = self.ego_geopose
         self.CompletionPub(msg)
         
         return trans
