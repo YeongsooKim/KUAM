@@ -118,7 +118,7 @@ class Plotting:
                 data_idx = raw_idx*len(raw_ax) + col_idx
 
                 for sub_data_idx in range(len(self.list_set[data_idx])):
-                    line, = col_ax.plot([], [], lw=2, color=self.color_set[data_idx][sub_data_idx], 
+                    line, = col_ax.plot([], [], lw=0.5, color=self.color_set[data_idx][sub_data_idx], 
                                                     label=self.label_set[data_idx][sub_data_idx])
                     self.line.append(line)
 

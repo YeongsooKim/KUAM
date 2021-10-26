@@ -7,7 +7,6 @@
 
 // Messages
 #include <darknet_ros_msgs/BoundingBoxes.h>
-#include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/TransformStamped.h>
@@ -22,9 +21,11 @@ using namespace std;
 
 namespace kuam{
 
-struct Center{
+struct BoundingBox{
     double x;
     double y;
+    double w;
+    double l;
 };
 
 class VehiclePosition
@@ -41,7 +42,6 @@ public:
 private:
     // Subscriber
     ros::Subscriber m_bounding_box_sub;
-    ros::Subscriber m_local_pose_sub;
 
     // Publisher
     ros::Publisher m_vehicle_state_pub;
@@ -59,15 +59,19 @@ private:
     float m_focal_length_param;
 
     // Const value
+    // starex size: width - 1920, length - 5150 mm, diag - 5496.26 (1 : 2.68 : 2.86)
+    const double C1 = 2.68;
+    const double C2 = 2.86;
+    const double STAREX_WIDTH = 1.92;
+    const double STAREX_LENGTH = 5.15;
 
     // tf
     tf2_ros::Buffer m_tfBuffer;
 	tf2_ros::TransformListener m_tfListener;
 
     // Variable
-    vector<Center> m_bounding_boxes;
-    Center m_vehicle;
-    geometry_msgs::Point m_ego_point;
+    vector<BoundingBox> m_bounding_boxes;
+    BoundingBox m_vehicle;
 
 private: // Function
     bool GetParam();
@@ -79,7 +83,6 @@ private: // Function
     // Calculate target vehicle position in normalized image plane
     void ProcessTimerCallback(const ros::TimerEvent& event);
     void BoundingBoxCallback(const darknet_ros_msgs::BoundingBoxes::ConstPtr bounding_box_ptr);
-    void EgoLocalCallback(const nav_msgs::Odometry::ConstPtr local_ptr);
     
     geometry_msgs::Quaternion GetOrientation(geometry_msgs::Point p1, geometry_msgs::Point p2);
 };

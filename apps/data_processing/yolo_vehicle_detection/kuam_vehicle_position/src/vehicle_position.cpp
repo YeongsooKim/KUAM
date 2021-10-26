@@ -39,7 +39,6 @@ bool VehiclePosition::InitROS()
 {
     // Initialize subscriber
     m_bounding_box_sub = m_nh.subscribe<darknet_ros_msgs::BoundingBoxes>("/darknet_ros/bounding_boxes", 1, boost::bind(&VehiclePosition::BoundingBoxCallback, this, _1));
-    m_local_pose_sub = m_nh.subscribe<nav_msgs::Odometry>("/mavros/global_position/local", 10, boost::bind(&VehiclePosition::EgoLocalCallback, this, _1));
     
     // Initialize publisher
     m_vehicle_state_pub = m_p_nh.advertise<kuam_msgs::VehicleState>("vehicle_state", 10);
@@ -59,23 +58,47 @@ void VehiclePosition::BoundingBoxCallback(const darknet_ros_msgs::BoundingBoxes:
     if (bounding_box_ptr->bounding_boxes.empty())
         return;
 
-    // Calculate center point of bounding box
-    vector<Center> bounding_boxes;
-    bounding_boxes.clear();
+    // Calculate center point and width, length of bounding box
+    vector<BoundingBox> bounding_boxes;
     for (auto bb : bounding_box_ptr->bounding_boxes){
         auto dx = bb.xmax - bb.xmin;
         auto dy = bb.ymax - bb.ymin;
 
-        Center c;
-        c.x = dx/2.0 + bb.xmin;
-        c.y = dy/2.0 + bb.ymin;
-        bounding_boxes.push_back(c);
+        BoundingBox q;
+        q.x = dx/2.0 + bb.xmin;
+        q.y = dy/2.0 + bb.ymin;
+
+
+        // ------|------------------------|
+        //       |       ...````\         |
+        //       | ,,,```        \        |
+        //    ---| \              \       |
+        //       |  \              \      |
+        //       |   \              \     |
+        // dy    |    \              \    |
+        //     y |     \              \   |
+        //       |      \              \  |
+        //       |       \       ...````  |
+        //       |        \...```         |
+        // ------|------------------------|
+        //       |   x    |               |
+        //       |           dx           |
+
+        auto num = 2*dy-dx;
+        auto den = 2*dx-dy;
+        if (den < 0.001) den = 0.001;
+
+        auto alpha_rad = atan2((double)num, (double)den);
+        q.w = dx/(sin(alpha_rad)+C1*cos(alpha_rad));
+        q.l = C1*q.w;
+
+        bounding_boxes.push_back(q);
     }
 
     // Normalized image plane coordinate (optical axis is origin)
-    vector<Center> norm_bounding_boxes;
+    vector<BoundingBox> norm_bounding_boxes;
     for (auto bb : bounding_boxes){
-        Center c;
+        BoundingBox c;
         c.x = bb.x - m_image_plane_width_m_param/2.0;
         c.y = -bb.y + m_image_plane_height_m_param/2.0;
 
@@ -83,22 +106,22 @@ void VehiclePosition::BoundingBoxCallback(const darknet_ros_msgs::BoundingBoxes:
     }
 
     // Calculate relative position relation to camera origin in camera_link
-    double sum_x = 0.0; double sum_y = 0.0;
-    auto ratio = m_ego_point.z / m_focal_length_param;
+    double sum_x = 0.0; double sum_y = 0.0; double sum_z = 0.0;
     for (auto bb : norm_bounding_boxes){
+        auto ratio = STAREX_LENGTH / bb.l;
         sum_x += (bb.x * ratio);
         sum_y += (bb.y * ratio);
+        sum_z += (m_focal_length_param * ratio);
     }
 
     geometry_msgs::Pose vehicle;
     vehicle.position.x = sum_x / norm_bounding_boxes.size();
     vehicle.position.y = -sum_y / norm_bounding_boxes.size();
-    vehicle.position.z = m_ego_point.z;
+    vehicle.position.z = sum_z / norm_bounding_boxes.size();
     vehicle.orientation.x = 0.0;
     vehicle.orientation.y = 0.0;
     vehicle.orientation.z = 0.0;
     vehicle.orientation.w = 1.0;
-    // vehicle.orientation = GetOrientation(m_ego_point, vehicle.position);
 
     kuam_msgs::VehicleState vehicle_state;
     vehicle_state.header.frame_id = "camera_link";
@@ -109,26 +132,6 @@ void VehiclePosition::BoundingBoxCallback(const darknet_ros_msgs::BoundingBoxes:
     // Publish
     m_vehicle_state_pub.publish(vehicle_state);
 }
-
-
-void VehiclePosition::EgoLocalCallback(const nav_msgs::Odometry::ConstPtr local_ptr)
-{
-    auto p = local_ptr->pose.pose;
-
-    geometry_msgs::TransformStamped transformStamped;
-    geometry_msgs::Pose transformed_pose;
-    try{
-        transformStamped = m_tfBuffer.lookupTransform("camera_link", "base_link", ros::Time(0));
-        tf2::doTransform(p, transformed_pose, transformStamped);
-    }
-    catch (tf2::TransformException &ex) {
-        ROS_WARN("%s", ex.what());
-        ros::Duration(1.0).sleep();
-    }
-
-    m_ego_point = p.position;
-}
-
 
 
 geometry_msgs::Quaternion VehiclePosition::GetOrientation(geometry_msgs::Point p1, geometry_msgs::Point p2)
