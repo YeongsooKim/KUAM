@@ -64,6 +64,8 @@ class Landing(smach.State, Base):
     State functions
     '''
     def Start(self):
+        # Initialize flag
+        self.has_updated_setpoint = False
         self.is_start = True
         self.switching_mod2 = False
         self.switching_mod1 = False
@@ -92,6 +94,7 @@ class Landing(smach.State, Base):
                 self.GPSLandModeSwitching()
                 self.GPSSetpointUpdate()
 
+            self.has_updated_setpoint = True
             rate.sleep()
 
     def Terminate(self):

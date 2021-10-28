@@ -50,6 +50,10 @@ class Flight(smach.State, Base):
 
 
     def Start(self):
+        # Initialize flag
+        self.has_updated_setpoint = False
+        self.is_start = True
+
         # Initialize setpoint
         if self.setpoints.is_global:
             self.setpoint.is_global = True
@@ -72,6 +76,7 @@ class Flight(smach.State, Base):
 
             # Update setpoint
             self.setpoint.geopose, self.setpoint.pose = UpdateSetpoint(self.setpoints, self.ego_geopose, self.ego_pose, self.guidance_dist_th_m)
+            self.has_updated_setpoint = True
             
             # Check arrived
             if self.IsReached():

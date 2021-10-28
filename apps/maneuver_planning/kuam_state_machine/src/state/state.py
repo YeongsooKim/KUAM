@@ -10,6 +10,7 @@ class Base:
         self.freq = 1.0
 
         self.is_start = False
+        self.has_updated_setpoint = False
 
         self.ego_geopose = GeoPose()
         self.ego_pose = Pose()
@@ -17,7 +18,6 @@ class Base:
         self.setpoint = Setpoint()
         self.setpoints = GeoPath()
 
-        self.test_pose = Pose()
         
     def IsGeoPathEmpty(self):
         if (len(self.geo_setpoints.poses) == 0):

@@ -115,26 +115,30 @@ def SetpointPub():
         return
 
     cur_mode, cur_offb_state = GetSMStatus()
+    global prev_setpoint_
     # Case of offboard
+
     if cur_mode == "OFFBOARD" and cur_offb_state != "None":
-        if cur_offb_state == "LANDING":
-            # using gps only
-            if not offb_states_[OffbState[cur_offb_state]].using_camera:
-                msg = GetSetpointMsg(copy.deepcopy(setpoint_))
-            
-            # using gps and camera
+        if offb_states_[OffbState[cur_offb_state]].has_updated_setpoint:
+    
+            if cur_offb_state == "LANDING":
+                # using gps only
+                if not offb_states_[OffbState[cur_offb_state]].using_camera:
+                    MsgPub(copy.deepcopy(setpoint_))
+                
+                # using gps and camera
+                else:
+                    MsgPub(copy.deepcopy(setpoint_))
             else:
-                msg = GetSetpointMsg(copy.deepcopy(setpoint_))
+                MsgPub(copy.deepcopy(setpoint_))
+        
         else:
-            msg = GetSetpointMsg(copy.deepcopy(setpoint_))
+            MsgPub(prev_setpoint_)
 
     #Case of not offboard
     else:
-        global prev_setpoint_
-        msg = GetSetpointMsg(prev_setpoint_)
+        MsgPub(prev_setpoint_)
 
-    if msg.geopose.position.latitude != 0 and msg.geopose.position.longitude != 0:
-        setpoint_pub.publish(msg)
 
 def StatusPub():
     cur_mode, cur_offb_state = GetSMStatus()
@@ -188,8 +192,6 @@ def EgoGlobalPoseCB(msg):
     global gps_home_alt_m_
     global is_init_gps_alt_
     if is_init_gps_alt_ == False:
-        is_init_gps_alt_ = True
-
         gps_home_alt_m_ = msg.altitude
 
         global prev_setpoint_
@@ -200,6 +202,7 @@ def EgoGlobalPoseCB(msg):
         prev_setpoint_.geopose.position.altitude = 0.0
         
         prev_setpoint_.is_global = True
+        is_init_gps_alt_ = True
 
     global ego_geopose_
     ego_geopose_.position.longitude = msg.longitude
@@ -244,48 +247,33 @@ def GetSMStatus():
 
     return [cur_mode, cur_offb_state]
 
-def GetSetpointMsg(setpoint):
+def MsgPub(setpoint):
     global prev_setpoint_
     prev_setpoint_ = copy.deepcopy(setpoint)
 
-    cur_mode, cur_offb_state = GetSMStatus()
+    sp = copy.deepcopy(setpoint)
+    sp.header.stamp = rospy.Time.now()
 
     global gps_home_alt_m_
-
-    msg = Setpoint()
-    msg.header.stamp = rospy.Time.now()
-
-    msg.local_height_m = setpoint.geopose.position.altitude
-    msg.home_altitude_m = gps_home_alt_m_
+    sp.local_height_m = sp.geopose.position.altitude
+    sp.home_altitude_m = gps_home_alt_m_
     
-    msg.geopose = setpoint.geopose
-    msg.geopose.position.altitude += gps_home_alt_m_
-    
-    msg.vel = setpoint.vel
-    msg.yaw_rate = setpoint.yaw_rate
+    sp.geopose.position.altitude += gps_home_alt_m_
 
-    msg.pose = setpoint.pose
-    
-    msg.landing_state = setpoint.landing_state
-
-    msg.target_pose = setpoint.target_pose
-
-    msg.is_global = setpoint.is_global
-    msg.is_setpoint_position = setpoint.is_setpoint_position
-
-    if setpoint.is_global:
-        msg.header.frame_id = "map"
+    cur_mode, cur_offb_state = GetSMStatus()
+    if sp.is_global:
+        sp.header.frame_id = "map"
         rospy.loginfo_throttle(0.1, "global, cur_mode: %s, cur_offb_state: %s", cur_mode, cur_offb_state)
     else:
-        if setpoint.is_setpoint_position:
-            msg.header.frame_id = "map"
+        if sp.is_setpoint_position:
+            sp.header.frame_id = "map"
             rospy.loginfo_throttle(0.1, "local, setpoint_position, cur_mode: %s, cur_offb_state: %s", cur_mode, cur_offb_state)
         else:
-            msg.header.frame_id = "base_link"
+            sp.header.frame_id = "base_link"
             rospy.loginfo_throttle(0.1, "local, setpoint_raw, cur_mode: %s, cur_offb_state: %s", cur_mode, cur_offb_state)
 
-    return msg
-
+    setpoint_pub.publish(sp)
+    
 
 '''
 Smach callback function

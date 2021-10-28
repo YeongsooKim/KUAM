@@ -1,4 +1,5 @@
 import os
+import copy
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
@@ -32,7 +33,7 @@ class Takeoff(smach.State, Base):
         self.setpoint = setpoint
         self.setpoints = setpoints
         self.transition = 'none'
-        
+
     def execute(self, userdata):
         self.Start()
         self.Running()
@@ -40,8 +41,10 @@ class Takeoff(smach.State, Base):
 
 
     def Start(self):
+        # Initialize flag
+        self.has_updated_setpoint = False
         self.is_start = True
-        
+
         # Initialize setpoint
         if self.setpoints.is_global:
             self.setpoint.is_global = True
@@ -50,9 +53,13 @@ class Takeoff(smach.State, Base):
             self.setpoint.is_global = False
             self.setpoint.is_setpoint_position = True
 
+        # Update setpoint
+        self.setpoint.geopose = copy.deepcopy(self.ego_geopose)
         self.setpoint.geopose.position.altitude += self.takeoff_alt_m
+        self.setpoint.pose = copy.deepcopy(self.ego_pose)
         self.setpoint.pose.position.z += self.takeoff_alt_m
-
+        self.has_updated_setpoint = True
+        
         rospy.loginfo("takeoff Start is_global: %d / global sp: %f, %f, %f / local sp: %f, %f, %f", self.setpoint.is_global,
                     self.setpoint.geopose.position.longitude, self.setpoint.geopose.position.latitude, self.setpoint.geopose.position.altitude,
                     self.setpoint.pose.position.x, self.setpoint.pose.position.y, self.setpoint.pose.position.z)
@@ -61,6 +68,7 @@ class Takeoff(smach.State, Base):
         # wait for transition
         rate = rospy.Rate(self.freq)
         while not rospy.is_shutdown():
+            # Break condition
             if self.transition != 'none':
                 if (self.transition == 'done') or (self.transition == 'AUTO.RTL') or \
                     (self.transition == 'MANUAL') or (self.transition == 'ALTCTL'):
@@ -68,6 +76,7 @@ class Takeoff(smach.State, Base):
                 else:
                     self.transition = 'none'
 
+            # Check arrived
             if self.IsReached():
                 self.transition = 'done'
                 break

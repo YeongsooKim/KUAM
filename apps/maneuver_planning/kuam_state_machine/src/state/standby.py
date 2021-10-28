@@ -25,9 +25,16 @@ class Standby(smach.State, Base):
 
 
     def Start(self):
+        # Initialize flag
+        self.has_updated_setpoint = False
         self.is_start = True
+
         # Initialize setpoint
-        pass
+        if self.setpoints.is_global:
+            self.setpoint.is_global = True
+        else:
+            self.setpoint.is_global = False
+            self.setpoint.is_setpoint_position = True
         
     def Running(self):
         rate = rospy.Rate(self.freq)
@@ -43,6 +50,8 @@ class Standby(smach.State, Base):
             # Update setpoint
             self.setpoint.geopose = copy.deepcopy(self.ego_geopose)
             self.setpoint.pose = copy.deepcopy(self.ego_pose)
+            self.has_updated_setpoint = True
+
             rate.sleep()
 
     def Terminate(self):
