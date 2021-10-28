@@ -12,7 +12,7 @@
 	<node pkg="kuam_mission_manager" type="mission_manager_node" name="mission_manager" output="screen" >
         <param name="data_ns" value="$(arg data_ns)" />
     </node>
-    <node pkg="kuam_mission_manager" type="mission_manager_visual_node" name="mission_manager_visual" >
+    <node pkg="kuam_mission_manager" type="mission_manager_visual_node" name="mission_manager_visual" output="screen" >
         <param name="data_ns" value="$(arg data_ns)" />
     </node>
 

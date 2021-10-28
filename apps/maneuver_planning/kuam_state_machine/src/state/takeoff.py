@@ -45,12 +45,17 @@ class Takeoff(smach.State, Base):
         # Initialize setpoint
         if self.setpoints.is_global:
             self.setpoint.is_global = True
+            self.setpoint.is_setpoint_position = False
         else:
             self.setpoint.is_global = False
             self.setpoint.is_setpoint_position = True
 
         self.setpoint.geopose.position.altitude += self.takeoff_alt_m
         self.setpoint.pose.position.z += self.takeoff_alt_m
+
+        rospy.loginfo("takeoff Start is_global: %d / global sp: %f, %f, %f / local sp: %f, %f, %f", self.setpoint.is_global,
+                    self.setpoint.geopose.position.longitude, self.setpoint.geopose.position.latitude, self.setpoint.geopose.position.altitude,
+                    self.setpoint.pose.position.x, self.setpoint.pose.position.y, self.setpoint.pose.position.z)
 
     def Running(self):
         # wait for transition
@@ -85,9 +90,15 @@ class Takeoff(smach.State, Base):
 
     def IsReached(self):
         if self.setpoint.is_global:
-            dist = DistanceFromLatLonInMeter3D(self.setpoint.geopose.position, self.ego_geopose.position)
+            dist = abs(self.setpoint.geopose.position.altitude - self.ego_geopose.position.z)
+            rospy.loginfo_throttle(0.1, "takeoff IsReached dist %f / sp: %f, %f, %f / ego: %f, %f, %f", dist, 
+                            self.setpoint.geopose.position.longitude, self.setpoint.geopose.position.latitude, self.setpoint.geopose.position.altitude, 
+                            self.ego_geopose.position.longitude, self.ego_geopose.position.latitude, self.ego_geopose.position.altitude)
         else:
-            dist = Distance3D(self.setpoint.pose.position, self.ego_pose.position)
+            dist = abs(self.setpoint.pose.position.z - self.ego_pose.position.z)
+            rospy.loginfo_throttle(0.1, "takeoff IsReached dist %f / sp: %f, %f, %f / ego: %f, %f, %f", dist, 
+                            self.setpoint.pose.position.x, self.setpoint.pose.position.y, self.setpoint.pose.position.z, 
+                            self.ego_pose.position.x, self.ego_pose.position.y, self.ego_pose.position.z)
 
         if dist < self.reached_dist_th_m:
             return True

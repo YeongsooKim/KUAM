@@ -57,6 +57,7 @@ class Flight(smach.State, Base):
             self.setpoint.is_global = False
             self.setpoint.is_setpoint_position = True
 
+        rospy.loginfo("flight Start is_global: %d", self.setpoints.is_global)
 
     def Running(self):
         rate = rospy.Rate(self.freq)
@@ -96,8 +97,14 @@ class Flight(smach.State, Base):
     def IsReached(self):
         if self.setpoint.is_global:
             dist = DistanceFromLatLonInMeter3D(self.setpoints.geopath.poses[-1].pose.position, self.ego_geopose.position)
+            rospy.loginfo_throttle(0.1, "flight IsReached dist %f / sp: %f, %f, %f / ego: %f, %f, %f", dist, 
+                            self.setpoints.geopath.poses[-1].pose.position.longitude, self.setpoints.geopath.poses[-1].pose.position.latitude, self.setpoints.geopath.poses[-1].pose.position.altitude, 
+                            self.ego_geopose.position.longitude, self.ego_geopose.position.latitude, self.ego_geopose.position.altitude)
         else:
             dist = Distance3D(self.setpoints.pose_array.poses[-1].position, self.ego_pose.position)
+            rospy.loginfo_throttle(0.1, "flight IsReached dist %f / sp: %f, %f, %f / ego: %f, %f, %f", dist, 
+                            self.setpoints.pose_array.poses[-1].position.x, self.setpoints.pose_array.poses[-1].position.y, self.setpoints.pose_array.poses[-1].position.z, 
+                            self.ego_pose.position.x, self.ego_pose.position.y, self.ego_pose.position.z)
 
         if dist < self.reached_dist_th_m:
             return True

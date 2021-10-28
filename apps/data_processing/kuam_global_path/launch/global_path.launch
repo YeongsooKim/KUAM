@@ -14,7 +14,7 @@
         <param name="maneuver_ns" value="$(arg maneuver_ns)" />
         <param name="gps_only" value="$(arg gps_only)" />
     </node>
-    <node pkg="kuam_global_path" type="global_path_visual_node" name="global_path_visual" />
+    <node pkg="kuam_global_path" type="global_path_visual_node" name="global_path_visual" output="screen" />
 
     <group if="$(arg rviz)">
         <node pkg="rviz" type="rviz" name="global_path_rviz" args="-d $(find kuam_global_path)/rviz/global_path.rviz" required="true" />

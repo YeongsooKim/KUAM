@@ -69,6 +69,8 @@ class Landing(smach.State, Base):
         self.switching_mod1 = False
         self.is_mod2_fixed = False
 
+        rospy.loginfo("landing Start is_global: %d", self.setpoints.is_global)
+
     def Running(self):
         rate = rospy.Rate(self.freq)
         while not rospy.is_shutdown():

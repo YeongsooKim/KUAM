@@ -75,6 +75,7 @@ ego_geopose_ = GeoPose()
 ego_pose_ = Pose()
 ego_vel_ = Twist()
 setpoint_ = Setpoint()
+prev_setpoint_ = Setpoint()
 setpoints_ = Setpoints()
 
 # Init state
@@ -92,7 +93,6 @@ prev_mode_transitions_ = 'MANUAL'
 
 # Etc
 gps_home_alt_m_ = None
-standby_geopose_ = GeoPose()
 
 # Flag
 is_init_gps_alt_ = False
@@ -130,7 +130,8 @@ def SetpointPub():
 
     #Case of not offboard
     else:
-        msg = GetStandbyMsg(standby_geopose_)
+        global prev_setpoint_
+        msg = GetSetpointMsg(prev_setpoint_)
 
     if msg.geopose.position.latitude != 0 and msg.geopose.position.longitude != 0:
         setpoint_pub.publish(msg)
@@ -191,11 +192,14 @@ def EgoGlobalPoseCB(msg):
 
         gps_home_alt_m_ = msg.altitude
 
-    global standby_geopose_
-    standby_geopose_.position.longitude = msg.longitude
-    standby_geopose_.position.latitude = msg.latitude
-    standby_geopose_.position.altitude = 0.0
-    standby_geopose_.orientation = ego_pose_.orientation
+        global prev_setpoint_
+        prev_setpoint_.header.stamp = rospy.Time.now()
+
+        prev_setpoint_.geopose.position.longitude = msg.longitude
+        prev_setpoint_.geopose.position.latitude = msg.latitude
+        prev_setpoint_.geopose.position.altitude = 0.0
+        
+        prev_setpoint_.is_global = True
 
     global ego_geopose_
     ego_geopose_.position.longitude = msg.longitude
@@ -240,21 +244,12 @@ def GetSMStatus():
 
     return [cur_mode, cur_offb_state]
 
-def GetStandbyMsg(geopose):
-    global gps_home_alt_m_
-
-    msg = Setpoint()
-    msg.header.frame_id = "map"
-    msg.header.stamp = rospy.Time.now()
-    msg.geopose = copy.deepcopy(geopose)
-    msg.local_height_m = msg.geopose.position.altitude
-    msg.home_altitude_m = gps_home_alt_m_
-    msg.geopose.position.altitude += gps_home_alt_m_
-    msg.is_global = True
-
-    return msg
-
 def GetSetpointMsg(setpoint):
+    global prev_setpoint_
+    prev_setpoint_ = copy.deepcopy(setpoint)
+
+    cur_mode, cur_offb_state = GetSMStatus()
+
     global gps_home_alt_m_
 
     msg = Setpoint()
@@ -280,11 +275,14 @@ def GetSetpointMsg(setpoint):
 
     if setpoint.is_global:
         msg.header.frame_id = "map"
+        rospy.loginfo_throttle(0.1, "global, cur_mode: %s, cur_offb_state: %s", cur_mode, cur_offb_state)
     else:
         if setpoint.is_setpoint_position:
             msg.header.frame_id = "map"
+            rospy.loginfo_throttle(0.1, "local, setpoint_position, cur_mode: %s, cur_offb_state: %s", cur_mode, cur_offb_state)
         else:
             msg.header.frame_id = "base_link"
+            rospy.loginfo_throttle(0.1, "local, setpoint_raw, cur_mode: %s, cur_offb_state: %s", cur_mode, cur_offb_state)
 
     return msg
 

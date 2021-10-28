@@ -243,6 +243,7 @@ void Playload::SetpointPub()
         msg.pose.position.altitude -= offset;
 
         m_global_pose_pub.publish(msg);
+        ROS_INFO_THROTTLE(0.1, "Publish global msg: %f %f, %f", msg.pose.position.longitude, msg.pose.position.latitude, msg.pose.position.altitude);
     }
     else {
         if (m_setpoint.is_setpoint_position){
@@ -252,6 +253,7 @@ void Playload::SetpointPub()
 
             msg.pose = m_setpoint.pose;
             m_local_pose_pub.publish(msg);
+            ROS_INFO_THROTTLE(0.1, "Publish local setpoint position msg: %f %f, %f", msg.pose.position.x, msg.pose.position.y, msg.pose.position.z);
         }
         else{
             mavros_msgs::PositionTarget pos_tar;
@@ -279,6 +281,7 @@ void Playload::SetpointPub()
             pos_tar.yaw_rate = yaw_rate_rads;
             
             m_local_pos_tar_pub.publish(pos_tar);
+            ROS_INFO_THROTTLE(0.1, "Publish local setpoint raw msg: %f %f, %f", m_setpoint.vel.linear.x, m_setpoint.vel.linear.y, m_setpoint.vel.linear.z);
         }
     }
 }

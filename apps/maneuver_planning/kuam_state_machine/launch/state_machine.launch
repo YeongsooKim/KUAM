@@ -1,6 +1,5 @@
 <launch>
 	<!-- <param name="sim" value="false" /> -->
-	
 	<rosparam command="load" file="$(find kuam_state_machine)/config/param.yaml" />
 
     <!-- namespace -->
@@ -13,7 +12,7 @@
 	<arg name="rviz" default="false" />
 
 	<!-- nodes -->
-	<node pkg="kuam_state_machine" type="state_machine.py" name="state_machine" output="screen" >
+	<node pkg="kuam_state_machine" type="state_machine.py" name="state_machine" output="log" >
 		<param name="using_camera" value="$(arg using_camera)" />
 		<param name="data_ns" value="$(arg data_ns)" />
 	</node>

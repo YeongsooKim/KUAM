@@ -207,9 +207,9 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
 
 
     // // Plane Fitting
-    // kuam_msgs::FittingPlanes fitting_planes;
+    kuam_msgs::FittingPlanes fitting_planes;
     std::shared_ptr<vector<kuam_msgs::ArucoState>> markers_contained_valid_plane = make_shared<vector<kuam_msgs::ArucoState>>();
-    // PlaneFitting(markers_contained_valid_plane, fitting_planes, discrete_ids_vec);
+    PlaneFitting(markers_contained_valid_plane, fitting_planes, discrete_ids_vec);
 
 
     // Get marker messages
@@ -222,7 +222,7 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
     m_tf_list_pub.publish(tf_msg_list);
     ImagePub(image, discrete_corners_vec, discrete_ids_vec);
     TargetPub(ac_states_msg, ac_visuals_msg);
-    // FittingPlanePub(fitting_planes);
+    FittingPlanePub(fitting_planes);
 }
 
 void ArucoTracking::ImageCallback(const sensor_msgs::Image::ConstPtr &img_ptr)
@@ -450,33 +450,33 @@ void ArucoTracking::SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg,
         ac_visuals_msg.aruco_visuals.push_back(aruco_visual_msg);
     }
 
-    // Set target Pose
-    if (FrequencyDegree::valid_id != -1){
-        for (auto aruco_state : ac_states_msg.aruco_states){
-            if (aruco_state.id != FrequencyDegree::valid_id){
-                continue;
-            }
+    // // Set target Pose
+    // if (FrequencyDegree::valid_id != -1){
+    //     for (auto aruco_state : ac_states_msg.aruco_states){
+    //         if (aruco_state.id != FrequencyDegree::valid_id){
+    //             continue;
+    //         }
 
-            if (aruco_state.is_detected){
-                ac_states_msg.target_pose = aruco_state.pose;
-                ac_states_msg.is_detected = true;
-            }
-        }
-    }
-
-    // // Set target pose
-    // if (!(*markers_contained_valid_plane).empty()){
-    //     vector<geometry_msgs::Pose> poses;
-    //     for (auto maker : *markers_contained_valid_plane){
-    //         geometry_msgs::Pose p;
-    //         p = maker.pose;
-
-    //         m_util_setpoint.Transform(p, maker.id, m_big_marker_trans_param, m_medium_marker_trans_param, m_small_marker_trans_param);
-    //         poses.push_back(p);
+    //         if (aruco_state.is_detected){
+    //             ac_states_msg.target_pose = aruco_state.pose;
+    //             ac_states_msg.is_detected = true;
+    //         }
     //     }
-    //     ac_states_msg.target_pose = m_util_setpoint.GetSetpoint(poses);
-    //     ac_states_msg.is_detected = true;
     // }
+
+    // Set target pose
+    if (!(*markers_contained_valid_plane).empty()){
+        vector<geometry_msgs::Pose> poses;
+        for (auto maker : *markers_contained_valid_plane){
+            geometry_msgs::Pose p;
+            p = maker.pose;
+
+            m_util_setpoint.Transform(p, maker.id, m_big_marker_trans_param, m_medium_marker_trans_param, m_small_marker_trans_param);
+            poses.push_back(p);
+        }
+        ac_states_msg.target_pose = m_util_setpoint.GetSetpoint(poses);
+        ac_states_msg.is_detected = true;
+    }
 }
 
 bool ArucoTracking::GetTransformation(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, 
