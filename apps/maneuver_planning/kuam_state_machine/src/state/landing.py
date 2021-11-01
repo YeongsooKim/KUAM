@@ -35,7 +35,7 @@ class Landing(smach.State, Base):
         
         # Param
         self.reached_dist_th_m = None # defined by ros param
-        self.guidance_dist_th_m = None # defined by ros param
+        self.roi_th_m = None # defined by ros param
         self.landing_threshold_m = None
         self.using_camera = False
 
@@ -196,7 +196,7 @@ class Landing(smach.State, Base):
         if self.mode == "mode1":
             # Update setpoint
             self.setpoint.is_global = True
-            self.setpoint.geopose, self.setpoint.pose = UpdateSetpoint(self.setpoints, self.ego_geopose, self.ego_pose, self.guidance_dist_th_m)
+            self.setpoint.geopose, self.setpoint.pose = UpdateSetpoint(self.setpoints, self.ego_geopose, self.ego_pose, self.roi_th_m)
             
         elif self.mode == "auto.land":
             self.setpoint.is_global = True

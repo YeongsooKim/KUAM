@@ -5,3 +5,16 @@ MPC_XY_VEL_P_ACC: 1.21
 
 SIM_BAT_MIN_PCT: simulation 에서 battery 최소 파라미
 SIM_BAT_DRAIN: simulation 에서 battery 소모 속도 조절 파라미터
+
+
+
+MPC_ACC_DOWN_MAX: Maximum vertical acceleration in velocity controlled modes down	
+MPC_ACC_UP_MAX: Maximum vertical acceleration in velocity controlled modes upward
+
+MPC_XY_VEL_ALL: Overall Horizonal Velocity Limit
+Comment: If set to a value greater than zero, other parameters are automatically set (such as MPC_XY_VEL_MAX or MPC_VEL_MANUAL). If set to a negative value, the existing individual parameters are used.
+MPC_Z_VEL_ALL: Overall Vertical Velocity Limit
+Comment: If set to a value greater than zero, other parameters are automatically set (such as MPC_Z_VEL_MAX_UP or MPC_LAND_SPEED). If set to a negative value, the existing individual parameters are used.
+
+
+MPC_XY_VEL_MAX: 

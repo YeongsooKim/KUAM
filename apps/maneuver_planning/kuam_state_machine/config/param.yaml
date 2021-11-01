@@ -4,7 +4,7 @@ state_machine:
   # takeoff
   takeoff_alt_m: 2.5
   reached_dist_th_m: 0.3 # checking have reached to mission destination waypoint
-  guidance_dist_th_m: 2.5 # checking have reached to next waypoint during flight mode
+  roi_th_m: 5.5 # checking have reached to next waypoint during flight mode
 
   # landing
   landing_threshold_m: 0.5 # for distinguish kuam control and px4 control during landing 

@@ -319,7 +319,7 @@ void Visualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_
 
     // Set setpoint marker
     static bool prev_coord = !setpoint.is_global;
-    if (setpoint.is_global){
+    if (setpoint.is_global || setpoint.is_setpoint_position){
         static geometry_msgs::Point prev_global_point;
         static unsigned int g_cnt = 0;
         bool is_init = false;

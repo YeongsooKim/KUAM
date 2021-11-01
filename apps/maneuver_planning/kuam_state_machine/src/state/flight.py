@@ -27,7 +27,7 @@ class Flight(smach.State, Base):
         
         # Param
         self.reached_dist_th_m = None # defined by ros param
-        self.guidance_dist_th_m = None # defined by ros param
+        self.roi_th_m = None # defined by ros param
 
         # Flag
         self.is_last = False
@@ -75,7 +75,7 @@ class Flight(smach.State, Base):
                     self.transition = 'none'
 
             # Update setpoint
-            self.setpoint.geopose, self.setpoint.pose = UpdateSetpoint(self.setpoints, self.ego_geopose, self.ego_pose, self.guidance_dist_th_m)
+            self.setpoint.geopose, self.setpoint.pose = UpdateSetpoint(self.setpoints, self.ego_geopose, self.ego_pose, self.roi_th_m)
             self.has_updated_setpoint = True
             
             # Check arrived

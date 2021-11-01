@@ -387,7 +387,7 @@ if __name__ == '__main__':
     freq = rospy.get_param("~process_freq")
     takeoff_alt_m = rospy.get_param("~takeoff_alt_m")
     reached_dist_th_m = rospy.get_param("~reached_dist_th_m")
-    guidance_dist_th_m = rospy.get_param("~guidance_dist_th_m")
+    roi_th_m = rospy.get_param("~roi_th_m")
     landing_threshold_m = rospy.get_param("~landing_threshold_m")
     battery_th = rospy.get_param("~battery_th_per")
     using_camera = rospy.get_param("~using_camera")
@@ -402,9 +402,9 @@ if __name__ == '__main__':
     offb_states_[OffbState.TAKEOFF].takeoff_alt_m = takeoff_alt_m
     offb_states_[OffbState.TAKEOFF].reached_dist_th_m = reached_dist_th_m
     offb_states_[OffbState.FLIGHT].reached_dist_th_m = reached_dist_th_m
-    offb_states_[OffbState.FLIGHT].guidance_dist_th_m = guidance_dist_th_m
+    offb_states_[OffbState.FLIGHT].roi_th_m = roi_th_m
     offb_states_[OffbState.LANDING].reached_dist_th_m = reached_dist_th_m
-    offb_states_[OffbState.LANDING].guidance_dist_th_m = guidance_dist_th_m
+    offb_states_[OffbState.LANDING].roi_th_m = roi_th_m
     offb_states_[OffbState.LANDING].landing_threshold_m = landing_threshold_m
     offb_states_[OffbState.LANDING].using_camera = using_camera
 
