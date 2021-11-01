@@ -19,7 +19,7 @@
     </group>
 
 
-    <node pkg="kuam_aruco_tracking" type="aruco_tracking_node" name="aruco_tracking" cwd="node" output="screen">
+    <node pkg="kuam_aruco_tracking" type="aruco_tracking_node" name="aruco_tracking" cwd="node" output="log">
         <param name="calib_path" value="$(arg calib_path)" />
         <param name="detector_params_path" value="$(arg detector_params_path)" />
         <param name="simulation" value="$(arg simulation)" />

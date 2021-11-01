@@ -113,7 +113,6 @@ bool ArucoTracking::InitROS()
     m_tf_list_pub = m_p_nh.advertise<tf2_msgs::TFMessage>("tf_list", 10);
     m_visual_pub = m_p_nh.advertise<kuam_msgs::ArucoVisuals> ("aruco_visuals", 1);
     m_target_state_pub = m_p_nh.advertise<kuam_msgs::ArucoStates> ("target_states", 1);
-    m_fitting_planes_pub = m_p_nh.advertise<kuam_msgs::FittingPlanes> ("fitting_planes", 1);
     
     // Initialize timer
     m_image_timer = m_nh.createTimer(ros::Duration(1.0/m_process_freq_param), &ArucoTracking::ProcessTimerCallback, this);
@@ -206,23 +205,16 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
     CalFrequencyDegree();
 
 
-    // // Plane Fitting
-    kuam_msgs::FittingPlanes fitting_planes;
-    std::shared_ptr<vector<kuam_msgs::ArucoState>> markers_contained_valid_plane = make_shared<vector<kuam_msgs::ArucoState>>();
-    PlaneFitting(markers_contained_valid_plane, fitting_planes, discrete_ids_vec);
-
-
     // Get marker messages
     kuam_msgs::ArucoStates ac_states_msg;
     kuam_msgs::ArucoVisuals ac_visuals_msg;
-    SetArucoMessages(ac_states_msg, ac_visuals_msg, markers_contained_valid_plane);
+    SetArucoMessages(ac_states_msg, ac_visuals_msg);
 
 
     // Publish
     m_tf_list_pub.publish(tf_msg_list);
     ImagePub(image, discrete_corners_vec, discrete_ids_vec);
     TargetPub(ac_states_msg, ac_visuals_msg);
-    FittingPlanePub(fitting_planes);
 }
 
 void ArucoTracking::ImageCallback(const sensor_msgs::Image::ConstPtr &img_ptr)
@@ -350,6 +342,7 @@ void ArucoTracking::CalFrequencyDegree()
             else has_id = true;
 
             if (!has_id){
+                ROS_INFO("Initialize marker id: %d", target.GetId());
                 FrequencyDegree frequency_degree(target.GetId(), m_dft_buf_size_param, m_freq_deg_buf_size_param);
                 frequency_degree.Init(m_dft_integral_start_point_param, m_freq_degree_th_param,
                                     m_diff_th_m_param, target.GetZ(m_estimating_method_param));
@@ -377,6 +370,7 @@ void ArucoTracking::CalFrequencyDegree()
             if (id > FrequencyDegree::valid_id){
                 FrequencyDegree::valid_id = id;
                 ROS_WARN("Set frequency degree valid id: %d", FrequencyDegree::valid_id);
+                ROS_INFO_THROTTLE(0.1, "Set frequency degree valid id: %d", FrequencyDegree::valid_id);
             }
             break;
         }
@@ -384,42 +378,7 @@ void ArucoTracking::CalFrequencyDegree()
 }
 
 
-void ArucoTracking::PlaneFitting(std::shared_ptr<vector<kuam_msgs::ArucoState>>& markers_contained_valid_plane, 
-                    kuam_msgs::FittingPlanes& fitting_planes, const vector < vector<int> > discrete_ids_vec)
-{
-    int plane_level = 0;
-    for (auto ids : discrete_ids_vec){
-        if (m_id2ZbtNormalAngles.find(plane_level) == m_id2ZbtNormalAngles.end()){
-            Z2NormalAngle z2norm_angle;
-            m_id2ZbtNormalAngles.insert(pair<int, Z2NormalAngle>(plane_level, z2norm_angle));
-        }
-
-        bool is_valid = false;
-        geometry_msgs::PoseStamped plane_pose;
-        auto it = m_id2ZbtNormalAngles.find(plane_level);
-        vector<kuam_msgs::ArucoState> markers = m_util_marker.GetMarkerStates(ids, m_targets, 
-                                            m_id2frequencyDegrees, m_camera_frame_id_param, m_estimating_method_param);
-
-        if (m_util_setpoint.GeneratePlane(markers, plane_pose, it->second, m_plane_threshold_param, 
-                                        m_plane_iterations_param, m_angle_deg_threshold_param, is_valid)){
-            if (is_valid){
-                markers_contained_valid_plane->insert(markers_contained_valid_plane->end(), markers.begin(), markers.end());
-            }
-            
-            kuam_msgs::FittingPlane fitting_plane;
-            fitting_plane.id = plane_level;
-            fitting_plane.is_valid = true;
-            fitting_plane.plane = plane_pose;
-            fitting_plane.z_to_normal_deg = it->second.angle_deg;
-            fitting_planes.planes.push_back(fitting_plane);
-        }
-        plane_level++;
-    }
-}
-
-
-void ArucoTracking::SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, 
-        kuam_msgs::ArucoVisuals& ac_visuals_msg, std::shared_ptr<vector<kuam_msgs::ArucoState>>& markers_contained_valid_plane)
+void ArucoTracking::SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg, kuam_msgs::ArucoVisuals& ac_visuals_msg)
 {
     ac_states_msg.header.frame_id = m_camera_frame_id_param;
     ac_states_msg.header.stamp = ros::Time::now();
@@ -450,32 +409,18 @@ void ArucoTracking::SetArucoMessages(kuam_msgs::ArucoStates& ac_states_msg,
         ac_visuals_msg.aruco_visuals.push_back(aruco_visual_msg);
     }
 
-    // // Set target Pose
-    // if (FrequencyDegree::valid_id != -1){
-    //     for (auto aruco_state : ac_states_msg.aruco_states){
-    //         if (aruco_state.id != FrequencyDegree::valid_id){
-    //             continue;
-    //         }
+    // Set target Pose
+    if (FrequencyDegree::valid_id != -1){
+        for (auto aruco_state : ac_states_msg.aruco_states){
+            if (aruco_state.id != FrequencyDegree::valid_id){
+                continue;
+            }
 
-    //         if (aruco_state.is_detected){
-    //             ac_states_msg.target_pose = aruco_state.pose;
-    //             ac_states_msg.is_detected = true;
-    //         }
-    //     }
-    // }
-
-    // Set target pose
-    if (!(*markers_contained_valid_plane).empty()){
-        vector<geometry_msgs::Pose> poses;
-        for (auto maker : *markers_contained_valid_plane){
-            geometry_msgs::Pose p;
-            p = maker.pose;
-
-            m_util_setpoint.Transform(p, maker.id, m_big_marker_trans_param, m_medium_marker_trans_param, m_small_marker_trans_param);
-            poses.push_back(p);
+            if (aruco_state.is_detected){
+                ac_states_msg.target_pose = aruco_state.pose;
+                ac_states_msg.is_detected = true;
+            }
         }
-        ac_states_msg.target_pose = m_util_setpoint.GetSetpoint(poses);
-        ac_states_msg.is_detected = true;
     }
 }
 
@@ -551,19 +496,5 @@ void ArucoTracking::TargetPub(kuam_msgs::ArucoStates ac_states_msg, kuam_msgs::A
 {
     m_target_state_pub.publish(ac_states_msg);
     m_visual_pub.publish(ac_visuals_msg);
-}
-
-void ArucoTracking::FittingPlanePub(const kuam_msgs::FittingPlanes fitting_planes)
-{
-    bool is_valid = false;
-    for (auto fitting_plane : fitting_planes.planes){
-        if (fitting_plane.is_valid){
-            is_valid = true;
-        }
-    }
-
-    if (is_valid){
-        m_fitting_planes_pub.publish(fitting_planes);
-    }
 }
 }

@@ -15,7 +15,6 @@
 #include <kuam_msgs/ArucoState.h>
 #include <kuam_msgs/ArucoStates.h>
 #include <kuam_msgs/FittingPlane.h>
-#include <kuam_msgs/FittingPlanes.h>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/PoseArray.h>
 #include <std_msgs/ColorRGBA.h>
@@ -63,12 +62,10 @@ private:
     // Subscriber
     ros::Subscriber m_aruco_visual_sub;
     ros::Subscriber m_aruco_states_sub;
-    ros::Subscriber m_fitting_planes_sub;
 
     // Publisher
     ros::Publisher m_aruco_pub;
     ros::Publisher m_landingpoint_pub;
-    ros::Publisher m_fitting_plane_pub;
 
     // Param
     string m_err_param;
@@ -89,7 +86,6 @@ private: // Function
     
     void ArucoVisualCallback(const kuam_msgs::ArucoVisuals::ConstPtr &aruco_msg_ptr);
     void ArucoStatesCallback(const kuam_msgs::ArucoStates::ConstPtr &aruco_msg_ptr);
-    void FittingPlanesCallback(const kuam_msgs::FittingPlanes::ConstPtr &fitting_planes_ptr);
 };
 
 
@@ -140,13 +136,10 @@ bool Visualizer::InitROS()
         m_nh.subscribe<kuam_msgs::ArucoVisuals>("aruco_tracking/aruco_visuals", 1, boost::bind(&Visualizer::ArucoVisualCallback, this, _1));
     m_aruco_states_sub = 
         m_nh.subscribe<kuam_msgs::ArucoStates>("aruco_tracking/target_states", 1, boost::bind(&Visualizer::ArucoStatesCallback, this, _1));
-    m_fitting_planes_sub = 
-        m_nh.subscribe<kuam_msgs::FittingPlanes>("aruco_tracking/fitting_planes", 1, boost::bind(&Visualizer::FittingPlanesCallback, this, _1));
 
     // Initialize publisher
     m_aruco_pub = m_p_nh.advertise<visualization_msgs::MarkerArray>("aruco_markerarray", 10);
     m_landingpoint_pub = m_p_nh.advertise<visualization_msgs::Marker>("landingpoint_marker", 10);
-    m_fitting_plane_pub = m_p_nh.advertise<visualization_msgs::MarkerArray>("fitting_plane_array", 10);
     
     return true;
 }
@@ -306,46 +299,6 @@ void Visualizer::ArucoVisualCallback(const kuam_msgs::ArucoVisuals::ConstPtr &ar
     }
 
     m_aruco_pub.publish(visualization_markers);
-}
-
-void Visualizer::FittingPlanesCallback(const kuam_msgs::FittingPlanes::ConstPtr &fitting_planes_ptr)
-{
-    visualization_msgs::MarkerArray marker_array;
-
-    for (auto fitting_plane : fitting_planes_ptr->planes){
-        if (fitting_plane.is_valid){
-            visualization_msgs::Marker plane;
-            plane.ns = "fitting_plane/" + to_string(fitting_plane.id);
-            plane.header.frame_id = fitting_plane.plane.header.frame_id;
-            plane.header.stamp = ros::Time::now();
-            plane.type = visualization_msgs::Marker::CUBE;
-            plane.action = visualization_msgs::Marker::ADD;
-            if (fitting_plane.id == 0){
-                plane.scale.x = 2.0;
-                plane.scale.y = 2.0;
-                plane.scale.z = 0.01;
-                plane.color = GREEN;
-            }
-            else if (fitting_plane.id == 1){
-                plane.scale.x = 1.0;
-                plane.scale.y = 1.0;
-                plane.scale.z = 0.01;
-                plane.color = ORANGE;
-            }
-            else if (fitting_plane.id == 2){
-                plane.scale.x = 0.7;
-                plane.scale.y = 0.7;
-                plane.scale.z = 0.01;
-                plane.color = YELLOW;
-            }
-            plane.color.a = 0.6f;
-            plane.pose = fitting_plane.plane.pose;
-            plane.lifetime = ros::Duration(0.1);
-
-            marker_array.markers.push_back(plane);
-        }    
-    }
-    m_fitting_plane_pub.publish(marker_array);
 }
 
 void Visualizer::ArucoStatesCallback(const kuam_msgs::ArucoStates::ConstPtr &aruco_msg_ptr)
