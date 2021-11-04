@@ -6,8 +6,6 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 import rospy
 import smach
-import tf
-from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 from .state import Base
 from utils.util_geometry import *
@@ -46,6 +44,8 @@ class Landing(smach.State, Base):
         self.setpoint = setpoint
         self.setpoints = setpoints
         self.transition = 'none'
+        self.prev_global_nearest_sp_idx = 0
+        self.prev_local_nearest_sp_idx = 0
         
         # Target state
         self.marker_pose = Pose()
@@ -71,6 +71,8 @@ class Landing(smach.State, Base):
         self.switching_mod1 = False
         self.is_mod2_fixed = False
 
+        self.prev_global_nearest_sp_idx = 0
+        self.prev_local_nearest_sp_idx = 0
         rospy.loginfo("landing Start is_global: %d", self.setpoints.is_global)
 
     def Running(self):
@@ -115,7 +117,6 @@ class Landing(smach.State, Base):
 
         elif self.switching_mod1:
             self.mode = "mode1"
-            # self.switching_mod1 = False
         else:
             self.mode = "standby"
         
@@ -127,18 +128,17 @@ class Landing(smach.State, Base):
             self.setpoint.is_global = False
             self.setpoint.is_setpoint_position = False
 
-            self.setpoint.vel.linear.x = self.XY_Vel(self.vehicle_pose.position.x)
-            self.setpoint.vel.linear.y = self.XY_Vel(self.vehicle_pose.position.y)
-            self.setpoint.vel.linear.z = self.Z_Vel(self.vehicle_pose.position.z)
+            self.setpoint.vel.linear.x = XY_Vel(self.vehicle_pose.position.x, 0.15, 0.3)
+            self.setpoint.vel.linear.y = XY_Vel(self.vehicle_pose.position.y, 0.15, 0.3)
+            self.setpoint.vel.linear.z = Z_Vel(self.vehicle_pose.position.z, 0.045, 0.5)
 
-            v_yaw = self.YawRate(self.setpoints.poses[-1].pose.orientation)
+            v_yaw = YawRate(self.setpoints.pose_array.poses[-1].orientation, 0.1)
             self.setpoint.yaw_rate.orientation.x = v_yaw[0]
             self.setpoint.yaw_rate.orientation.y = v_yaw[1]
             self.setpoint.yaw_rate.orientation.z = v_yaw[2]
             self.setpoint.yaw_rate.orientation.w = v_yaw[3]
 
-            self.setpoint.geopose = self.ego_geopose
-            self.setpoint.pose = self.ego_pose
+            self.setpoint.ego_pose = self.ego_pose
             self.setpoint.target_pose = self.vehicle_pose
 
             landing_state.is_vehicle_detected = True
@@ -147,18 +147,17 @@ class Landing(smach.State, Base):
             self.setpoint.is_global = False
             self.setpoint.is_setpoint_position = False
 
-            self.setpoint.vel.linear.x = self.XY_Vel(self.marker_pose.position.x)
-            self.setpoint.vel.linear.y = self.XY_Vel(self.marker_pose.position.y)
-            self.setpoint.vel.linear.z = self.Z_Vel(self.marker_pose.position.z)
+            self.setpoint.vel.linear.x = XY_Vel(self.marker_pose.position.x, 0.15, 0.3)
+            self.setpoint.vel.linear.y = XY_Vel(self.marker_pose.position.y, 0.15, 0.3)
+            self.setpoint.vel.linear.z = Z_Vel(self.marker_pose.position.z, 0.045, 0.5)
 
-            v_yaw = self.YawRate(self.marker_pose.orientation)
+            v_yaw = YawRate(self.marker_pose.orientation, 0.1)
             self.setpoint.yaw_rate.orientation.x = v_yaw[0]
             self.setpoint.yaw_rate.orientation.y = v_yaw[1]
             self.setpoint.yaw_rate.orientation.z = v_yaw[2]
             self.setpoint.yaw_rate.orientation.w = v_yaw[3]
 
-            self.setpoint.geopose = self.ego_geopose
-            self.setpoint.pose = self.ego_pose
+            self.setpoint.ego_pose = self.ego_pose
             self.setpoint.target_pose = self.marker_pose
 
             landing_state.is_marker_detected = True
@@ -196,7 +195,14 @@ class Landing(smach.State, Base):
         if self.mode == "mode1":
             # Update setpoint
             self.setpoint.is_global = True
-            self.setpoint.geopose, self.setpoint.pose = UpdateSetpoint(self.setpoints, self.ego_geopose, self.ego_pose, self.roi_th_m)
+
+            optimal_setpoint = GetOptimalSetpoint(self.setpoints, self.ego_geopose, self.ego_pose, 
+                                        self.roi_th_m, self.prev_global_nearest_sp_idx, self.prev_local_nearest_sp_idx)
+            self.setpoint.geopose = optimal_setpoint[0]
+            self.prev_global_nearest_sp_idx = optimal_setpoint[1]
+            self.setpoint.pose = optimal_setpoint[2]
+            self.prev_local_nearest_sp_idx = optimal_setpoint[3]
+
             
         elif self.mode == "auto.land":
             self.setpoint.is_global = True
@@ -207,56 +213,11 @@ class Landing(smach.State, Base):
 
 
     '''
-    Util functions
-    '''
-    def Z_Vel(self, target):
-        err = target
-        kp = 0.045
-        vel = err*kp
-
-        th = 0.3
-        if vel < -th:
-            vel = -th
-        elif vel > th:
-            vel = th
-        return vel
-
-    def XY_Vel(self, target):
-        err = target
-        kp = 0.15
-        vel = err*kp
-
-        th = 0.5
-        if vel < -th:
-            vel = -th
-        elif vel > th:
-            vel = th
-        return vel
-
-    def YawRate(self, q):
-        yaw_rad = euler_from_quaternion([q.x, q.y, q.z, q.w])[2]
-
-        err = yaw_rad
-        kp = 0.1
-
-        yaw_rate_rad = err*kp
-
-        vel = quaternion_from_euler(0.0, 0.0, yaw_rate_rad)
-        return vel
-
-
-    '''
     Callback functions
     '''
     def MarkerCB(self, msg):
         if not msg.is_detected:
             return
-
-        # find detected marker ids
-        detected_marker_ids = []
-        for aruco in msg.aruco_states:
-            if aruco.is_detected:
-                detected_marker_ids.append(aruco.id)
 
         # compare detected big markers with used big markers, when all big markers are detected, mode switching to mode2
         if not self.is_mod2_fixed:

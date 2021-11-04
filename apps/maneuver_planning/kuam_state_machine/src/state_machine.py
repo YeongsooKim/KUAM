@@ -147,6 +147,10 @@ def StatusPub():
     msg.offb_state = cur_offb_state
     status_pub.publish(msg)
 
+def DataLink():
+    offb_states_[OffbState.FLIGHT].landing_switching_mod1 = offb_states_[OffbState.LANDING].switching_mod1
+    offb_states_[OffbState.FLIGHT].landing_switching_mod2 = offb_states_[OffbState.LANDING].switching_mod2
+
 def CompletionPub(msg):
     completion_pub.publish(msg)
 
@@ -154,6 +158,7 @@ def ProcessCB(timer):
     OffbTransition()
     SetpointPub()
     StatusPub()
+    DataLink()
 
 
 '''

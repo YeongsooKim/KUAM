@@ -8,6 +8,7 @@ import smach
 
 from .state import Base
 from utils.util_geometry import *
+from utils.util_state import *
 
 from kuam_msgs.msg import Completion
 
@@ -46,23 +47,16 @@ class Takeoff(smach.State, Base):
         self.is_start = True
 
         # Initialize setpoint
-        if self.setpoints.is_global:
-            self.setpoint.is_global = True
-            self.setpoint.is_setpoint_position = False
-        else:
-            self.setpoint.is_global = False
-            self.setpoint.is_setpoint_position = True
+        self.takeoff_geopose = copy.deepcopy(self.ego_geopose)
+        self.takeoff_geopose.position.altitude += self.takeoff_alt_m
+        self.takeoff_pose = copy.deepcopy(self.ego_pose)
+        self.takeoff_pose.position.z += self.takeoff_alt_m
 
-        # Update setpoint
-        self.setpoint.geopose = copy.deepcopy(self.ego_geopose)
-        self.setpoint.geopose.position.altitude += self.takeoff_alt_m
-        self.setpoint.pose = copy.deepcopy(self.ego_pose)
-        self.setpoint.pose.position.z += self.takeoff_alt_m
-        self.has_updated_setpoint = True
-        
-        rospy.loginfo("takeoff Start is_global: %d / global sp: %f, %f, %f / local sp: %f, %f, %f", self.setpoint.is_global,
-                    self.setpoint.geopose.position.longitude, self.setpoint.geopose.position.latitude, self.setpoint.geopose.position.altitude,
-                    self.setpoint.pose.position.x, self.setpoint.pose.position.y, self.setpoint.pose.position.z)
+        rospy.loginfo("takeoff Start global sp: %f, %f, %f / local sp: %f, %f, %f",
+                    self.takeoff_geopose.position.longitude, self.takeoff_geopose.position.latitude, self.takeoff_geopose.position.altitude,
+                    self.takeoff_pose.position.x, self.takeoff_pose.position.y, self.takeoff_pose.position.z)
+
+        rospy.loginfo("takeoff Start")
 
     def Running(self):
         # wait for transition
@@ -75,6 +69,10 @@ class Takeoff(smach.State, Base):
                     break
                 else:
                     self.transition = 'none'
+
+            # Update setpoint
+            self.UpdateSetpoint()
+            self.has_updated_setpoint = True
 
             # Check arrived
             if self.IsReached():
@@ -114,3 +112,31 @@ class Takeoff(smach.State, Base):
         else: 
             return False
 
+
+    def UpdateSetpoint(self):
+        if self.setpoints.is_global:
+            self.setpoint.is_global = True
+
+            self.setpoint.geopose = self.takeoff_geopose
+            self.setpoint.pose = self.takeoff_pose
+        else:
+            self.setpoint.is_global = False
+            self.setpoint.is_setpoint_position = False
+
+            err = self.takeoff_pose.position.x - self.ego_pose.position.x
+            self.setpoint.vel.linear.x = XY_Vel(err, 1.0, 1.2)
+
+            err = self.takeoff_pose.position.y - self.ego_pose.position.y
+            self.setpoint.vel.linear.y = XY_Vel(err, 1.0, 1.2)
+
+            err = self.takeoff_pose.position.z - self.ego_pose.position.z
+            self.setpoint.vel.linear.z = Z_Vel(err, 0.9, 1.5)
+
+            v_yaw = YawRateRad(0.0, 0.1)
+            self.setpoint.yaw_rate.orientation.x = v_yaw[0]
+            self.setpoint.yaw_rate.orientation.y = v_yaw[1]
+            self.setpoint.yaw_rate.orientation.z = v_yaw[2]
+            self.setpoint.yaw_rate.orientation.w = v_yaw[3]
+
+            self.setpoint.geopose = self.takeoff_geopose
+            self.setpoint.pose = self.takeoff_pose

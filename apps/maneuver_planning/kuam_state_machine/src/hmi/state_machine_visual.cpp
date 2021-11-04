@@ -115,7 +115,10 @@ private:
     
     // Marker
     MetaMarkers m_ego_markers; // target markers
-    vector<visualization_msgs::MarkerArray> m_setpoints_markers;
+    // vector<visualization_msgs::MarkerArray> m_setpoints_markers;
+    visualization_msgs::MarkerArray m_setpoints_markers;
+    visualization_msgs::MarkerArray m_landing_sp_markers;
+    visualization_msgs::Marker m_not_landing_sp_marker;
 
     geographic_msgs::GeoPoint m_home_position;
     nav_msgs::Odometry m_ego_pose;
@@ -124,6 +127,8 @@ private:
 
 	tf2_ros::Buffer m_tfBuffer;
 	tf2_ros::TransformListener m_tfListener;
+
+    string m_offb_state;
 
 
 private: // Function
@@ -260,8 +265,19 @@ bool Visualizer::InitMarkers()
     m_ego_markers.current_point.lifetime = ros::Duration();
     m_ego_markers.is_current_point_add = false;
 
+    //// setpoints
+    // else setpoint
+    m_not_landing_sp_marker.ns = "setpoint/not_landing";
+    m_not_landing_sp_marker.id = 0;
+    m_not_landing_sp_marker.type = visualization_msgs::Marker::LINE_STRIP;
+    m_not_landing_sp_marker.action = visualization_msgs::Marker::ADD;
+    m_not_landing_sp_marker.scale.x = 0.05;
+    m_not_landing_sp_marker.color = GREEN;
+    m_not_landing_sp_marker.color.a = 0.4f;
+    m_not_landing_sp_marker.lifetime = ros::Duration();
+
     //// text
-    m_setpoints_markers.resize((int)SETPOINT::ItemNum);
+    // m_setpoints_markers.resize((int)SETPOINT::ItemNum);
     m_text_datum.mode = "\n";
     m_text_datum.offb_state = "\n";
     m_text_datum.coverage = "\n";
@@ -317,66 +333,22 @@ void Visualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_
     msg.data = h_m;
     m_target_height_pub.publish(msg);
 
+
     // Set setpoint marker
-    static bool prev_coord = !setpoint.is_global;
-    if (setpoint.is_global || setpoint.is_setpoint_position){
-        static geometry_msgs::Point prev_global_point;
-        static unsigned int g_cnt = 0;
-        bool is_init = false;
-        if (prev_coord != setpoint.is_global){
-            prev_coord = setpoint.is_global;
-            is_init = true;
+    if (m_offb_state == "LANDING"){
+        static geometry_msgs::Point prev_landing_point;
+        static unsigned int cnt = 0;
 
-            //// Setpoints
-            visualization_msgs::Marker sp_marker;
-            std_msgs::ColorRGBA color = GREEN; color.a = 0.4f;
-
-            sp_marker.header.frame_id = "map";
-            sp_marker.ns = "setpoint/global";
-            sp_marker.id = g_cnt;
-            sp_marker.type = visualization_msgs::Marker::LINE_STRIP;
-            sp_marker.action = visualization_msgs::Marker::ADD;
-            sp_marker.scale.x = 0.05;
-            sp_marker.pose.orientation.w = 1.0;
-            sp_marker.pose.orientation.x = 0.0;
-            sp_marker.pose.orientation.y = 0.0;
-            sp_marker.pose.orientation.z = 0.0;
-            sp_marker.color = color;
-            sp_marker.lifetime = ros::Duration();
-
-            m_setpoints_markers[(int)SETPOINT::GLOBAL].markers.push_back(sp_marker);
-
-            g_cnt++;
-        }
-
-        auto lat = setpoint.geopose.position.latitude;
-        auto lon = setpoint.geopose.position.longitude;
-        auto alt = setpoint.local_height_m;
-        auto p = m_util_visual.ConvertToMapFrame(lat, lon, alt, m_home_position);
+        // auto lat = setpoint.geopose.position.latitude;
+        // auto lon = setpoint.geopose.position.longitude;
+        // auto alt = setpoint.local_height_m;
+        // auto p = m_util_visual.ConvertToMapFrame(lat, lon, alt, m_home_position);
+        auto p = setpoint.ego_pose;
         
-        float dist = m_util_visual.Distance3D(p.position, prev_global_point);
-        if ((dist > 0.02) || is_init){
-            m_setpoints_markers[(int)SETPOINT::GLOBAL].markers[g_cnt-1].points.push_back(p.position);
-            prev_global_point = p.position;
-        }
-    }
-    else {
-        static geometry_msgs::Point prev_local_point;
-        static unsigned int r_cnt = 0;
-        bool is_init = false;
-        if (prev_coord != setpoint.is_global){
-            prev_coord = setpoint.is_global;
-            is_init = true;
-        }
+        static bool is_init_landing = true;
+        if (is_init_landing){
+            is_init_landing = false;
 
-        auto lat = setpoint.geopose.position.latitude;
-        auto lon = setpoint.geopose.position.longitude;
-        auto alt = setpoint.local_height_m;
-        auto p = m_util_visual.ConvertToMapFrame(lat, lon, alt, m_home_position);
-        p.orientation = setpoint.geopose.orientation;
-        
-        float dist = m_util_visual.Distance3D(p.position, prev_local_point);
-        if ((dist > 0.02) || is_init){
             auto x = setpoint.vel.linear.x;
             auto y = setpoint.vel.linear.y;
             auto z = setpoint.vel.linear.z;
@@ -390,8 +362,8 @@ void Visualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_
 
             sp_marker.header.frame_id = "map";
             sp_marker.header.stamp = ros::Time::now();
-            sp_marker.ns = "setpoint/relative";
-            sp_marker.id = r_cnt;
+            sp_marker.ns = "setpoint/landing";
+            sp_marker.id = cnt;
             sp_marker.type = visualization_msgs::Marker::ARROW;
             sp_marker.action = visualization_msgs::Marker::ADD;
             sp_marker.scale.x = size;
@@ -400,18 +372,78 @@ void Visualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_
             sp_marker.pose = p;
             sp_marker.color = color;
             sp_marker.lifetime = ros::Duration();
-            m_setpoints_markers[(int)SETPOINT::RELATIVE].markers.push_back(sp_marker);
+            m_landing_sp_markers.markers.push_back(sp_marker);
+            prev_landing_point = p.position;
+            cnt++;
+        }
+        else{
+            float dist = m_util_visual.Distance3D(p.position, prev_landing_point);
 
-            prev_local_point = p.position;
-            r_cnt++;
+            if (dist > 0.02){
+                auto x = setpoint.vel.linear.x;
+                auto y = setpoint.vel.linear.y;
+                auto z = setpoint.vel.linear.z;
+                auto size = sqrt(pow(x, 2.0) + pow(y, 2.0) + pow(z, 2.0));
+
+                visualization_msgs::Marker sp_marker;
+                std_msgs::ColorRGBA color;
+                if (setpoint.landing_state.mode == "mode1") color = PURPLE;
+                else if (setpoint.landing_state.mode == "mode2") color = COBALT;
+                color.a = 0.4f;
+
+                sp_marker.header.frame_id = "map";
+                sp_marker.header.stamp = ros::Time::now();
+                sp_marker.ns = "setpoint/landing";
+                sp_marker.id = cnt;
+                sp_marker.type = visualization_msgs::Marker::ARROW;
+                sp_marker.action = visualization_msgs::Marker::ADD;
+                sp_marker.scale.x = size;
+                sp_marker.scale.y = 0.05;
+                sp_marker.scale.z = 0.05;
+                sp_marker.pose = p;
+                sp_marker.color = color;
+                sp_marker.lifetime = ros::Duration();
+                m_landing_sp_markers.markers.push_back(sp_marker);
+                
+                prev_landing_point = p.position;
+                cnt++;
+            }
         }
     }
-    
-    visualization_msgs::MarkerArray visualization_markers;
-    for (int coord = (int)SETPOINT::GLOBAL; coord < (int)SETPOINT::ItemNum; coord++){
-        visualization_markers.markers.insert(visualization_markers.markers.end(), 
-                                            m_setpoints_markers[coord].markers.begin(), m_setpoints_markers[coord].markers.end());
+    else{
+        static geometry_msgs::Point prev_not_landing_point;
+
+        // auto lat = setpoint.geopose.position.latitude;
+        // auto lon = setpoint.geopose.position.longitude;
+        // auto alt = setpoint.local_height_m;
+        // m_util_visual.ConvertToMapFrame(lat, lon, alt, m_home_position);
+        auto p = setpoint.pose;
+
+        static bool is_init_not_landing = true;
+        if (is_init_not_landing){
+            is_init_not_landing = false;
+
+            m_not_landing_sp_marker.header.frame_id = "map";
+            m_not_landing_sp_marker.header.stamp = ros::Time::now();
+            m_not_landing_sp_marker.points.push_back(p.position);
+            prev_not_landing_point = p.position;
+        }
+        else{
+            float dist = m_util_visual.Distance3D(p.position, prev_not_landing_point);
+            if (dist > 0.02){
+
+                m_not_landing_sp_marker.header.frame_id = "map";
+                m_not_landing_sp_marker.header.stamp = ros::Time::now();
+                m_not_landing_sp_marker.points.push_back(p.position);
+                prev_not_landing_point = p.position;
+            }
+        }
     }
+
+
+    visualization_msgs::MarkerArray visualization_markers;
+    visualization_markers.markers.push_back(m_not_landing_sp_marker);
+    visualization_markers.markers.insert(visualization_markers.markers.end(), m_landing_sp_markers.markers.begin(), m_landing_sp_markers.markers.end());
 
     m_setpoints_pub.publish(visualization_markers);
 }
@@ -466,6 +498,7 @@ void Visualizer::StateMachineStatusCallback(const kuam_msgs::Status::ConstPtr &s
 
     m_text_datum.mode = "Mode: " + mode + "\n";
     m_text_datum.offb_state = "Offboard state: " + status_ptr->offb_state + "\n";
+    m_offb_state = status_ptr->offb_state;
 }
 
 void Visualizer::TextPubCallback(const ros::TimerEvent& event)

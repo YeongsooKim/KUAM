@@ -5,6 +5,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 import rospy
 import smach
 import copy
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 from .state import Base
 from utils.util_geometry import *
@@ -32,6 +33,8 @@ class Flight(smach.State, Base):
         # Flag
         self.is_last = False
         self.is_first = True
+        self.landing_switching_mod2 = False
+        self.landing_switching_mod1 = False
 
         # State value
         self.ego_geopose = ego_geopose
@@ -41,6 +44,8 @@ class Flight(smach.State, Base):
         self.setpoints = setpoints
         self.transition = 'none'
         self.cur_sp_num = 0
+        self.prev_global_nearest_sp_idx = 0
+        self.prev_local_nearest_sp_idx = 0
 
     def execute(self, userdata):
 
@@ -53,15 +58,14 @@ class Flight(smach.State, Base):
         # Initialize flag
         self.has_updated_setpoint = False
         self.is_start = True
+        self.landing_switching_mod2 = False
+        self.landing_switching_mod1 = False
 
         # Initialize setpoint
-        if self.setpoints.is_global:
-            self.setpoint.is_global = True
-        else:
-            self.setpoint.is_global = False
-            self.setpoint.is_setpoint_position = True
+        self.prev_global_nearest_sp_idx = 0
+        self.prev_local_nearest_sp_idx = 0
 
-        rospy.loginfo("flight Start is_global: %d", self.setpoints.is_global)
+        rospy.loginfo("flight Start")
 
     def Running(self):
         rate = rospy.Rate(self.freq)
@@ -75,11 +79,12 @@ class Flight(smach.State, Base):
                     self.transition = 'none'
 
             # Update setpoint
-            self.setpoint.geopose, self.setpoint.pose = UpdateSetpoint(self.setpoints, self.ego_geopose, self.ego_pose, self.roi_th_m)
+            self.UpdateSetpoint()
             self.has_updated_setpoint = True
             
             # Check arrived
-            if self.IsReached():
+            if self.IsReached() or self.landing_switching_mod1 == True or self.landing_switching_mod2 == True:
+                rospy.loginfo("flight break. landing_switching_mod1: %d, landing_switching_mod2: %d", self.landing_switching_mod1, self.landing_switching_mod2)
                 self.transition = 'done'
                 break
 
@@ -116,3 +121,40 @@ class Flight(smach.State, Base):
         else: 
             return False
 
+    def UpdateSetpoint(self):
+        optimal_setpoint = GetOptimalSetpoint(self.setpoints, self.ego_geopose, self.ego_pose, 
+                                    self.roi_th_m, self.prev_global_nearest_sp_idx, self.prev_local_nearest_sp_idx)
+        geopose = optimal_setpoint[0]
+        self.prev_global_nearest_sp_idx = optimal_setpoint[1]
+        pose = optimal_setpoint[2]
+        self.prev_local_nearest_sp_idx = optimal_setpoint[3]
+
+        if self.setpoints.is_global:
+            self.setpoint.is_global = True
+
+            self.setpoint.geopose = geopose
+            self.setpoint.pose = pose
+        else:
+            self.setpoint.is_global = False
+            self.setpoint.is_setpoint_position = False
+
+            
+            err = pose.position.x - self.ego_pose.position.x
+            self.setpoint.vel.linear.x = XY_Vel(err, 1.0, 1.2)
+
+            err = pose.position.y - self.ego_pose.position.y
+            self.setpoint.vel.linear.y = XY_Vel(err, 1.0, 1.2)
+
+            err = pose.position.z - self.ego_pose.position.z
+            self.setpoint.vel.linear.z = Z_Vel(err, 0.9, 1.5)
+
+            target_yaw_rad = euler_from_quaternion([pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w])[2]
+            ego_yaw_rad = euler_from_quaternion([self.ego_pose.orientation.x,self.ego_pose.orientation.y,self.ego_pose.orientation.z,self.ego_pose.orientation.w])[2]
+            v_yaw = YawRateRad(target_yaw_rad - ego_yaw_rad, 0.7)
+            self.setpoint.yaw_rate.orientation.x = v_yaw[0]
+            self.setpoint.yaw_rate.orientation.y = v_yaw[1]
+            self.setpoint.yaw_rate.orientation.z = v_yaw[2]
+            self.setpoint.yaw_rate.orientation.w = v_yaw[3]
+
+            self.setpoint.geopose = geopose
+            self.setpoint.pose = pose
