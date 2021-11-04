@@ -12,7 +12,6 @@ from utils.util_state import *
 
 from kuam_msgs.msg import Completion
 
-
 class Takeoff(smach.State, Base):
     def __init__(self, ego_geopose, ego_pose, ego_vel, setpoint, setpoints):
         smach.State.__init__(self, input_keys=[], 
@@ -42,6 +41,8 @@ class Takeoff(smach.State, Base):
 
 
     def Start(self):
+        rospy.loginfo("## [takeoff] Start ##")
+
         # Initialize flag
         self.has_updated_setpoint = False
         self.is_start = True
@@ -52,11 +53,10 @@ class Takeoff(smach.State, Base):
         self.takeoff_pose = copy.deepcopy(self.ego_pose)
         self.takeoff_pose.position.z += self.takeoff_alt_m
 
-        rospy.loginfo("takeoff Start global sp: %f, %f, %f / local sp: %f, %f, %f",
+        rospy.loginfo("[takeoff] Start global sp: %f, %f, %f / local sp: %f, %f, %f\n",
                     self.takeoff_geopose.position.longitude, self.takeoff_geopose.position.latitude, self.takeoff_geopose.position.altitude,
                     self.takeoff_pose.position.x, self.takeoff_pose.position.y, self.takeoff_pose.position.z)
 
-        rospy.loginfo("takeoff Start")
 
     def Running(self):
         # wait for transition
@@ -96,14 +96,16 @@ class Takeoff(smach.State, Base):
 
 
     def IsReached(self):
+        rospy.loginfo_throttle(0.1, "### [takeoff] IsReached ###")
+
         if self.setpoint.is_global:
             dist = abs(self.setpoint.geopose.position.altitude - self.ego_geopose.position.z)
-            rospy.loginfo_throttle(0.1, "takeoff IsReached dist %f / sp: %f, %f, %f / ego: %f, %f, %f", dist, 
+            rospy.loginfo_throttle(0.1, "[takeoff] IsReached dist %f / sp: %f, %f, %f / ego: %f, %f, %f\n", dist, 
                             self.setpoint.geopose.position.longitude, self.setpoint.geopose.position.latitude, self.setpoint.geopose.position.altitude, 
                             self.ego_geopose.position.longitude, self.ego_geopose.position.latitude, self.ego_geopose.position.altitude)
         else:
             dist = abs(self.setpoint.pose.position.z - self.ego_pose.position.z)
-            rospy.loginfo_throttle(0.1, "takeoff IsReached dist %f / sp: %f, %f, %f / ego: %f, %f, %f", dist, 
+            rospy.loginfo_throttle(0.1, "[takeoff] IsReached dist %f / sp: %f, %f, %f / ego: %f, %f, %f\n", dist, 
                             self.setpoint.pose.position.x, self.setpoint.pose.position.y, self.setpoint.pose.position.z, 
                             self.ego_pose.position.x, self.ego_pose.position.y, self.ego_pose.position.z)
 
@@ -114,23 +116,25 @@ class Takeoff(smach.State, Base):
 
 
     def UpdateSetpoint(self):
+        rospy.loginfo_throttle(0.1, "### [takeoff] UpdateSetpoint ###")
+
         if self.setpoints.is_global:
             self.setpoint.is_global = True
+            rospy.loginfo_throttle(0.1, "[takeoff] setpoint: global\n")
 
             self.setpoint.geopose = self.takeoff_geopose
             self.setpoint.pose = self.takeoff_pose
         else:
             self.setpoint.is_global = False
             self.setpoint.is_setpoint_position = False
+            rospy.loginfo_throttle(0.1, "[takeoff] setpoint: setpoint_raw")
 
-            err = self.takeoff_pose.position.x - self.ego_pose.position.x
-            self.setpoint.vel.linear.x = XY_Vel(err, 1.0, 1.2)
-
-            err = self.takeoff_pose.position.y - self.ego_pose.position.y
-            self.setpoint.vel.linear.y = XY_Vel(err, 1.0, 1.2)
+            self.setpoint.vel.linear.x = XY_Vel(0.0, 1.0, 1.2)
+            self.setpoint.vel.linear.y = XY_Vel(0.0, 1.0, 1.2)
 
             err = self.takeoff_pose.position.z - self.ego_pose.position.z
             self.setpoint.vel.linear.z = Z_Vel(err, 0.9, 1.5)
+            rospy.loginfo_throttle(0.1, "err: %f, vel: %f\n", err, self.setpoint.vel.linear.z)
 
             v_yaw = YawRateRad(0.0, 0.1)
             self.setpoint.yaw_rate.orientation.x = v_yaw[0]

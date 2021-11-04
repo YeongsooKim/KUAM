@@ -265,17 +265,13 @@ def MsgPub(setpoint):
     
     sp.geopose.position.altitude += gps_home_alt_m_
 
-    cur_mode, cur_offb_state = GetSMStatus()
     if sp.is_global:
         sp.header.frame_id = "map"
-        rospy.loginfo_throttle(0.1, "global, cur_mode: %s, cur_offb_state: %s", cur_mode, cur_offb_state)
     else:
         if sp.is_setpoint_position:
             sp.header.frame_id = "map"
-            rospy.loginfo_throttle(0.1, "local, setpoint_position, cur_mode: %s, cur_offb_state: %s", cur_mode, cur_offb_state)
         else:
             sp.header.frame_id = "base_link"
-            rospy.loginfo_throttle(0.1, "local, setpoint_raw, cur_mode: %s, cur_offb_state: %s", cur_mode, cur_offb_state)
 
     setpoint_pub.publish(sp)
     
@@ -384,6 +380,9 @@ if __name__ == '__main__':
     	
     offb_states_[OffbState.LANDING].tfBuffer = tf2_ros.Buffer()
     offb_states_[OffbState.LANDING].listener = tf2_ros.TransformListener(offb_states_[OffbState.LANDING].tfBuffer)
+
+    offb_states_[OffbState.FLIGHT].tfBuffer = tf2_ros.Buffer()
+    offb_states_[OffbState.FLIGHT].listener = tf2_ros.TransformListener(offb_states_[OffbState.FLIGHT].tfBuffer)
 
     '''
     Initialize Parameters
