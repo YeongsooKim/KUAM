@@ -355,8 +355,6 @@ void ArucoTracking::CalFrequencyDegree()
             // Calculate frequency degree of estimated pos
             it->second.CalEstimatedFreqDegree(target.GetZ(m_estimating_method_param));
             
-            static double prev_freq_deg = 0.0;
-            static bool is_first = true;
             if (it->second.IsValid()){
                 is_valid = true;
 

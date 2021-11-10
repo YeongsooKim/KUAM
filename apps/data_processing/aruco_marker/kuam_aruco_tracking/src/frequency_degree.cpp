@@ -1,3 +1,4 @@
+#include <ros/ros.h>
 #include <kuam_aruco_tracking/frequency_degree.h>
 #include <iostream>
 
@@ -26,9 +27,11 @@ void FrequencyDegree::Init(int dft_integral_start_point, double frequency_degree
 void FrequencyDegree::CalEstimatedFreqDegree(double height)
 {
     // Get difference between current height and previous height, and then update previous height
+    ROS_INFO_THROTTLE(0.1, "## id: %d, CalEstimatedFreqDegree ##", ID);
     auto difference = abs(height - m_prev_height_m);
     if (difference > m_diff_th_m_param){
         m_is_valid = false;
+        ROS_INFO_THROTTLE(0.1, "id: %d, is_valid = false, out of roi\n", ID);
         return;
     }
     m_prev_height_m = height;
@@ -38,6 +41,7 @@ void FrequencyDegree::CalEstimatedFreqDegree(double height)
         m_differences.push_back(difference);
 
         m_is_valid = false;
+        ROS_INFO_THROTTLE(0.1, "id: %d, is_valid = false, buffer is not full\n", ID);
         return;
     }
 
@@ -93,6 +97,7 @@ void FrequencyDegree::MovingAvgFilter(double freq_degree)
 
 void FrequencyDegree::ExpMovingAvgFilter(double freq_degree)
 {
+    ROS_INFO_THROTTLE(0.1, "### id: %d, ExpMovingAvgFilter ###", ID);
     // Integrals exponential moving average filter
     if (!m_is_init_exp_maf){
         m_prev_freq_degree = freq_degree;
@@ -110,6 +115,7 @@ void FrequencyDegree::ExpMovingAvgFilter(double freq_degree)
     else{
         m_is_valid = true;
     }
+    ROS_INFO_THROTTLE(0.1, "id: %d, is_valid = %d, threshold: %f, integral amp\n: %f", ID, m_is_valid, m_freq_degree_th_param, exp_moving_avg_integral_amp);
 }
 
 vector<complex<double>> FrequencyDegree::DFT()

@@ -339,10 +339,6 @@ void Visualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_
         static geometry_msgs::Point prev_landing_point;
         static unsigned int cnt = 0;
 
-        // auto lat = setpoint.geopose.position.latitude;
-        // auto lon = setpoint.geopose.position.longitude;
-        // auto alt = setpoint.local_height_m;
-        // auto p = m_util_visual.ConvertToMapFrame(lat, lon, alt, m_home_position);
         auto p = setpoint.ego_pose;
         
         static bool is_init_landing = true;
@@ -413,10 +409,6 @@ void Visualizer::SetpointCallback(const kuam_msgs::Setpoint::ConstPtr &setpoint_
     else{
         static geometry_msgs::Point prev_not_landing_point;
 
-        // auto lat = setpoint.geopose.position.latitude;
-        // auto lon = setpoint.geopose.position.longitude;
-        // auto alt = setpoint.local_height_m;
-        // m_util_visual.ConvertToMapFrame(lat, lon, alt, m_home_position);
         auto p = setpoint.pose;
 
         static bool is_init_not_landing = true;

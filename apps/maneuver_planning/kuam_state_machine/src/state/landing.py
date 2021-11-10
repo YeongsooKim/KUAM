@@ -182,19 +182,25 @@ class Landing(smach.State, Base):
             self.transition = 'done'
 
         elif self.mode == "standby":
-            self.setpoint.is_global = self.setpoints.is_global
-            self.setpoint.is_setpoint_position = True
-            if self.setpoint.is_global:
-                rospy.loginfo_throttle(0.1, "[landing] standby setpoint: global")
-            else:
-                rospy.loginfo_throttle(0.1, "[landing] standby setpoint: setpoint_position")
+            self.setpoint.is_global = False
+            self.setpoint.is_setpoint_position = False
+            rospy.loginfo_throttle(0.1, "[landing] standby setpoint: setpoint_raw")
 
-            self.setpoint.geopose = self.setpoints.geopath.poses[-1].pose
-            self.setpoint.pose = self.setpoints.pose_array.poses[-1]
-            rospy.loginfo_throttle(0.1, "global sp: %f, %f, %f", self.setpoint.geopose.position.longitude, self.setpoint.geopose.position.latitude, self.setpoint.geopose.position.altitude)
-            rospy.loginfo_throttle(0.1, "global ego: %f, %f, %f", self.ego_geopose.position.longitude, self.ego_geopose.position.latitude, self.ego_geopose.position.altitude)
-            rospy.loginfo_throttle(0.1, "local sp: %f, %f, %f", self.setpoint.pose.position.x, self.setpoint.pose.position.y, self.setpoint.pose.position.z)
-            rospy.loginfo_throttle(0.1, "local ego: %f, %f, %f\n", self.ego_pose.position.x, self.ego_pose.position.y, self.ego_pose.position.z)
+            self.setpoint.vel.linear.x = XY_Vel(0.0, 0.15, 0.3)
+            self.setpoint.vel.linear.y = XY_Vel(0.0, 0.15, 0.3)
+            self.setpoint.vel.linear.z = Z_Vel(0.0, 0.045, 0.5)
+            rospy.loginfo_throttle(0.1, "err: 0.0, vel: %f", self.setpoint.vel.linear.x)
+            rospy.loginfo_throttle(0.1, "err: 0.0, vel: %f", self.setpoint.vel.linear.y)
+            rospy.loginfo_throttle(0.1, "err: 0.0, vel: %f\n", self.setpoint.vel.linear.z)
+
+            v_yaw = YawRateRad(0.0, 0.1)
+            self.setpoint.yaw_rate.orientation.x = v_yaw[0]
+            self.setpoint.yaw_rate.orientation.y = v_yaw[1]
+            self.setpoint.yaw_rate.orientation.z = v_yaw[2]
+            self.setpoint.yaw_rate.orientation.w = v_yaw[3]
+
+            self.setpoint.ego_pose = self.ego_pose
+            self.setpoint.target_pose = self.vehicle_pose
 
         self.setpoint.landing_state = landing_state
     
