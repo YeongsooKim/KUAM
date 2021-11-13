@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   tf2 
   tf2_ros
+  mavros_msgs
 )
 # message("OpenCV version: ${OpenCV_VERSION}")
 
@@ -32,6 +33,7 @@ catkin_package(
   roscpp
   tf2 
   tf2_ros
+  mavros_msgs
 )
 
 ###########

@@ -21,9 +21,12 @@ from kuam_msgs.msg import Completion
 from kuam_msgs.msg import Setpoint
 from kuam_msgs.msg import Status
 from kuam_msgs.msg import Task
+from kuam_msgs.msg import VehicleState
 from kuam_msgs.srv import LandRequest
+from kuam_msgs.srv import EmergyRequest
 from geographic_msgs.msg import GeoPose
 from geographic_msgs.msg import GeoPath
+from geometry_msgs.msg import PoseArray
 from geometry_msgs.msg import TwistStamped
 from geometry_msgs.msg import Twist
 
@@ -54,6 +57,11 @@ class SMMode(Enum):
     ALTCTL = 3
     LAND = 4
 
+class Setpoints:
+    geopath = GeoPath()
+    pose_array = PoseArray()
+    is_global = bool()
+
 
 '''
 State Machines
@@ -67,7 +75,8 @@ ego_geopose_ = GeoPose()
 ego_pose_ = Pose()
 ego_vel_ = Twist()
 setpoint_ = Setpoint()
-setpoints_ = GeoPath()
+prev_setpoint_ = Setpoint()
+setpoints_ = Setpoints()
 
 # Init state
 offb_states_ = {}
@@ -84,7 +93,6 @@ prev_mode_transitions_ = 'MANUAL'
 
 # Etc
 gps_home_alt_m_ = None
-standby_geopose_ = GeoPose()
 
 # Flag
 is_init_gps_alt_ = False
@@ -107,23 +115,30 @@ def SetpointPub():
         return
 
     cur_mode, cur_offb_state = GetSMStatus()
-    if cur_mode != "OFFBOARD":
-        msg = GetStandbyMsg(standby_geopose_)
+    global prev_setpoint_
+    # Case of offboard
 
-    elif cur_mode == "OFFBOARD" and cur_offb_state != "None":
-        if cur_offb_state == "LANDING":
-            # using gps only
-            if not offb_states_[OffbState[cur_offb_state]].using_camera:
-                msg = GetSetpointMsg(copy.deepcopy(setpoint_))
-            
-            # using gps and camera
+    if cur_mode == "OFFBOARD" and cur_offb_state != "None":
+        if offb_states_[OffbState[cur_offb_state]].has_updated_setpoint:
+    
+            if cur_offb_state == "LANDING":
+                # using gps only
+                if not offb_states_[OffbState[cur_offb_state]].using_camera:
+                    MsgPub(copy.deepcopy(setpoint_))
+                
+                # using gps and camera
+                else:
+                    MsgPub(copy.deepcopy(setpoint_))
             else:
-                msg = GetSetpointMsg(copy.deepcopy(setpoint_))
+                MsgPub(copy.deepcopy(setpoint_))
+        
         else:
-            msg = GetSetpointMsg(copy.deepcopy(setpoint_))
+            MsgPub(prev_setpoint_)
 
-    if msg.geopose.position.latitude != 0 and msg.geopose.position.longitude != 0:
-        setpoint_pub.publish(msg)
+    #Case of not offboard
+    else:
+        MsgPub(prev_setpoint_)
+
 
 def StatusPub():
     cur_mode, cur_offb_state = GetSMStatus()
@@ -132,6 +147,10 @@ def StatusPub():
     msg.offb_state = cur_offb_state
     status_pub.publish(msg)
 
+def DataLink():
+    offb_states_[OffbState.FLIGHT].landing_switching_mod1 = offb_states_[OffbState.LANDING].switching_mod1
+    offb_states_[OffbState.FLIGHT].landing_switching_mod2 = offb_states_[OffbState.LANDING].switching_mod2
+
 def CompletionPub(msg):
     completion_pub.publish(msg)
 
@@ -139,6 +158,7 @@ def ProcessCB(timer):
     OffbTransition()
     SetpointPub()
     StatusPub()
+    DataLink()
 
 
 '''
@@ -148,8 +168,9 @@ def TaskCB(msg):
     offb_transition_list_.append(msg.task)
 
     global setpoints_
-    setpoints_.header = msg.geopath.header
-    setpoints_.poses = msg.geopath.poses
+    setpoints_.is_global = msg.is_global
+    setpoints_.geopath = msg.geopath
+    setpoints_.pose_array = msg.pose_array
 
 def PayloadCmdCB(msg):
     global mode_transitions_
@@ -176,15 +197,17 @@ def EgoGlobalPoseCB(msg):
     global gps_home_alt_m_
     global is_init_gps_alt_
     if is_init_gps_alt_ == False:
-        is_init_gps_alt_ = True
-
         gps_home_alt_m_ = msg.altitude
 
-    global standby_geopose_
-    standby_geopose_.position.longitude = msg.longitude
-    standby_geopose_.position.latitude = msg.latitude
-    standby_geopose_.position.altitude = 0.0
-    standby_geopose_.orientation = ego_pose_.orientation
+        global prev_setpoint_
+        prev_setpoint_.header.stamp = rospy.Time.now()
+
+        prev_setpoint_.geopose.position.longitude = msg.longitude
+        prev_setpoint_.geopose.position.latitude = msg.latitude
+        prev_setpoint_.geopose.position.altitude = 0.0
+        
+        prev_setpoint_.is_global = True
+        is_init_gps_alt_ = True
 
     global ego_geopose_
     ego_geopose_.position.longitude = msg.longitude
@@ -229,48 +252,29 @@ def GetSMStatus():
 
     return [cur_mode, cur_offb_state]
 
-def GetStandbyMsg(geopose):
+def MsgPub(setpoint):
+    global prev_setpoint_
+    prev_setpoint_ = copy.deepcopy(setpoint)
+
+    sp = copy.deepcopy(setpoint)
+    sp.header.stamp = rospy.Time.now()
+
     global gps_home_alt_m_
-
-    msg = Setpoint()
-    msg.header.frame_id = "map"
-    msg.header.stamp = rospy.Time.now()
-    msg.geopose = copy.deepcopy(geopose)
-    msg.local_height_m = msg.geopose.position.altitude
-    msg.home_altitude_m = gps_home_alt_m_
-    msg.geopose.position.altitude += (gps_home_alt_m_ - alt_offset_m)
-    msg.is_global = True
-
-    return msg
-
-def GetSetpointMsg(setpoint):
-    global gps_home_alt_m_
-
-    msg = Setpoint()
-    msg.header.stamp = rospy.Time.now()
-
-    msg.local_height_m = setpoint.geopose.position.altitude
-    msg.home_altitude_m = gps_home_alt_m_
+    sp.local_height_m = sp.geopose.position.altitude
+    sp.home_altitude_m = gps_home_alt_m_
     
-    msg.geopose = setpoint.geopose
-    msg.geopose.position.altitude += (gps_home_alt_m_ - alt_offset_m)
-    
-    msg.vel = setpoint.vel
-    msg.yaw_rate = setpoint.yaw_rate
-    
-    msg.landing_state = setpoint.landing_state
+    sp.geopose.position.altitude += gps_home_alt_m_
 
-    msg.target_pose = setpoint.target_pose
-
-    if setpoint.is_global:
-        msg.header.frame_id = "map"
-        msg.is_global = True
+    if sp.is_global:
+        sp.header.frame_id = "map"
     else:
-        msg.header.frame_id = "base_link"
-        msg.is_global = False
+        if sp.is_setpoint_position:
+            sp.header.frame_id = "map"
+        else:
+            sp.header.frame_id = "base_link"
 
-    return msg
-
+    setpoint_pub.publish(sp)
+    
 
 '''
 Smach callback function
@@ -299,9 +303,9 @@ def ModeProcess(outcomes, func=None):
                 mode_transitions_ = prev_mode_transitions_
         
         if func is not None:
-            is_complete = func()
+            is_complete, output_mode = func()
             if is_complete:
-                mode_transitions_ = "ALTCTL"
+                mode_transitions_ = output_mode
                 break
 
         rate.sleep()
@@ -316,28 +320,28 @@ def ModeProcess(outcomes, func=None):
 
 
 # define state MANUAL
-@smach.cb_interface(input_keys=[], output_keys=[], outcomes=['ALTCTL', 'OFFBOARD', 'AUTO.RTL', 'finished'])
+@smach.cb_interface(input_keys=[], output_keys=[], outcomes=['MANUAL', 'ALTCTL', 'OFFBOARD', 'AUTO.RTL', 'finished'])
 def ManualCB(userdata):
-    outcome = ModeProcess(['ALTCTL', 'OFFBOARD', 'AUTO.RTL', 'finished'])
+    outcome = ModeProcess(['MANUAL', 'ALTCTL', 'OFFBOARD', 'AUTO.RTL', 'finished'])
     return outcome
 
 # define state ALTCTL
-@smach.cb_interface(input_keys=[], output_keys=[], outcomes=['MANUAL', 'OFFBOARD', 'AUTO.RTL', 'finished'])
+@smach.cb_interface(input_keys=[], output_keys=[], outcomes=['MANUAL', 'ALTCTL',  'OFFBOARD', 'AUTO.RTL', 'finished'])
 def AltitudeCB(userdata):
-    outcome = ModeProcess(['MANUAL', 'OFFBOARD', 'AUTO.RTL', 'finished'])
+    outcome = ModeProcess(['MANUAL', 'ALTCTL',  'OFFBOARD', 'AUTO.RTL', 'finished'])
     return outcome
     
 # define state LAND
 @smach.cb_interface(input_keys=[], output_keys=[], outcomes=['ALTCTL', 'MANUAL', 'AUTO.RTL', 'OFFBOARD', 'finished'])
 def LandCB(userdata):
-    rospy.logwarn("Enter LandCB")
+    rospy.logwarn("[state_machine] Enter LandCB")
     def LandReuest():
-        rospy.logwarn("Service requesting land")
+        rospy.logwarn("[state_machine] Service requesting land")
         rospy.wait_for_service('payload_cmd/land_request')
         try:
             land_request = rospy.ServiceProxy('payload_cmd/land_request', LandRequest)
             res = land_request(True)
-            return res.is_complete
+            return res.is_complete, 'ALTCTL'
         except rospy.ServiceException as e:
             print("Service call failed: %s"%e)
 
@@ -355,7 +359,19 @@ def LandCB(userdata):
 # define state EMERGY
 @smach.cb_interface(input_keys=[], output_keys=[], outcomes=['MANUAL', 'ALTCTL', 'finished'])
 def EmergyCB(userdata):
+    rospy.logwarn("Enter EmgeryCB")
+    def EmergyReq():
+        rospy.logwarn("Service requesting emergy")
+        rospy.wait_for_service('payload_cmd/emergy_request')
+        try:
+            emergy_request = rospy.ServiceProxy('payload_cmd/emergy_request', EmergyRequest)
+            res = emergy_request(True)
+            return res.is_complete
+        except rospy.ServiceException as e:
+            print("Service call failed: %s"%e)
+
     outcome = ModeProcess(['MANUAL', 'ALTCTL', 'finished'])
+    # outcome = ModeProcess(['MANUAL', 'ALTCTL', 'finished'], EmergyReq)
     return outcome
     
 
@@ -365,6 +381,9 @@ if __name__ == '__main__':
     offb_states_[OffbState.LANDING].tfBuffer = tf2_ros.Buffer()
     offb_states_[OffbState.LANDING].listener = tf2_ros.TransformListener(offb_states_[OffbState.LANDING].tfBuffer)
 
+    offb_states_[OffbState.FLIGHT].tfBuffer = tf2_ros.Buffer()
+    offb_states_[OffbState.FLIGHT].listener = tf2_ros.TransformListener(offb_states_[OffbState.FLIGHT].tfBuffer)
+
     '''
     Initialize Parameters
     '''
@@ -372,10 +391,9 @@ if __name__ == '__main__':
     freq = rospy.get_param("~process_freq")
     takeoff_alt_m = rospy.get_param("~takeoff_alt_m")
     reached_dist_th_m = rospy.get_param("~reached_dist_th_m")
-    guidance_dist_th_m = rospy.get_param("~guidance_dist_th_m")
+    roi_th_m = rospy.get_param("~roi_th_m")
     landing_threshold_m = rospy.get_param("~landing_threshold_m")
     battery_th = rospy.get_param("~battery_th_per")
-    alt_offset_m = rospy.get_param("~alt_offset_m")
     using_camera = rospy.get_param("~using_camera")
 
     for state in offb_states_.values():
@@ -388,9 +406,9 @@ if __name__ == '__main__':
     offb_states_[OffbState.TAKEOFF].takeoff_alt_m = takeoff_alt_m
     offb_states_[OffbState.TAKEOFF].reached_dist_th_m = reached_dist_th_m
     offb_states_[OffbState.FLIGHT].reached_dist_th_m = reached_dist_th_m
-    offb_states_[OffbState.FLIGHT].guidance_dist_th_m = guidance_dist_th_m
+    offb_states_[OffbState.FLIGHT].roi_th_m = roi_th_m
     offb_states_[OffbState.LANDING].reached_dist_th_m = reached_dist_th_m
-    offb_states_[OffbState.LANDING].guidance_dist_th_m = guidance_dist_th_m
+    offb_states_[OffbState.LANDING].roi_th_m = roi_th_m
     offb_states_[OffbState.LANDING].landing_threshold_m = landing_threshold_m
     offb_states_[OffbState.LANDING].using_camera = using_camera
 
@@ -404,6 +422,7 @@ if __name__ == '__main__':
     rospy.Subscriber("/mavros/global_position/global", NavSatFix, EgoGlobalPoseCB)
     rospy.Subscriber("/mavros/local_position/velocity_body", TwistStamped, EgoVelCB)
     rospy.Subscriber(data_ns + "/aruco_tracking/target_states", ArucoStates, offb_states_[OffbState.LANDING].MarkerCB)
+    rospy.Subscriber(data_ns + "/vehicle_position/vehicle_state", VehicleState, offb_states_[OffbState.LANDING].VehicleCB)
     rospy.Subscriber(data_ns + "/chat/command", Chat, CommandCB)
     rospy.Subscriber("/mavros/battery", BatteryState, BatteryCB)
 
@@ -426,12 +445,14 @@ if __name__ == '__main__':
         
         # Add states to the container
         smach.StateMachine.add('MANUAL', CBState(ManualCB),
-                                transitions={'ALTCTL':'ALTCTL',
+                                transitions={'MANUAL':'MANUAL',
+                                             'ALTCTL':'ALTCTL',
                                              'OFFBOARD':'OFFBOARD',
                                              'AUTO.RTL':'EMERGY',
                                              'finished':'finished'})
         smach.StateMachine.add('ALTCTL', CBState(AltitudeCB),
-                                transitions={'MANUAL':'MANUAL',
+                                transitions={'ALTCTL':'ALTCTL',
+                                             'MANUAL':'MANUAL',
                                              'OFFBOARD':'OFFBOARD',
                                              'AUTO.RTL':'EMERGY',
                                              'finished':'finished'})

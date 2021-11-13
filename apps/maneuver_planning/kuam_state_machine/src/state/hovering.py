@@ -25,9 +25,9 @@ class Hovering(smach.State, Base):
 
 
     def Start(self):
+        # Initialize flag
+        self.has_updated_setpoint = False
         self.is_start = True
-        # Initialize setpoint
-        pass
 
     def Running(self):
         rate = rospy.Rate(self.freq)

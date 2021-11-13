@@ -4,7 +4,6 @@
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
-#include <mavros_msgs/HomePosition.h>
 
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PoseArray.h>
@@ -52,6 +51,7 @@ private:
     // Publisher
     ros::Publisher m_local_pos_tar_pub;
     ros::Publisher m_global_pose_pub;
+    ros::Publisher m_local_pose_pub;
     ros::Publisher m_payload_cmd_pub;
     
     // ServiceClient

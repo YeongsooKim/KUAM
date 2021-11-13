@@ -4,6 +4,7 @@
 *.bag
 *.sln
 *.pyc
+*.code-workspace
 
 # Build results
 [Dd]ebug/
@@ -31,7 +32,6 @@ CMakeCache.txt
 .vs/
 .vscode/
 
-
 # ROS
 ros/.catkin_tools/
 ros/devel/
@@ -48,3 +48,7 @@ PythonClient/docs/_build
 
 # rosbag
 bag/
+
+# darknet_ros
+cfg/
+*.weights

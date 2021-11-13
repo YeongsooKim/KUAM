@@ -1,0 +1,3 @@
+[submodule "apps/data_processing/yolo_vehicle_detection/yolov4-for-darknet_ros"]
+	path = apps/data_processing/yolo_vehicle_detection/yolov4-for-darknet_ros
+	url = https://github.com/Tossy0423/yolov4-for-darknet_ros.git

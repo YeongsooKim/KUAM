@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<robot name="vehicle">
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://kuam_vehicle_position/rviz/models/nissan_skyline_250gt/nissan_skyline_250gt.stl"/>
+      </geometry>
+    </visual>
+  </link>
+</robot>

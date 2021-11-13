@@ -39,6 +39,14 @@ bool TfBroadcaster::GetParam()
     if (!m_p_nh.getParam("extrinsic_imu_to_camera_r_deg", m_extrinsic_imu_to_camera_r_deg_param)) { m_err_param = "extrinsic_imu_to_camera_r_deg"; return false; }
     if (!m_p_nh.getParam("extrinsic_imu_to_camera_p_deg", m_extrinsic_imu_to_camera_p_deg_param)) { m_err_param = "extrinsic_imu_to_camera_p_deg"; return false; }
     if (!m_p_nh.getParam("extrinsic_imu_to_camera_y_deg", m_extrinsic_imu_to_camera_y_deg_param)) { m_err_param = "extrinsic_imu_to_camera_y_deg"; return false; }
+    if (!m_nh.getParam("/sim", m_is_sim_param)) { m_err_param = "sim"; return false; }
+    if (m_is_sim_param){
+        m_is_home_set = true;
+        if (!m_nh.getParam("/home_lon", m_home_position.longitude)) { m_err_param = "home_lon"; return false; }
+        if (!m_nh.getParam("/home_lat", m_home_position.latitude)) { m_err_param = "home_lat"; return false; }
+        if (!m_nh.getParam("/home_alt", m_home_position.altitude)) { m_err_param = "home_alt"; return false; }
+        ROS_WARN_STREAM("[tf_broadcaster] Home set");
+    }
 
     return true;
 }
@@ -46,12 +54,15 @@ bool TfBroadcaster::GetParam()
 bool TfBroadcaster::InitROS()
 {
     // Initialize subscriber
-    m_home_position_sub = 
-        m_nh.subscribe<mavros_msgs::HomePosition>("/mavros/home_position/home", 10, boost::bind(&TfBroadcaster::HomePositionCallback, this, _1));
-    ros::Rate rate(10);
-    while (ros::ok() && !m_is_home_set){
-        ros::spinOnce();
-        rate.sleep();
+    if (!m_is_sim_param){
+        m_home_position_sub = 
+            m_nh.subscribe<mavros_msgs::HomePosition>("/mavros/home_position/home", 10, boost::bind(&TfBroadcaster::HomePositionCallback, this, _1));
+        ros::Rate rate(0.2);
+        while (ros::ok() && !m_is_home_set){
+            ROS_WARN_STREAM("[tf_broadcaster] Requesting home set");
+            ros::spinOnce();
+            rate.sleep();
+        }
     }
 
     m_ego_global_pos_sub = m_nh.subscribe<sensor_msgs::NavSatFix>("/mavros/global_position/global", 10, boost::bind(&TfBroadcaster::EgoGlobalCallback, this, _1));
@@ -94,9 +105,9 @@ bool TfBroadcaster::InitStaticTf()
         tf_stamped.header.frame_id = "base_link";
         tf_stamped.child_frame_id = "camera_link";
 
-        tf_stamped.transform.translation.x = 0.1;
+        tf_stamped.transform.translation.x = 0.0;
         tf_stamped.transform.translation.y = 0.0;
-        tf_stamped.transform.translation.z = 0.28;
+        tf_stamped.transform.translation.z = -0.04;
         
         tf2::Quaternion q;
         q.setRPY(0.0, M_PI, M_PI/2);

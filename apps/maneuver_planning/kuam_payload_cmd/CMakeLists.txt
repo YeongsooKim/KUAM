@@ -8,6 +8,10 @@ add_compile_options(-std=c++11)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 # find_package(Eigen3 REQUIRED)
+# Geographiclib installs FindGeographicLib.cmake to this non-standard location
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/share/cmake/geographiclib/")
+find_package(GeographicLib REQUIRED)
+
 find_package(Boost REQUIRED)
 find_package(PythonLibs 2.7)
 find_package(catkin REQUIRED COMPONENTS
@@ -55,4 +59,4 @@ include_directories(
 
 ## payload_cmd_node
 add_executable(payload_cmd_node src/payload_cmd_node.cpp src/payload_cmd.cpp src/utils.cpp)
-target_link_libraries(payload_cmd_node ${catkin_LIBRARIES})
+target_link_libraries(payload_cmd_node ${catkin_LIBRARIES} ${GeographicLib_LIBRARIES})

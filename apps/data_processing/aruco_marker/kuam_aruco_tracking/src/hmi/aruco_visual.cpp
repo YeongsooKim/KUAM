@@ -14,8 +14,8 @@
 #include <kuam_msgs/ArucoVisuals.h>
 #include <kuam_msgs/ArucoState.h>
 #include <kuam_msgs/ArucoStates.h>
+#include <kuam_msgs/FittingPlane.h>
 #include <geometry_msgs/Point.h>
-#include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PoseArray.h>
 #include <std_msgs/ColorRGBA.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -69,12 +69,7 @@ private:
 
     // Param
     string m_err_param;
-    float m_small_marker_size_m_param;
-    float m_medium_marker_size_m_param;
-    float m_big_marker_size_m_param;
-    vector<int> m_small_marker_ids_param;
-    vector<int> m_medium_marker_ids_param;
-    vector<int> m_big_marker_ids_param;
+    int m_marker_size_type_num_param;
 
     // Marker
     using aruco = vector < MetaMarkers >;
@@ -100,10 +95,6 @@ Visualizer::Visualizer() :
     InitFlag();
     if (!GetParam()) ROS_ERROR("[aruco_visual] Fail GetParam %s", m_err_param.c_str());
     InitROS();
-
-    for (auto id : m_big_marker_ids_param) m_marker_ids.push_back(id);
-    for (auto id : m_medium_marker_ids_param) m_marker_ids.push_back(id);
-    for (auto id : m_small_marker_ids_param) m_marker_ids.push_back(id);
     InitMarkers();
 }
 
@@ -119,33 +110,20 @@ bool Visualizer::InitFlag()
 
 bool Visualizer::GetParam()
 {
-    string nd_name = ros::this_node::getName();
+    if (!m_p_nh.getParam("marker_size_type_num", m_marker_size_type_num_param))  { m_err_param = "marker_size_type_num"; return false; }
 
-    if (!m_p_nh.getParam("small_marker_size_m", m_small_marker_size_m_param)) { m_err_param = "small_marker_size_m"; return false; }
-    if (!m_p_nh.getParam("medium_marker_size_m", m_medium_marker_size_m_param)) { m_err_param = "medium_marker_size_m"; return false; }
-    if (!m_p_nh.getParam("big_marker_size_m", m_big_marker_size_m_param)) { m_err_param = "big_marker_size_m"; return false; }
-    XmlRpc::XmlRpcValue list;
-    if (!m_p_nh.getParam("big_marker_ids", list)) { m_err_param = "big_marker_ids"; return false; }
-    ROS_ASSERT(list.getType() == XmlRpc::XmlRpcValue::TypeArray);
-    for (int32_t i = 0; i < list.size(); ++i) {
-        ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
-        int id = static_cast<int>(list[i]);
-        m_big_marker_ids_param.push_back(id);
-    }
-    if (!m_p_nh.getParam("medium_marker_ids", list)) { m_err_param = "medium_marker_ids"; return false; }
-    ROS_ASSERT(list.getType() == XmlRpc::XmlRpcValue::TypeArray);
-    for (int32_t i = 0; i < list.size(); ++i) {
-        ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
-        int id = static_cast<int>(list[i]);
-        m_medium_marker_ids_param.push_back(id);
-    }
+    for (int i = 0; i < m_marker_size_type_num_param; i++){
+        string param_name = "marker_ids_type_" + to_string(i);
 
-    if (!m_p_nh.getParam("small_marker_ids", list)) { m_err_param = "small_marker_ids"; return false; }
-    ROS_ASSERT(list.getType() == XmlRpc::XmlRpcValue::TypeArray);
-    for (int32_t i = 0; i < list.size(); ++i) {
-        ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
-        int id = static_cast<int>(list[i]);
-        m_small_marker_ids_param.push_back(id);
+        vector<int> marker_ids;
+        XmlRpc::XmlRpcValue list;
+        if (!m_p_nh.getParam(param_name, list))  { m_err_param = param_name; return false; }
+        ROS_ASSERT(list.getType() == XmlRpc::XmlRpcValue::TypeArray);
+        for (int32_t i = 0; i < list.size(); ++i) {
+            ROS_ASSERT(list[i].getType() == XmlRpc::XmlRpcValue::TypeInt);
+            int id = static_cast<int>(list[i]);
+            m_marker_ids.push_back(id);
+        }
     }
 
     return true;
@@ -153,10 +131,7 @@ bool Visualizer::GetParam()
 
 bool Visualizer::InitROS()
 {
-    // package, node, topic name
-    string nd_name = ros::this_node::getName();
-    string ns_name = ros::this_node::getNamespace();
-
+    // Initialize subscriber
     m_aruco_visual_sub = 
         m_nh.subscribe<kuam_msgs::ArucoVisuals>("aruco_tracking/aruco_visuals", 1, boost::bind(&Visualizer::ArucoVisualCallback, this, _1));
     m_aruco_states_sub = 
@@ -328,22 +303,24 @@ void Visualizer::ArucoVisualCallback(const kuam_msgs::ArucoVisuals::ConstPtr &ar
 
 void Visualizer::ArucoStatesCallback(const kuam_msgs::ArucoStates::ConstPtr &aruco_msg_ptr)
 {
-    visualization_msgs::Marker landing_point;
-    landing_point.header.frame_id = aruco_msg_ptr->header.frame_id;
-    landing_point.header.stamp = ros::Time::now();
-    landing_point.ns = "setpoint/landing_point";
-    landing_point.id = 0;
-    landing_point.type = visualization_msgs::Marker::SPHERE;
-    landing_point.action = visualization_msgs::Marker::ADD;
-    landing_point.scale.x = 0.15;
-    landing_point.scale.y = 0.15;
-    landing_point.scale.z = 0.15;
-    landing_point.pose = aruco_msg_ptr->target_pose;
-    landing_point.color = ORANGE;
-    landing_point.color.a = 1.0f;
-    landing_point.lifetime = ros::Duration(0.1);
+    if (aruco_msg_ptr->is_detected){
+        visualization_msgs::Marker landing_point;
+        landing_point.header.frame_id = aruco_msg_ptr->header.frame_id;
+        landing_point.header.stamp = ros::Time::now();
+        landing_point.ns = "setpoint/landing_point";
+        landing_point.id = 0;
+        landing_point.type = visualization_msgs::Marker::SPHERE;
+        landing_point.action = visualization_msgs::Marker::ADD;
+        landing_point.scale.x = 0.15;
+        landing_point.scale.y = 0.15;
+        landing_point.scale.z = 0.15;
+        landing_point.pose = aruco_msg_ptr->target_pose;
+        landing_point.color = ORANGE;
+        landing_point.color.a = 1.0f;
+        landing_point.lifetime = ros::Duration(0.1);
 
-    m_landingpoint_pub.publish(landing_point);
+        m_landingpoint_pub.publish(landing_point);
+    }
 }
 }
 

@@ -27,13 +27,17 @@ add_message_files(
   ArucoVisual.msg
   ArucoVisuals.msg
   Completion.msg
+  FittingPlane.msg
+  FittingPlanes.msg
   LandingState.msg
+  marker_ids.msg
   Qgc.msg
   QgcDatum.msg
   Setpoint.msg
   Status.msg
   Task.msg
   TaskList.msg
+  VehicleState.msg
   Waypoint.msg
   Waypoints.msg
 )
@@ -41,6 +45,7 @@ add_message_files(
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
+  EmergyRequest.srv
   GlobalPathSync.srv
   LandRequest.srv
 )

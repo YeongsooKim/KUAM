@@ -15,17 +15,25 @@
 #include <geographic_msgs/GeoPoint.h>
 #include <geographic_msgs/GeoPath.h>
 #include <kuam_msgs/Waypoints.h>
-#include <mavros_msgs/HomePosition.h>
 #include <kuam_msgs/GlobalPathSync.h>
 
 using namespace std;
 
 namespace kuam{
 
+struct Trajectory{
+    Trajectory(){
+        is_global = false;
+    }
+    bool is_global;
+    vector<geographic_msgs::GeoPose> geoposes;
+    vector<geometry_msgs::Pose> poses;
+};
+
 using namespace mission;
 const int NO_TASK = 99;
-using trans_to_geoposes_pair = pair<Trans, vector < geographic_msgs::GeoPose > >;
-using task_to_status_pair = pair<trans_to_geoposes_pair, Status>;
+using trans_to_trajectory_pair = pair<Trans, Trajectory>;
+using task_to_status_pair = pair<trans_to_trajectory_pair, Status>;
 using id_to_taskStatus_map = map <int, task_to_status_pair>;
 
 class Maneuver
@@ -40,7 +48,7 @@ private:
 	ros::NodeHandle m_nh;
 	ros::NodeHandle m_p_nh;
 
-    id_to_taskStatus_map m_id_to_taskStatus_list;
+    id_to_taskStatus_map m_id_to_taskStatus_map;
     GlobalPath m_waypoints;
     
 public:
@@ -67,6 +75,7 @@ private:
     string m_err_param;
     float m_process_freq_param;
     string m_data_ns_param;
+    bool m_is_global_param;
 
     // Flag
     int m_cur_task_id;
@@ -85,7 +94,7 @@ private: // Function
     bool GlobalPathMsgSync(kuam_msgs::GlobalPathSync::Request &req, kuam_msgs::GlobalPathSync::Response &res);
 
     bool IsTransition(string input);    // Check whether the transition is included in enum class
-    bool InsertTaskStatus(string input, vector<geographic_msgs::GeoPose> geoposes=vector<geographic_msgs::GeoPose>());
+    bool InsertTaskStatus(string input, vector<geographic_msgs::GeoPose> geoposes=vector<geographic_msgs::GeoPose>(), vector<geometry_msgs::Pose> poses=vector<geometry_msgs::Pose>());
     bool IsTaskRunning();
     bool HasTodoTask();
     bool DoTask();

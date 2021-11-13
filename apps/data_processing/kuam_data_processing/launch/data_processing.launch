@@ -2,15 +2,10 @@
     <!-- namespace -->
     <arg name="maneuver_ns" default="/kuam/maneuver" />
 
-    <!-- - kuam_aruco_tracking - -->
-    <arg name="using_aruco" default="true" />
-	<arg     if="$(arg using_aruco)" name="gps_only" value="false" />
-	<arg unless="$(arg using_aruco)" name="gps_only" value="true" />
-    
-    <!-- select only one data type -->
-    <arg name="using_gazebo_data" default="true" />
-    <arg name="using_logging_data" default="false" />
-    <arg name="using_device_data" default="false" />
+    <arg name="using_aruco" default="false" />
+    <arg name="using_yolo" default="false" />
+    <arg name="gps_only" default="true" />
+    <arg name="simulation" default="true" />
 
     <!-- rviz -->
     <arg name="rviz" default="false" />
@@ -22,9 +17,11 @@
         </include>
 
         <include file="$(find kuam_aruco_tracking)/launch/aruco_tracking.launch" if="$(arg using_aruco)">
-            <arg name="using_gazebo_data" value="$(arg using_gazebo_data)" />
-            <arg name="using_logging_data" value="$(arg using_logging_data)" />
-            <arg name="using_device_data" value="$(arg using_device_data)" />
+            <arg name="simulation" value="$(arg simulation)" />
+        </include>
+
+        <include file="$(find kuam_vehicle_position)/launch/vehicle_position.launch" if="$(arg using_yolo)">
+            <arg name="simulation" value="$(arg simulation)" />
         </include>
 
         <group if="$(arg rviz)">

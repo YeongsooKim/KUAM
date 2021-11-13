@@ -1,0 +1,19 @@
+vehicle_position:
+  process_freq: 30
+  target_width_m: 1.83
+  target_length_m: 4.8
+  image_plane_width_m: 640
+  image_plane_height_m: 480
+
+vehicle_position_visual:
+  process_freq: 1.0
+  target_pos_x: 26.5701713562
+  target_pos_y: -1.073049283028
+  target_pos_z: 0
+  target_euler_r: 0.0
+  target_euler_p: 0.0
+  # target_euler_y: 0.57
+  target_euler_y: 2.1408
+
+vehicle_position_tf:
+  process_freq: 50.0

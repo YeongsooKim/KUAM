@@ -1,5 +1,6 @@
 #include "kuam_payload_cmd/payload_cmd.h"
 #include <string>
+#include <GeographicLib/Geoid.hpp>
 
 #include <geometry_msgs/Point.h>
 #include <mavros_msgs/PositionTarget.h>
@@ -7,7 +8,7 @@
 using namespace std;
 using namespace kuam;
 using namespace mission;
-    
+
 
 Playload::Playload() : 
     m_p_nh("~"),
@@ -50,9 +51,10 @@ bool Playload::InitROS()
 
     // Initialize publisher
     m_global_pose_pub = m_nh.advertise<geographic_msgs::GeoPoseStamped>("/mavros/setpoint_position/global", 10);
+    m_local_pose_pub = m_nh.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
     m_local_pos_tar_pub = m_nh.advertise<mavros_msgs::PositionTarget>("/mavros/setpoint_raw/local", 10);
     m_payload_cmd_pub = m_p_nh.advertise<uav_msgs::PayloadCmd>("payload_cmd", 1000);
-
+    
     // Initialize service client
     m_arming_serv_client = m_nh.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
     m_set_mode_serv_client = m_nh.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
@@ -123,7 +125,7 @@ void Playload::ChatterCallback(const uav_msgs::Chat::ConstPtr &chat_ptr)
 bool Playload::LandRequestSrv(kuam_msgs::LandRequest::Request &req, kuam_msgs::LandRequest::Response &res)
 {
     if (req.land_request){
-        ROS_WARN_STREAM("Enter LandRequestSrv");
+        ROS_WARN_STREAM("[payload_cmd] Enter LandRequestSrv");
         LandRequest();
 
         ros::Rate rate(m_process_freq_param);
@@ -132,7 +134,7 @@ bool Playload::LandRequestSrv(kuam_msgs::LandRequest::Request &req, kuam_msgs::L
             ros::spinOnce();
             rate.sleep();
         }
-        ROS_WARN_STREAM("Complete LandRequestSrv");
+        ROS_WARN_STREAM("[payload_cmd] Complete LandRequestSrv");
         res.is_complete = true;
     }
 
@@ -148,7 +150,7 @@ void Playload::ArmRequest()
     if(!m_mavros_status.armed){
         if( m_arming_serv_client.call(arm_cmd) && arm_cmd.response.success){
 
-            ROS_INFO("Vehicle armed");
+            ROS_WARN("[payload_cmd] Vehicle armed");
         }
         m_last_request_time = ros::Time::now();
     }
@@ -162,7 +164,7 @@ void Playload::ManualRequest()
     if( m_mavros_status.mode != "MANUAL"){
         if(m_set_mode_serv_client.call(manual_set_mode) &&
             manual_set_mode.response.mode_sent){
-            ROS_INFO("Manual enabled");
+            ROS_WARN("[payload_cmd] Manual enabled");
         }
         m_last_request_time = ros::Time::now();
     }
@@ -176,7 +178,7 @@ void Playload::AltitudeRequest()
     if( m_mavros_status.mode != "ALTCTL"){
         if(m_set_mode_serv_client.call(altitude_set_mode) &&
             altitude_set_mode.response.mode_sent){
-            ROS_INFO("Altitude enabled");
+            ROS_WARN("[payload_cmd] Altitude enabled");
         }
         m_last_request_time = ros::Time::now();
     }
@@ -190,7 +192,7 @@ bool Playload::OffboardRequest()
     if( m_mavros_status.mode != "OFFBOARD"){
         if(m_set_mode_serv_client.call(offb_set_mode) &&
             offb_set_mode.response.mode_sent){
-            ROS_INFO("Offboard enabled");
+            ROS_WARN("[payload_cmd] Offboard enabled");
         }
         m_last_request_time = ros::Time::now();
         return false;
@@ -206,7 +208,7 @@ void Playload::LandRequest()
     if (m_mavros_status.mode != "AUTO.LAND" && m_mavros_status.armed){
         if(m_set_mode_serv_client.call(landing_mode) &&
             landing_mode.response.mode_sent){
-            ROS_INFO("Land enabled");
+            ROS_WARN("[payload_cmd] Land enabled");
         }
         m_last_request_time = ros::Time::now();
     }
@@ -221,7 +223,7 @@ void Playload::EmergRequest()
         if(m_set_mode_serv_client.call(emerg_mode) &&
             emerg_mode.response.mode_sent){
 
-            ROS_ERROR("Emergy enabled");
+            ROS_ERROR("[payload_cmd] Emergy enabled");
         }
         m_last_request_time = ros::Time::now();
     }
@@ -231,41 +233,56 @@ void Playload::EmergRequest()
 void Playload::SetpointPub()
 {
     if (m_setpoint.is_global){
+        GeographicLib::Geoid egm96("egm96-5");
+        auto offset = egm96(m_setpoint.geopose.position.latitude, m_setpoint.geopose.position.longitude);
         geographic_msgs::GeoPoseStamped msg;
-        msg.header.frame_id = "map";
+        msg.header.frame_id = m_setpoint.header.frame_id;
         msg.header.stamp = ros::Time::now();
 
-        msg.header = m_setpoint.header;
         msg.pose = m_setpoint.geopose;
+        msg.pose.position.altitude -= offset;
 
         m_global_pose_pub.publish(msg);
+        ROS_INFO_THROTTLE(0.1, "Publish global msg: %f %f, %f", msg.pose.position.longitude, msg.pose.position.latitude, msg.pose.position.altitude);
     }
     else {
-        mavros_msgs::PositionTarget pos_tar;
-        pos_tar.header.stamp = ros::Time::now();
-        pos_tar.header.frame_id = "base_link";
+        if (m_setpoint.is_setpoint_position){
+            geometry_msgs::PoseStamped msg;
+            msg.header.frame_id = m_setpoint.header.frame_id;
+            msg.header.stamp = ros::Time::now();
 
-        pos_tar.type_mask = mavros_msgs::PositionTarget::IGNORE_PX
-            | mavros_msgs::PositionTarget::IGNORE_PY
-            | mavros_msgs::PositionTarget::IGNORE_PZ 
-            | mavros_msgs::PositionTarget::IGNORE_AFX
-            | mavros_msgs::PositionTarget::IGNORE_AFY
-            | mavros_msgs::PositionTarget::IGNORE_AFZ
-            | mavros_msgs::PositionTarget::FORCE
-            | mavros_msgs::PositionTarget::IGNORE_YAW;
+            msg.pose = m_setpoint.pose;
+            m_local_pose_pub.publish(msg);
+            ROS_INFO_THROTTLE(0.1, "Publish local setpoint position msg: %f %f, %f", msg.pose.position.x, msg.pose.position.y, msg.pose.position.z);
+        }
+        else{
+            mavros_msgs::PositionTarget pos_tar;
+            pos_tar.header.stamp = ros::Time::now();
+            pos_tar.header.frame_id = m_setpoint.header.frame_id;
 
-        pos_tar.coordinate_frame = mavros_msgs::PositionTarget::FRAME_BODY_NED;
+            pos_tar.type_mask = mavros_msgs::PositionTarget::IGNORE_PX
+                | mavros_msgs::PositionTarget::IGNORE_PY
+                | mavros_msgs::PositionTarget::IGNORE_PZ 
+                | mavros_msgs::PositionTarget::IGNORE_AFX
+                | mavros_msgs::PositionTarget::IGNORE_AFY
+                | mavros_msgs::PositionTarget::IGNORE_AFZ
+                | mavros_msgs::PositionTarget::FORCE
+                | mavros_msgs::PositionTarget::IGNORE_YAW;
 
-        pos_tar.velocity.x = m_setpoint.vel.linear.x;
-        pos_tar.velocity.y = m_setpoint.vel.linear.y;
-        pos_tar.velocity.z = m_setpoint.vel.linear.z;
+            pos_tar.coordinate_frame = mavros_msgs::PositionTarget::FRAME_BODY_NED;
 
-        auto euler = m_utils.Quat2Euler(m_setpoint.yaw_rate.orientation);
-        auto yaw_rate_rads = euler.y;
-        if (__isnan(yaw_rate_rads)){ yaw_rate_rads = 0.0; }
-        pos_tar.yaw_rate = yaw_rate_rads;
-        
-        m_local_pos_tar_pub.publish(pos_tar);
+            pos_tar.velocity.x = m_setpoint.vel.linear.x;
+            pos_tar.velocity.y = m_setpoint.vel.linear.y;
+            pos_tar.velocity.z = m_setpoint.vel.linear.z;
+
+            auto euler = m_utils.Quat2Euler(m_setpoint.yaw_rate.orientation);
+            auto yaw_rate_rads = euler.y;
+            if (__isnan(yaw_rate_rads)){ yaw_rate_rads = 0.0; }
+            pos_tar.yaw_rate = yaw_rate_rads;
+            
+            m_local_pos_tar_pub.publish(pos_tar);
+            ROS_INFO_THROTTLE(0.1, "Publish local setpoint raw msg: %f %f, %f", m_setpoint.vel.linear.x, m_setpoint.vel.linear.y, m_setpoint.vel.linear.z);
+        }
     }
 }
 
@@ -273,8 +290,6 @@ void Playload::PayloadCmdPub()
 {
     static string prev_mode = "none";
     if (prev_mode != m_mavros_status.mode){
-        ROS_WARN("PX4: %s, armed: False", m_mavros_status.mode.c_str());
-
         uav_msgs::PayloadCmd payload_cmd_msg;
         payload_cmd_msg.mode = m_mavros_status.mode;
         m_payload_cmd_pub.publish(payload_cmd_msg);

@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="image" default="/camera/rgb/image_raw" />
+
+    <!-- Config and weights folder. -->
+    <arg name="yolo_weights_path"          default="$(find kuam_darknet_ros)/yolo_network_config/weights"/>
+    <arg name="yolo_config_path"           default="$(find kuam_darknet_ros)/yolo_network_config/cfg"/>
+
+    <!-- ROS and network parameter files -->
+    <arg name="network_param_file"         default="$(find kuam_darknet_ros)/config/yolov4_coco_carpk_pucpr+.yaml"/>
+
+    <!-- nodes -->
+    <include file="$(find darknet_ros)/launch/darknet_ros.launch" >
+        <arg name="image" value="$(arg image)" />
+        <arg name="yolo_weights_path" value="$(arg yolo_weights_path)" />
+        <arg name="yolo_config_path" value="$(arg yolo_config_path)" />
+        <arg name="network_param_file" value="$(arg network_param_file)" />
+    </include>
+</launch>

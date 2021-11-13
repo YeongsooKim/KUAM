@@ -7,6 +7,13 @@ add_compile_options(-std=c++11)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+find_package(OpenMP REQUIRED)
+if(OPENMP_FOUND)
+  message(STATUS "OPENMP FOUND")
+  set(OpenMP_FLAGS ${OpenMP_CXX_FLAGS})  # or if you use C: ${OpenMP_C_FLAGS}
+  set(OpenMP_LIBS gomp)
+endif()
+
 find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
@@ -43,6 +50,8 @@ catkin_package(
   image_transport
   tf2 
   tf2_ros
+  DEPENDS
+    OpenMP
 )
 
 ###########
@@ -64,6 +73,7 @@ add_executable(aruco_tracking_node
   src/aruco_tracking.cpp 
   src/parser.cpp 
   src/target.cpp
+  src/frequency_degree.cpp
   src/utils/util_marker.cpp
   src/utils/util_setpoint.cpp
 )
@@ -73,6 +83,7 @@ target_link_libraries(aruco_tracking_node
  ${catkin_LIBRARIES}
  ${EIGEN3_INCLUDE_DIRS}
  ${OpenCV_LIBRARIES}
+ ${OpenMP_LIBS}
 )
 
 ## aruco_visual_node

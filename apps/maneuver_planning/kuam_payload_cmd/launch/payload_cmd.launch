@@ -5,7 +5,7 @@
     <!-- namespace -->
 	<arg name="data_ns" default="/kuam/data" />
 
-    <node pkg="kuam_payload_cmd" type="payload_cmd_node" name="payload_cmd" output="screen">
+    <node pkg="kuam_payload_cmd" type="payload_cmd_node" name="payload_cmd" output="log">
         <param name="data_ns" value="$(arg data_ns)" />
     </node>
 </launch>

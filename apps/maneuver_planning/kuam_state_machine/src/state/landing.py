@@ -6,8 +6,6 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 import rospy
 import smach
-import tf
-from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 from .state import Base
 from utils.util_geometry import *
@@ -19,6 +17,7 @@ from geometry_msgs.msg import PoseStamped
 from kuam_msgs.msg import LandingState
 from geographic_msgs.msg import GeoPoseStamped
 import tf2_geometry_msgs
+import tf2_ros
 
 class Landing(smach.State, Base):
     def __init__(self, ego_geopose, ego_pose, ego_vel, setpoint, setpoints):
@@ -34,7 +33,7 @@ class Landing(smach.State, Base):
         
         # Param
         self.reached_dist_th_m = None # defined by ros param
-        self.guidance_dist_th_m = None # defined by ros param
+        self.roi_th_m = None # defined by ros param
         self.landing_threshold_m = None
         self.using_camera = False
 
@@ -45,9 +44,12 @@ class Landing(smach.State, Base):
         self.setpoint = setpoint
         self.setpoints = setpoints
         self.transition = 'none'
+        self.prev_global_nearest_sp_idx = 0
+        self.prev_local_nearest_sp_idx = 0
         
         # Target state
-        self.target_pose = Pose()
+        self.marker_pose = Pose()
+        self.vehicle_pose = Pose()
 
         # Tf
         self.tfBuffer = None
@@ -62,11 +64,17 @@ class Landing(smach.State, Base):
     State functions
     '''
     def Start(self):
+        rospy.loginfo("## [landing] Start\n ##")
+
+        # Initialize flag
+        self.has_updated_setpoint = False
         self.is_start = True
-        self.is_detected = False
         self.switching_mod2 = False
         self.switching_mod1 = False
         self.is_mod2_fixed = False
+
+        self.prev_global_nearest_sp_idx = 0
+        self.prev_local_nearest_sp_idx = 0
 
     def Running(self):
         rate = rospy.Rate(self.freq)
@@ -89,6 +97,7 @@ class Landing(smach.State, Base):
                 self.GPSLandModeSwitching()
                 self.GPSSetpointUpdate()
 
+            self.has_updated_setpoint = True
             rate.sleep()
 
     def Terminate(self):
@@ -101,7 +110,7 @@ class Landing(smach.State, Base):
     Camera
     '''
     def CameraLandModeSwitching(self):
-        if -self.target_pose.position.z < self.landing_threshold_m and -self.target_pose.position.z > 0.01:
+        if -self.marker_pose.position.z < self.landing_threshold_m and -self.marker_pose.position.z > 0.01:
             self.mode = "auto.land"
             
         elif self.switching_mod2:
@@ -113,44 +122,85 @@ class Landing(smach.State, Base):
             self.mode = "standby"
         
     def CameraSetpointUpdate(self):
+        rospy.loginfo_throttle(0.1, "### [landing] CameraSetpointUpdate ###")
+
         landing_state = LandingState()
         landing_state.mode = self.mode
 
         if self.mode == "mode1":
             self.setpoint.is_global = False
+            self.setpoint.is_setpoint_position = False
+            rospy.loginfo_throttle(0.1, "[landing] mode1 setpoint: setpoint_raw")
 
-            # Set setpoint.vel
-            # Set setpoint.yaw_rate
-            # Set setpoint.geopose (optional)
+            self.setpoint.vel.linear.x = XY_Vel(self.vehicle_pose.position.x, 0.15, 0.3)
+            self.setpoint.vel.linear.y = XY_Vel(self.vehicle_pose.position.y, 0.15, 0.3)
+            self.setpoint.vel.linear.z = Z_Vel(self.vehicle_pose.position.z, 0.045, 0.5)
+            rospy.loginfo_throttle(0.1, "err: %f, vel: %f", self.vehicle_pose.position.x, self.setpoint.vel.linear.x)
+            rospy.loginfo_throttle(0.1, "err: %f, vel: %f", self.vehicle_pose.position.y, self.setpoint.vel.linear.y)
+            rospy.loginfo_throttle(0.1, "err: %f, vel: %f\n", self.vehicle_pose.position.z, self.setpoint.vel.linear.z)
 
-            landing_state.is_vehicle_detected = True
-
-        elif self.mode == "mode2":
-            self.setpoint.is_global = False
-
-            self.setpoint.vel.linear.x = self.XY_Vel(self.target_pose.position.x)
-            self.setpoint.vel.linear.y = self.XY_Vel(self.target_pose.position.y)
-            self.setpoint.vel.linear.z = self.Z_Vel(self.target_pose.position.z)
-
-            v_yaw = self.YawRate(self.target_pose.orientation)
+            v_yaw = YawRate(self.setpoints.pose_array.poses[-1].orientation, 0.1)
             self.setpoint.yaw_rate.orientation.x = v_yaw[0]
             self.setpoint.yaw_rate.orientation.y = v_yaw[1]
             self.setpoint.yaw_rate.orientation.z = v_yaw[2]
             self.setpoint.yaw_rate.orientation.w = v_yaw[3]
 
-            self.setpoint.geopose = self.ego_geopose
-            self.setpoint.target_pose = self.target_pose
+            self.setpoint.ego_pose = self.ego_pose
+            self.setpoint.target_pose = self.vehicle_pose
+
+            landing_state.is_vehicle_detected = True
+
+        elif self.mode == "mode2":
+            self.setpoint.is_global = False
+            self.setpoint.is_setpoint_position = False
+            rospy.loginfo_throttle(0.1, "[landing] mode2 setpoint: setpoint_raw")
+
+            self.setpoint.vel.linear.x = XY_Vel(self.marker_pose.position.x, 0.15, 0.3)
+            self.setpoint.vel.linear.y = XY_Vel(self.marker_pose.position.y, 0.15, 0.3)
+            self.setpoint.vel.linear.z = Z_Vel(self.marker_pose.position.z, 0.045, 0.5)
+            rospy.loginfo_throttle(0.1, "err: %f, vel: %f", self.marker_pose.position.x, self.setpoint.vel.linear.x)
+            rospy.loginfo_throttle(0.1, "err: %f, vel: %f", self.marker_pose.position.y, self.setpoint.vel.linear.y)
+            rospy.loginfo_throttle(0.1, "err: %f, vel: %f\n", self.marker_pose.position.z, self.setpoint.vel.linear.z)
+
+            v_yaw = YawRate(self.marker_pose.orientation, 0.1)
+            self.setpoint.yaw_rate.orientation.x = v_yaw[0]
+            self.setpoint.yaw_rate.orientation.y = v_yaw[1]
+            self.setpoint.yaw_rate.orientation.z = v_yaw[2]
+            self.setpoint.yaw_rate.orientation.w = v_yaw[3]
+
+            self.setpoint.ego_pose = self.ego_pose
+            self.setpoint.target_pose = self.marker_pose
 
             landing_state.is_marker_detected = True
+            if self.switching_mod1 == True:
+                landing_state.is_vehicle_detected = True
 
         elif self.mode == "auto.land":
-            self.setpoint.is_global = True
+            self.setpoint.is_global = self.setpoints.is_global
+            rospy.loginfo_throttle(0.1, "[landing] auto.land setpoint: global\n")
 
             self.transition = 'done'
 
         elif self.mode == "standby":
-            self.setpoint.is_global = True
-            self.setpoint.geopose = self.setpoints.poses[-1].pose
+            self.setpoint.is_global = False
+            self.setpoint.is_setpoint_position = False
+            rospy.loginfo_throttle(0.1, "[landing] standby setpoint: setpoint_raw")
+
+            self.setpoint.vel.linear.x = XY_Vel(0.0, 0.15, 0.3)
+            self.setpoint.vel.linear.y = XY_Vel(0.0, 0.15, 0.3)
+            self.setpoint.vel.linear.z = Z_Vel(0.0, 0.045, 0.5)
+            rospy.loginfo_throttle(0.1, "err: 0.0, vel: %f", self.setpoint.vel.linear.x)
+            rospy.loginfo_throttle(0.1, "err: 0.0, vel: %f", self.setpoint.vel.linear.y)
+            rospy.loginfo_throttle(0.1, "err: 0.0, vel: %f\n", self.setpoint.vel.linear.z)
+
+            v_yaw = YawRateRad(0.0, 0.1)
+            self.setpoint.yaw_rate.orientation.x = v_yaw[0]
+            self.setpoint.yaw_rate.orientation.y = v_yaw[1]
+            self.setpoint.yaw_rate.orientation.z = v_yaw[2]
+            self.setpoint.yaw_rate.orientation.w = v_yaw[3]
+
+            self.setpoint.ego_pose = self.ego_pose
+            self.setpoint.target_pose = self.vehicle_pose
 
         self.setpoint.landing_state = landing_state
     
@@ -165,59 +215,34 @@ class Landing(smach.State, Base):
             
 
     def GPSSetpointUpdate(self):
+        rospy.loginfo_throttle(0.1, "### [landing] GPSSetpointUpdate ###")
+
         # Update setpoint
         landing_state = LandingState()
         landing_state.mode = self.mode
 
         if self.mode == "mode1":
+            # Update setpoint
             self.setpoint.is_global = True
-            self.setpoint.geopose = UpdateSetpointPose(self.setpoints.poses, self.ego_geopose, self.guidance_dist_th_m)
+            rospy.loginfo_throttle(0.1, "[landing] mode1 setpoint: global\n")
+
+            optimal_setpoint = GetOptimalSetpoint(self.setpoints, self.ego_geopose, self.ego_pose, 
+                                        self.roi_th_m, self.prev_global_nearest_sp_idx, self.prev_local_nearest_sp_idx)
+            self.setpoint.geopose = optimal_setpoint[0]
+            self.prev_global_nearest_sp_idx = optimal_setpoint[1]
+            self.setpoint.pose = optimal_setpoint[2]
+            self.prev_local_nearest_sp_idx = optimal_setpoint[3]
+            rospy.loginfo_throttle(0.1, "global sp: %f, %f, %f", self.setpoint.geopose.position.longitude, self.setpoint.geopose.position.latitude, self.setpoint.geopose.position.altitude)
+            rospy.loginfo_throttle(0.1, "global ego: %f, %f, %f", self.ego_geopose.position.longitude, self.ego_geopose.position.latitude, self.ego_geopose.position.altitude)
+
             
         elif self.mode == "auto.land":
             self.setpoint.is_global = True
+            rospy.loginfo_throttle(0.1, "[landing] auto.land setpoint: global\n")
 
             self.transition = 'done'
 
         self.setpoint.landing_state = landing_state
-
-
-    '''
-    Util functions
-    '''
-    def Z_Vel(self, target):
-        err = target
-        kp = 0.045
-        vel = err*kp
-
-        th = 0.3
-        if vel < -th:
-            vel = -th
-        elif vel > th:
-            vel = th
-        return vel
-
-    def XY_Vel(self, target):
-        err = target
-        kp = 0.15
-        vel = err*kp
-
-        th = 0.5
-        if vel < -th:
-            vel = -th
-        elif vel > th:
-            vel = th
-        return vel
-
-    def YawRate(self, q):
-        yaw_rad = euler_from_quaternion([q.x, q.y, q.z, q.w])[2]
-
-        err = yaw_rad
-        kp = 0.1
-
-        yaw_rate_rad = err*kp
-
-        vel = quaternion_from_euler(0.0, 0.0, yaw_rate_rad)
-        return vel
 
 
     '''
@@ -227,26 +252,15 @@ class Landing(smach.State, Base):
         if not msg.is_detected:
             return
 
-        self.is_detected = True
-
-        # find detected marker ids
-        detected_marker_ids = []
-        for aruco in msg.aruco_states:
-            if aruco.is_detected:
-                detected_marker_ids.append(aruco.id)
-
         # compare detected big markers with used big markers, when all big markers are detected, mode switching to mode2
         if not self.is_mod2_fixed:
-            self.switching_mod2 = True
-            for id in msg.used_big_markers_id:
-                if id not in detected_marker_ids:
-                    self.switching_mod2 = False
+            if msg.is_detected:
+                self.switching_mod2 = True
 
             if not self.switching_mod2:
                 return
             else:
                 self.is_mod2_fixed = True
-            
 
         # transform target pose from camera_link to base_link
         try:
@@ -256,7 +270,27 @@ class Landing(smach.State, Base):
             p.pose = msg.target_pose
             transformed_pose = tf2_geometry_msgs.do_transform_pose(p, transform)
 
-            self.target_pose = transformed_pose.pose
+            self.marker_pose = transformed_pose.pose
 
         except:
             rospy.logerr("[landing state] transform err")
+
+    def VehicleCB(self, msg):
+        if not msg.is_detected:
+            return
+
+        # mode change
+        self.switching_mod1 = True
+
+        # transform vehicle pixel from camera_link to base_link
+        try:
+            transform = self.tfBuffer.lookup_transform('base_link', msg.header.frame_id, rospy.Time())
+            p = PoseStamped()
+            p.header = msg.header
+            p.pose = msg.vehicle
+            transformed_pose = tf2_geometry_msgs.do_transform_pose(p, transform)
+
+            self.vehicle_pose = transformed_pose.pose
+
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+            rospy.logerr("[landing state] transform err. msg frame_id: %s", msg.header.frame_id)

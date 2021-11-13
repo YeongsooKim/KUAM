@@ -158,7 +158,6 @@ void Visualizer::GlobalPathCallback(const kuam_msgs::Waypoints::ConstPtr &wp_msg
     vector<geometry_msgs::Pose> poses;
     if (mission != prev_mission){
         m_global_path.insert(m_global_path.end(), waypoint.poses.begin(), waypoint.poses.end());
-
         // global path strip
         vector<geometry_msgs::Point> points;
         for (auto p : m_global_path){
