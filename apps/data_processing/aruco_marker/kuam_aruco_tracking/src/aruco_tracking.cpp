@@ -145,7 +145,7 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
     // Marker detection by using opencv
     Mat image;
     image = m_cv_ptr->image;
-    image = image(Rect(40, 40, 600, 440));
+    // image = image(Rect(40, 40, 600, 440));
     vector<int> ids;
     vector<vector<Point2f>> corners;
     vector<vector<Point2f>> rejected;
