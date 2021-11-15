@@ -20,6 +20,7 @@ bool HasEnding (std::string const &fullString, std::string const &ending);
 
 int frame_rate = 5;
 string path = "/home/ys/dataset/au_air/frame_20190905111947/*";
+string suffix = "";
 
 int main(int argc, char** argv)
 {
@@ -29,22 +30,23 @@ int main(int argc, char** argv)
 
     p_nh.getParam("frame_rate", frame_rate);
     p_nh.getParam("file_path", path);
+    p_nh.getParam("suffix", suffix);
 
     image_transport::ImageTransport it(nh);
     image_transport::Publisher pub = it.advertise("/camera/image", 1);
     
-    auto file_list = Glob(path);
-    vector<string> file_list_jpg;
-    for (auto file : file_list){
-        if (HasEnding(file, "png")){
-            file_list_jpg.push_back(file);
+    auto files = Glob(path);
+    vector<string> files_suffix;
+    for (auto file : files){
+        if (HasEnding(file, suffix)){
+            files_suffix.push_back(file);
         }
     }
 
     ros::Rate loop_rate(frame_rate);
 
     while(true){
-        for (auto file : file_list_jpg){
+        for (auto file : files_suffix){
             cout << file << endl;
 
             cv::Mat image = cv::imread(file, CV_LOAD_IMAGE_COLOR);
@@ -94,3 +96,4 @@ bool HasEnding (std::string const &fullString, std::string const &ending) {
         return false;
     }
 }
+
