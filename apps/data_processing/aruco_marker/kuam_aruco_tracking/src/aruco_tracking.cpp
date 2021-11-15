@@ -145,7 +145,6 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
     // Marker detection by using opencv
     Mat image;
     image = m_cv_ptr->image;
-    // image = image(Rect(40, 40, 600, 440));
     vector<int> ids;
     vector<vector<Point2f>> corners;
     vector<vector<Point2f>> rejected;
@@ -165,8 +164,8 @@ void ArucoTracking::ProcessTimerCallback(const ros::TimerEvent& event)
     }
 
 
-    // Noise filter
-    NoiseFilter(discrete_corners_vec, discrete_ids_vec);
+    // Marker state update
+    MarkerUpdate(discrete_corners_vec, discrete_ids_vec);
 
     bool is_empty = true;
     for (auto ids : discrete_ids_vec){
@@ -234,16 +233,8 @@ void ArucoTracking::SelectMarker(const vector<int> target_ids, vector<vector<Poi
     m_util_marker.EraseIdnCorner(discrete_ids, ids, corners);
 }
 
-void ArucoTracking::NoiseFilter(vector < vector<vector<Point2f>> >& corners_vec, vector < vector<int> >& ids_vec)
+void ArucoTracking::MarkerUpdate(vector < vector<vector<Point2f>> >& corners_vec, vector < vector<int> >& ids_vec)
 {
-    auto idx = 0;
-
-    for (auto i = 0; i < corners_vec.size(); i++){
-        vector<int> noises;
-        m_util_marker.GetNoiseIndexes(noises, ids_vec[i], m_targets);
-        m_util_marker.EraseIdnCorner(noises, ids_vec[i], corners_vec[i]);
-    }
-
     vector<int> detected_ids;
     vector<int> undetected_ids;
     for (auto i = 0; i < ids_vec.size(); i++){

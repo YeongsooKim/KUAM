@@ -127,7 +127,7 @@ private: // Function
 
     void SelectMarker(const vector<int> target_ids, vector<vector<Point2f>>& corners, vector<int>& ids,
                     vector<vector<Point2f>>& discrete_corners, vector<int>& discrete_ids);
-    void NoiseFilter(vector < vector<vector<Point2f>> >& corners, vector < vector<int> >& ids);
+    void MarkerUpdate(vector < vector<vector<Point2f>> >& corners, vector < vector<int> >& ids);
     bool GetTransformation(const vector<vector<Point2f>> corners, const vector<int> ids, const vector<Vec3d> rvecs, 
         const vector<Vec3d> tvecs, int2pose& int_to_pose, tf2_msgs::TFMessage& tf_msg_list);
     void TargetStateEstimating(const vector < vector<int> > ids_vec, int2pose int_to_pose);
