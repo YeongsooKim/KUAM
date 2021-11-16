@@ -115,6 +115,7 @@ arm 구조가 아닐때:
 ```
 cd ~/kuam_ws
 catkin clean
+catkin config --extend /home/$HOME/catkin_ws/devel
 catkin config -a \
             -DCMAKE_BUILD_TYPE=Release \
             -DPYTHON_EXECUTABLE=/usr/bin/python3 \
@@ -129,6 +130,7 @@ arm 구조일 때:
 ```
 cd ~/kuam_ws
 catkin clean
+catkin config --extend /home/$HOME/catkin_ws/devel
 catkin config -a \
             -DCMAKE_BUILD_TYPE=Release \
             -DPYTHON_EXECUTABLE=/usr/bin/python3 \
