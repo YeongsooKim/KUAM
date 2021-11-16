@@ -164,7 +164,10 @@ mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
 make -j4
 sudo make install
+
+echo "LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH" >> ~/.bashrc
 ```
+Explanation for adding /usr/local/lib to LD_LIBRARY_PATH: [link](https://stackoverflow.com/questions/1099981/why-cant-python-find-shared-objects-that-are-in-directories-in-sys-path)
 
 build PyKDL
 ```
