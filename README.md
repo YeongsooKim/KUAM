@@ -55,6 +55,7 @@ sudo systemctl daemon-reload
 
 ### 5. Password
 `sudo passwd root`
+`sudo passwd $USER`
 
 
 # python3 환경설정
