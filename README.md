@@ -1,3 +1,11 @@
+# Ubuntu Server Install
+##
+
+
+[ubuntu-18.04.5-preinstalled-server-arm64+raspi4.img](https://drive.google.com/file/d/1dEHVsipzj39RlXR2r8A3cujXgGlD0aHF/view?usp=sharing)
+
+
+
 # python3 환경설정
 ## Missing package install for python3
 ### 1. apt update & install python3 package 
