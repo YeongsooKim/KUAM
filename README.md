@@ -113,9 +113,11 @@ source devel/setup.bash
 ### 2. Convert kuam workspace settings
 arm 구조가 아닐때:
 ```
+# CMAKE_PREFIX_PATH 가 자동으로 잡히도록 reboot (부정확함)
+reboot
+
 cd ~/kuam_ws
 catkin clean
-catkin config --extend /home/$HOME/catkin_ws/devel
 catkin config -a \
             -DCMAKE_BUILD_TYPE=Release \
             -DPYTHON_EXECUTABLE=/usr/bin/python3 \
@@ -128,9 +130,11 @@ source devel/setup.bash
 arm 구조일 때:
 
 ```
+# CMAKE_PREFIX_PATH 가 자동으로 잡히도록 reboot (부정확함)
+reboot
+
 cd ~/kuam_ws
 catkin clean
-catkin config --extend /home/$HOME/catkin_ws/devel
 catkin config -a \
             -DCMAKE_BUILD_TYPE=Release \
             -DPYTHON_EXECUTABLE=/usr/bin/python3 \
@@ -168,14 +172,12 @@ cd /orocos_kinematics_dynamics/python_orocos_kdl
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DPYTHON_VERSION=3 ..
 make -j4
+sudo make install
+
+sudo cp /usr/local/lib/python3/dist-packages/PyKDL.so /usr/local/lib/python3.6/dist-packages/PyKDL.so
+echo "export PYTHONPATH=/usr/local/lib/python3.6/dist-packages/:$PYTHONPATH" >> ~/.bashrc
 ```
 
-copy PyKDL to python3.6/site-packages
-```
-cd /orocos_kinematics_dynamics/python_orocos_kdl/build/devel/lib/python3/dist-packages
-sudo cp PyKDL.so /usr/local/lib/python3.6/dist-packages
-export PYTHONPATH=/usr/local/lib/python3.6/dist-packages/:$PYTHONPATH
-```
 
 # Dependency
 ## No module named 'scipy'
