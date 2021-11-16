@@ -73,36 +73,40 @@ sudo apt install ros-melodic-desktop-full --fix-missing
 arm 구조가 아닐때:
 ```
 cd ~/catkin_ws
-source devel/setup.bash
 wstool init
 wstool set -y src/geometry2 --git https://github.com/ros/geometry2 -v melodic-devel
 wstool update src/geometry2
 wstool up
 rosdep install --from-paths src --ignore-src -y -r
 
-catkin build --cmake-args \
+catkin clean
+catkin config --extend /opt/ros/melodic
+catkin config -a \
             -DCMAKE_BUILD_TYPE=Release \
             -DPYTHON_EXECUTABLE=/usr/bin/python3 \
             -DPYTHON_INCLUDE_DIR=/usr/include/python3.6m \
             -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so
+catkin build
 source devel/setup.bash
 ```
 
 arm 구조일 때:
 ```
 cd ~/catkin_ws
-source devel/setup.bash
 wstool init
 wstool set -y src/geometry2 --git https://github.com/ros/geometry2 -v melodic-devel
 wstool update src/geometry2
 wstool up
 rosdep install --from-paths src --ignore-src -y -r
 
-catkin build --cmake-args \
+catkin clean
+catkin config --extend /opt/ros/melodic
+catkin config -a \
             -DCMAKE_BUILD_TYPE=Release \
             -DPYTHON_EXECUTABLE=/usr/bin/python3 \
             -DPYTHON_INCLUDE_DIR=/usr/include/python3.6m \
-            -DPYTHON_LIBRARY=/usr/lib/aarch64-linux-gnu/libpython3.6m.so
+            -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so
+catkin build
 source devel/setup.bash
 ```
 
@@ -110,26 +114,28 @@ source devel/setup.bash
 arm 구조가 아닐때:
 ```
 cd ~/kuam_ws
+catkin clean
 catkin config -a \
             -DCMAKE_BUILD_TYPE=Release \
             -DPYTHON_EXECUTABLE=/usr/bin/python3 \
             -DPYTHON_INCLUDE_DIR=/usr/include/python3.6m \
             -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so
-catkin clean
 catkin build
+source devel/setup.bash
 ```
 
 arm 구조일 때:
 
 ```
 cd ~/kuam_ws
+catkin clean
 catkin config -a \
             -DCMAKE_BUILD_TYPE=Release \
             -DPYTHON_EXECUTABLE=/usr/bin/python3 \
             -DPYTHON_INCLUDE_DIR=/usr/include/python3.6m \
             -DPYTHON_LIBRARY=/usr/lib/aarch64-linux-gnu/libpython3.6m.so
-catkin clean
 catkin build
+source devel/setup.bash
 ```
 
 ### 3. PyKDL update
