@@ -11,12 +11,12 @@ Download program and run the program
 ### 3. Raseberry Pi Imager를 사용하여 굽기
 [https://ubuntu.com/download/raspberry-pi](https://ubuntu.com/download/raspberry-pi)
 
-![raspberry_pi_imager_download](raspberry_pi_imager_download.png)
+![raspberry_pi_imager_download](https://github.com/YeongsooKim/KUAM/blob/YeongsooKim/img/raspberry_pi_imager_download.png)
 
 Implement Raspberry Pi Imager and choose operating system (download above link 'ubuntu-18.04.5-preinstalled-server-arm64+raspi4.img').
 Finally select SD Card and push the 'WRITE' button
 
-![raspberry_pi_imager](raspberry_pi_imager.png)
+![raspberry_pi_imager](https://github.com/YeongsooKim/KUAM/blob/YeongsooKim/img/raspberry_pi_imager.png)
 
 ### 4. Command Network Setting
 netplan 수정
@@ -50,7 +50,7 @@ sudo netplan apply
 sudo systemctl daemon-reload
 ```
 
-![command_network](command_network.png)
+![command_network](https://github.com/YeongsooKim/KUAM/blob/YeongsooKim/img/command_network.png)
 
 
 ### 5. Password
