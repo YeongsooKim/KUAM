@@ -69,6 +69,8 @@ sudo apt install ros-melodic-desktop-full --fix-missing
 
 ## Error: dynamic module does not define module export function (PyInit__tf2)
 ### 1. Upgrade geometry2 to python3
+
+arm 구조가 아닐때:
 ```
 cd ~/catkin_ws
 source devel/setup.bash
@@ -83,11 +85,29 @@ catkin build --cmake-args \
             -DPYTHON_EXECUTABLE=/usr/bin/python3 \
             -DPYTHON_INCLUDE_DIR=/usr/include/python3.6m \
             -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so
+source devel/setup.bash
+```
 
+arm 구조일 때:
+```
+cd ~/catkin_ws
+source devel/setup.bash
+wstool init
+wstool set -y src/geometry2 --git https://github.com/ros/geometry2 -v melodic-devel
+wstool update src/geometry2
+wstool up
+rosdep install --from-paths src --ignore-src -y -r
+
+catkin build --cmake-args \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPYTHON_EXECUTABLE=/usr/bin/python3 \
+            -DPYTHON_INCLUDE_DIR=/usr/include/python3.6m \
+            -DPYTHON_LIBRARY=/usr/lib/aarch64-linux-gnu/libpython3.6m.so
 source devel/setup.bash
 ```
 
 ### 2. Convert kuam workspace settings
+arm 구조가 아닐때:
 ```
 cd ~/kuam_ws
 catkin config -a \
@@ -95,6 +115,19 @@ catkin config -a \
             -DPYTHON_EXECUTABLE=/usr/bin/python3 \
             -DPYTHON_INCLUDE_DIR=/usr/include/python3.6m \
             -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so
+catkin clean
+catkin build
+```
+
+arm 구조일 때:
+
+```
+cd ~/kuam_ws
+catkin config -a \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPYTHON_EXECUTABLE=/usr/bin/python3 \
+            -DPYTHON_INCLUDE_DIR=/usr/include/python3.6m \
+            -DPYTHON_LIBRARY=/usr/lib/aarch64-linux-gnu/libpython3.6m.so
 catkin clean
 catkin build
 ```
