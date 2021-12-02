@@ -11,12 +11,12 @@ Download program and run the program
 ### 3. Raseberry Pi Imager를 사용하여 굽기
 [https://ubuntu.com/download/raspberry-pi](https://ubuntu.com/download/raspberry-pi)
 
-![raspberry_pi_imager_download](raspberry_pi_imager_download.png)
+![raspberry_pi_imager_download](https://github.com/YeongsooKim/KUAM/blob/YeongsooKim/img/raspberry_pi_imager_download.png)
 
 Implement Raspberry Pi Imager and choose operating system (download above link 'ubuntu-18.04.5-preinstalled-server-arm64+raspi4.img').
 Finally select SD Card and push the 'WRITE' button
 
-![raspberry_pi_imager](raspberry_pi_imager.png)
+![raspberry_pi_imager](https://github.com/YeongsooKim/KUAM/blob/YeongsooKim/img/raspberry_pi_imager.png)
 
 ### 4. Command Network Setting
 netplan 수정
@@ -50,11 +50,14 @@ sudo netplan apply
 sudo systemctl daemon-reload
 ```
 
-![command_network](command_network.png)
+![command_network](https://github.com/YeongsooKim/KUAM/blob/YeongsooKim/img/command_network.png)
 
 
 ### 5. Password
-`sudo passwd root`
+```
+sudo passwd root
+sudo passwd $USER
+```
 
 
 # python3 환경설정
@@ -69,34 +72,79 @@ sudo apt install ros-melodic-desktop-full --fix-missing
 
 ## Error: dynamic module does not define module export function (PyInit__tf2)
 ### 1. Upgrade geometry2 to python3
+
+arm 구조가 아닐때:
 ```
 cd ~/catkin_ws
-source devel/setup.bash
 wstool init
 wstool set -y src/geometry2 --git https://github.com/ros/geometry2 -v melodic-devel
 wstool update src/geometry2
 wstool up
 rosdep install --from-paths src --ignore-src -y -r
 
-catkin build --cmake-args \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DPYTHON_EXECUTABLE=/usr/bin/python3 \
-            -DPYTHON_INCLUDE_DIR=/usr/include/python3.6m \
-            -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so
-
-source devel/setup.bash
-```
-
-### 2. Convert kuam workspace settings
-```
-cd ~/kuam_ws
+catkin clean
+catkin config --extend /opt/ros/melodic
 catkin config -a \
             -DCMAKE_BUILD_TYPE=Release \
             -DPYTHON_EXECUTABLE=/usr/bin/python3 \
             -DPYTHON_INCLUDE_DIR=/usr/include/python3.6m \
             -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so
-catkin clean
 catkin build
+source devel/setup.bash
+```
+
+arm 구조일 때:
+```
+cd ~/catkin_ws
+wstool init
+wstool set -y src/geometry2 --git https://github.com/ros/geometry2 -v melodic-devel
+wstool update src/geometry2
+wstool up
+rosdep install --from-paths src --ignore-src -y -r
+
+catkin clean
+catkin config --extend /opt/ros/melodic
+catkin config -a \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPYTHON_EXECUTABLE=/usr/bin/python3 \
+            -DPYTHON_INCLUDE_DIR=/usr/include/python3.6m \
+            -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so
+catkin build
+source devel/setup.bash
+```
+
+### 2. Convert kuam workspace settings
+arm 구조가 아닐때:
+```
+# CMAKE_PREFIX_PATH 가 자동으로 잡히도록 reboot (부정확함)
+reboot
+
+cd ~/kuam_ws
+catkin clean
+catkin config -a \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPYTHON_EXECUTABLE=/usr/bin/python3 \
+            -DPYTHON_INCLUDE_DIR=/usr/include/python3.6m \
+            -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so
+catkin build
+source devel/setup.bash
+```
+
+arm 구조일 때:
+
+```
+# CMAKE_PREFIX_PATH 가 자동으로 잡히도록 reboot (부정확함)
+reboot
+
+cd ~/kuam_ws
+catkin clean
+catkin config -a \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPYTHON_EXECUTABLE=/usr/bin/python3 \
+            -DPYTHON_INCLUDE_DIR=/usr/include/python3.6m \
+            -DPYTHON_LIBRARY=/usr/lib/aarch64-linux-gnu/libpython3.6m.so
+catkin build
+source devel/setup.bash
 ```
 
 ### 3. PyKDL update
@@ -119,7 +167,10 @@ mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
 make -j4
 sudo make install
+
+echo "LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH" >> ~/.bashrc
 ```
+Explanation for adding /usr/local/lib to LD_LIBRARY_PATH: [link](https://stackoverflow.com/questions/1099981/why-cant-python-find-shared-objects-that-are-in-directories-in-sys-path)
 
 build PyKDL
 ```
@@ -127,14 +178,12 @@ cd /orocos_kinematics_dynamics/python_orocos_kdl
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DPYTHON_VERSION=3 ..
 make -j4
+sudo make install
+
+sudo cp /usr/local/lib/python3/dist-packages/PyKDL.so /usr/local/lib/python3.6/dist-packages/PyKDL.so
+echo "export PYTHONPATH=/usr/local/lib/python3.6/dist-packages/:$PYTHONPATH" >> ~/.bashrc
 ```
 
-copy PyKDL to python3.6/site-packages
-```
-cd /orocos_kinematics_dynamics/python_orocos_kdl/build/devel/lib/python3/dist-packages
-sudo cp PyKDL.so /usr/local/lib/python3.6/dist-packages
-export PYTHONPATH=/usr/local/lib/python3.6/dist-packages/:$PYTHONPATH
-```
 
 # Dependency
 ## No module named 'scipy'
