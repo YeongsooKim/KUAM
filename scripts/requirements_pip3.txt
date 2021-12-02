@@ -1,0 +1,5 @@
+pybind11
+Cython
+numpy
+yolov4
+opencv-python
