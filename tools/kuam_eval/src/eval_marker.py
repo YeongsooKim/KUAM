@@ -18,7 +18,7 @@ from kuam_msgs.msg import ArucoStates
 from geometry_msgs.msg import Pose
 
 MARGIN_RATIO = 0.3
-BUF_SIZE = 16
+BUF_SIZE = 256
 
 # Data structure
 class Val(Enum):
@@ -62,13 +62,14 @@ class Plotting:
         self.xlabel_set = [self.z_xlabel, self.zdft_xlabel]
         self.ylabel_set = [self.z_ylabel, self.zdft_ylabel]
         self.title_set = [self.z_title, self.zdft_title]
+        plt.rc('font', size=20)
         self.fig, self.axs = plt.subplots(1, 2, figsize=(7,4.5))
 
         # Init axes
         self.line = []
         for data_idx, ax in enumerate(self.axs):
             for sub_data_idx in range(len(self.list_set[data_idx])):
-                line, = ax.plot([], [], lw=0.5, color=self.color_set[data_idx][sub_data_idx], 
+                line, = ax.plot([], [], lw=1, color=self.color_set[data_idx][sub_data_idx], 
                                                 label=self.label_set[data_idx][sub_data_idx])
                 self.line.append(line)
 
@@ -83,7 +84,7 @@ class Plotting:
     ''' 
     def TargetStatesCB(self, msg):
         for aruco in msg.aruco_states:
-            if aruco.id != 0:
+            if aruco.id != 2:
                 continue
                 
             if not aruco.is_detected:
@@ -103,7 +104,8 @@ class Plotting:
             self.step += 1
 
             # Append vertical
-            self.z[Val.POSITION_Z.value].append(abs(aruco.pose.position.z - self.prev_z))
+            # self.z[Val.POSITION_Z.value].append(abs(aruco.pose.position.z - self.prev_z))
+            self.z[Val.POSITION_Z.value].append(abs(aruco.pose.position.z))
             self.zdft[Val.FREQUENCY_Z.value] = self.DFT(self.z[Val.POSITION_Z.value])
             self.prev_z = aruco.pose.position.z
 
@@ -206,5 +208,5 @@ if __name__ == "__main__":
     target_states_sub = rospy.Subscriber("/kuam/data/aruco_tracking/target_states", ArucoStates, plotting.TargetStatesCB)
 
     # Animation
-    ani = FuncAnimation(plotting.fig, plotting.UdatePlot)
+    ani = FuncAnimation(plotting.fig, plotting.UdatePlot, interval=500)
     plt.show(block=True) 

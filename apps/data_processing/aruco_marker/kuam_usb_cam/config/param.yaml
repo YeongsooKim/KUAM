@@ -4,6 +4,7 @@ usb_cam:
   # contrast: 0
   # saturation: 50
   # sharpness: 40
+  # hue: 40
 
   pixel_format: 'mjpeg'
   # pixel_format: 'yuyv'
@@ -12,12 +13,12 @@ usb_cam:
   focus: -1
 
   io_method: 'mmap'
-  image_width: 1920
-  image_height: 1080
+  # image_width: 1920
+  # image_height: 1080
   # image_width: 1280
   # image_height: 720
-  # image_width: 640
-  # image_height: 480
+  image_width: 640
+  image_height: 480
 
   framerate: 30
 

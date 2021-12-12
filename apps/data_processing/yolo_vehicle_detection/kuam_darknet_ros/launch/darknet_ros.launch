@@ -7,7 +7,7 @@
     <arg name="yolo_config_path"           default="$(find kuam_darknet_ros)/yolo_network_config/cfg"/>
 
     <!-- ROS and network parameter files -->
-    <arg name="network_param_file"         default="$(find kuam_darknet_ros)/config/yolov4_coco_carpk_pucpr+.yaml"/>
+    <arg name="network_param_file"         default="$(find kuam_darknet_ros)/config/yolov4-tiny_coco_carpk_pucpr+_delivery.yaml"/>
 
     <!-- nodes -->
     <include file="$(find darknet_ros)/launch/darknet_ros.launch" >

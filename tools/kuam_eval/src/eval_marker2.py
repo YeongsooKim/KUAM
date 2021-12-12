@@ -18,7 +18,7 @@ from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Pose
 
 MARGIN_RATIO = 0.3
-BUF_SIZE = 400
+BUF_SIZE = 1500
 
 # Data structure
 class Val(Enum):
@@ -49,42 +49,42 @@ class Plotting:
         self.m0 = [[]]
         self.m0_colors = ['black']
         self.m0_labels = ['frequency degree']
-        self.m0_xlabel = 'height [m]'
+        self.m0_xlabel = 'step []'
         self.m0_ylabel = 'frequency degree []'
         self.m0_title = "Marker 0 Freq Deg"
 
         self.m1 = [[]]
         self.m1_colors = ['black']
         self.m1_labels = ['frequency degree']
-        self.m1_xlabel = 'height [m]'
+        self.m1_xlabel = 'step []'
         self.m1_ylabel = 'frequency degree []'
         self.m1_title = "Marker 1 Freq Deg"
 
         self.m2 = [[]]
         self.m2_colors = ['black']
         self.m2_labels = ['frequency degree']
-        self.m2_xlabel = 'height [m]'
+        self.m2_xlabel = 'step []'
         self.m2_ylabel = 'frequency degree []'
         self.m2_title = "Marker 2 Freq Deg"
 
         self.m3 = [[]]
         self.m3_colors = ['black']
         self.m3_labels = ['frequency degree']
-        self.m3_xlabel = 'height [m]'
+        self.m3_xlabel = 'step []'
         self.m3_ylabel = 'frequency degree []'
         self.m3_title = "Marker 3 Freq Deg"
 
         self.m4 = [[]]
         self.m4_colors = ['black']
         self.m4_labels = ['frequency degree']
-        self.m4_xlabel = 'height [m]'
+        self.m4_xlabel = 'step []'
         self.m4_ylabel = 'frequency degree []'
         self.m4_title = "Marker 4 Freq Deg"
 
         self.m5 = [[]]
         self.m5_colors = ['black']
         self.m5_labels = ['frequency degree']
-        self.m5_xlabel = 'height [m]'
+        self.m5_xlabel = 'step []'
         self.m5_ylabel = 'frequency degree []'
         self.m5_title = "Marker 5 Freq Deg"
 
@@ -243,5 +243,5 @@ if __name__ == "__main__":
     local_pose_sub = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, plotting.EgoLocalPoseCB)
 
     # Animation
-    ani = FuncAnimation(plotting.fig, plotting.UdatePlot, interval=1000)
+    ani = FuncAnimation(plotting.fig, plotting.UdatePlot, interval=1500)
     plt.show(block=True) 
